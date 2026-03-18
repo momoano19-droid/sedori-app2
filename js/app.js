@@ -531,36 +531,45 @@ function showNearbyStores(){
       window.lastPos = { lat, lng };
 
       nearbyStoreIds = new Set();
-      let checkedCount = 0;
+      let distances = [];
 
       stores.forEach(s => {
-        if(typeof s.lat !== "number" || typeof s.lng !== "number") return;
-        checkedCount++;
+        const slat = (s.lat !== null && !isNaN(Number(s.lat))) ? Number(s.lat) : null;
+        const slng = (s.lng !== null && !isNaN(Number(s.lng))) ? Number(s.lng) : null;
 
-        const dist = distanceKm(lat, lng, s.lat, s.lng);
+        if(slat === null || slng === null) return;
+
+        const dist = distanceKm(lat, lng, slat, slng);
+
+        distances.push({
+          id: s.id,
+          dist: dist
+        });
+
         if(dist <= 3){
           nearbyStoreIds.add(s.id);
         }
       });
 
+      // ▼ ここが重要 ▼
+      if(nearbyStoreIds.size === 0){
+        // 3km以内が無い → 近い順TOP全部表示
+        distances.sort((a,b)=>a.dist - b.dist);
+
+        nearbyStoreIds = new Set(distances.map(d => d.id));
+
+        alert("3km以内なし → 近い順で表示します");
+      }else{
+        alert(`近くの店舗が ${nearbyStoreIds.size} 件見つかりました`);
+      }
+
       nearbyMode = true;
       render();
       renderMapMarkers();
-
-      if(checkedCount === 0){
-        alert("座標入りの店舗がありません。住所だけでは近く判定できないため、座標取得済みの店舗を登録してください。");
-        return;
-      }
-
-      if(nearbyStoreIds.size === 0){
-        alert("3km以内に店舗が見つかりませんでした。");
-      }else{
-        alert(`近くの店舗が ${nearbyStoreIds.size} 件見つかりました。`);
-      }
     },
     err => {
       console.error(err);
-      alert("現在地を取得できませんでした。Safariの位置情報設定を確認してください。");
+      alert("現在地を取得できませんでした");
     },
     { enableHighAccuracy: true, timeout: 10000 }
   );
