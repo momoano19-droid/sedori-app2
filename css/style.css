@@ -4,11 +4,17 @@
   --btn-radius: 10px;
 }
 
+html{
+  -webkit-text-size-adjust: 100%;
+}
+
 body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   padding:16px;
   background:#f4f6f8;
   color:#222;
+  max-width:1200px;
+  margin:0 auto;
 }
 
 h1{
@@ -22,12 +28,18 @@ h1{
   margin-bottom:12px;
 }
 
+img, iframe, video, canvas, svg{
+  max-width:100%;
+  height:auto;
+}
+
 input,select,button,textarea{
   padding:10px;
   margin:6px 0;
   width:100%;
   font-size:16px;
   box-sizing:border-box;
+  min-height:44px;
 }
 
 button{
@@ -37,6 +49,8 @@ button{
   border-radius:var(--btn-radius);
   padding:var(--btn-pad);
   font-size:var(--btn-font);
+  white-space:normal;
+  word-break:break-word;
 }
 
 button.secondary{
@@ -98,7 +112,7 @@ button.neutral{
 }
 
 .storeTitle{
-  font-size:22px;
+  font-size:20px;
   font-weight:900;
   line-height:1.2;
   margin-bottom:6px;
@@ -108,6 +122,7 @@ button.neutral{
 .meta{
   line-height:1.7;
   color:#222;
+  font-size:14px;
 }
 
 .badge{
@@ -175,6 +190,7 @@ button.neutral{
 .checkline input{
   width:auto;
   margin:0;
+  min-height:auto;
 }
 
 .checkline label{
@@ -200,6 +216,7 @@ button.neutral{
   padding:4px 10px !important;
   font-size:12px !important;
   line-height:1.2;
+  min-height:auto !important;
 }
 
 table{
@@ -239,7 +256,7 @@ tr:last-child td{
 
 #map{
   width:100%;
-  height:420px;
+  height:320px;
   border-radius:12px;
   overflow:hidden;
   border:1px solid #dfe6f2;
@@ -379,225 +396,223 @@ tr:last-child td{
 .legendBox.good{ background:#ffe58f; }
 .legendBox.big{ background:#ffb3b3; }
 
-/* ===== スマホ対応 ===== */
-html{
-  -webkit-text-size-adjust: 100%;
+/* 操作ボタン */
+.actionGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:12px;
 }
 
-body{
-  max-width: 1200px;
-  margin: 0 auto;
+.actionBtn{
+  width:100%;
+  height:64px;
+  border:none;
+  border-radius:14px;
+  font-size:16px;
+  font-weight:700;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  line-height:1.2;
+  margin:0;
+  min-height:64px;
 }
 
-img, iframe, video, canvas, svg{
-  max-width: 100%;
-  height: auto;
+.actionBtn small{
+  font-size:14px;
+  opacity:0.85;
 }
 
-input, select, button, textarea{
-  min-height: 44px;
+.visit{
+  background:#1677ff;
+  color:#fff;
 }
 
-button{
-  white-space: normal;
-  word-break: break-word;
+.visitMinus{
+  background:#5c6f8c;
+  color:#fff;
 }
 
-.storeTitle{
-  font-size: 20px;
+.items{
+  background:#13c2c2;
+  color:#fff;
 }
 
-.meta{
-  font-size: 14px;
-  line-height: 1.7;
+.itemsMinus{
+  background:#08979c;
+  color:#fff;
 }
 
-#map{
-  height: 320px;
+.profit{
+  background:#52c41a;
+  color:#fff;
 }
 
+.profitMinus{
+  background:#389e0d;
+  color:#fff;
+}
+
+.setting{
+  background:#e9eef6;
+  color:#333;
+}
+
+.delete{
+  background:#ff4d4f;
+  color:#fff;
+}
+
+/* スマホ対応 */
 @media (max-width: 900px){
   body{
-    padding: 12px;
+    padding:12px;
   }
 
   .row2{
-    flex-direction: column;
+    flex-direction:column;
   }
 
   .row2 > *{
-    width: 100%;
-    min-width: 0;
+    width:100%;
+    min-width:0;
   }
 
   .grid{
-    flex-direction: column;
+    flex-direction:column;
   }
 
   .smallbtn{
-    flex: 1 1 100%;
-    width: 100%;
+    flex:1 1 100%;
+    width:100%;
   }
 
   .kv{
-    gap: 6px;
+    gap:6px;
   }
 
   .pill{
-    font-size: 12px;
-    padding: 6px 10px;
+    font-size:12px;
+    padding:6px 10px;
   }
 
   .store{
-    padding: 10px;
+    padding:10px;
   }
 
   .storeTitle{
-    font-size: 18px;
-    line-height: 1.3;
+    font-size:18px;
+    line-height:1.3;
   }
 
   .addrRow{
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction:column;
+    align-items:stretch;
   }
 
   .addrCopyBtn{
-    width: 100% !important;
-    padding: 8px 10px !important;
-    font-size: 14px !important;
+    width:100% !important;
+    padding:8px 10px !important;
+    font-size:14px !important;
   }
 
   .calendarHead{
-    gap: 4px;
+    gap:4px;
   }
 
   .calendarGrid{
-    gap: 4px;
+    gap:4px;
   }
 
   .dayCell{
-    min-height: 64px;
-    padding: 6px 4px;
-    border-radius: 10px;
+    min-height:64px;
+    padding:6px 4px;
+    border-radius:10px;
   }
 
   .dayNum{
-    font-size: 14px;
+    font-size:14px;
   }
 
   .dayMini{
-    font-size: 10px;
-    line-height: 1.2;
+    font-size:10px;
+    line-height:1.2;
   }
 
   #map{
-    height: 260px;
+    height:260px;
   }
 
   table{
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
+    display:block;
+    overflow-x:auto;
+    white-space:nowrap;
   }
 }
 
 @media (max-width: 480px){
   body{
-    padding: 10px;
+    padding:10px;
   }
 
   h1{
-    font-size: 20px;
+    font-size:20px;
   }
 
   .sub{
-    font-size: 12px;
+    font-size:12px;
   }
 
   input, select, button, textarea{
-    font-size: 16px;
-    padding: 10px;
+    font-size:16px;
+    padding:10px;
   }
 
   .toolbar, .card, .store{
-    border-radius: 10px;
-    padding: 10px;
+    border-radius:10px;
+    padding:10px;
   }
 
   .storeTitle{
-    font-size: 17px;
+    font-size:17px;
   }
 
   .badge{
-    font-size: 11px;
-    padding: 2px 7px;
+    font-size:11px;
+    padding:2px 7px;
   }
 
   .pill{
-    font-size: 11px;
-    padding: 5px 9px;
+    font-size:11px;
+    padding:5px 9px;
   }
 
   .dayCell{
-    min-height: 58px;
+    min-height:58px;
   }
 
   .dayMini{
-    font-size: 9px;
+    font-size:9px;
   }
 
   #map{
-    height: 220px;
+    height:220px;
   }
-}
-.actionGrid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
-  margin-top:14px;
-}
 
-.actionBtn{
-  width:100%;
-  min-height:52px;
-  border:none;
-  border-radius:14px;
-  font-size:20px;
-  font-weight:700;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.actionBtn.plus{
-  background:#1677ff;
-  color:#fff;
-}
-
-.actionBtn.minus{
-  background:#ff4d4f;
-  color:#fff;
-}
-
-.actionBtn.setting{
-  background:#e9eef6;
-  color:#223;
-}
-
-.actionBtn.delete{
-  background:#ff4d4f;
-  color:#fff;
-}
-
-@media (max-width:480px){
   .actionGrid{
     gap:8px;
   }
 
   .actionBtn{
-    min-height:48px;
-    font-size:18px;
+    height:58px;
+    min-height:58px;
+    font-size:14px;
     border-radius:12px;
+  }
+
+  .actionBtn small{
+    font-size:12px;
   }
 }
