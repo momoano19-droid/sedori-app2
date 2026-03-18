@@ -1,4 +1,4 @@
-const CACHE_NAME = "sedori-v2";
+const CACHE_NAME = "sedori-v3 ";
 
 const ASSETS = [
   "./",
