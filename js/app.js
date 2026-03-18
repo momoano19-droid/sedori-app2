@@ -735,8 +735,11 @@ function buildTodayRoute(){
     </div>
   `;
 
-  alert(`今日のルートを作成しました（${route.length}店舗）`);
+  function buildTodayRoute(showAlert = false){
 }
+ if(showAlert){
+  alert(`今日のルートを作成しました（${route.length}店舗）`);
+} 
 
 function buildCardHeader(s, i, extraBadgesHtml=""){
   const addressBlock = (s.address || "").trim()
