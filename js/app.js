@@ -661,18 +661,81 @@ function buildTodayRoute(){
   const area = document.getElementById("todayPlanArea");
   if(!area) return;
 
-  const todays = stores.map((s,idx)=>({...s,_idx:idx})).filter(s=>s.today);
+  const todays = stores
+    .map((s, idx) => {
+      const m = getStoreAdvancedMetrics(logs, s);
+      let dist = null;
+      let score = null;
+
+      if(window.lastPos && typeof s.lat === "number" && typeof s.lng === "number"){
+        dist = distanceKm(window.lastPos.lat, window.lastPos.lng, s.lat, s.lng);
+        score = m.expected / (dist + 0.2);
+      }
+
+      return {
+        ...s,
+        _idx: idx,
+        _m: m,
+        _dist: dist,
+        _score: score
+      };
+    })
+    .filter(s => s.today);
+
   if(!todays.length){
     area.innerHTML = `<div class="gray">「今日行く」にチェックした店舗がありません。</div>`;
+    alert("「今日行く」にチェックした店舗がありません。");
     return;
   }
 
+  let route = [...todays];
+
+  // 現在地があれば近い順、なければ期待値順
+  if(window.lastPos){
+    route.sort((a,b)=>{
+      const ad = (typeof a._dist === "number") ? a._dist : Infinity;
+      const bd = (typeof b._dist === "number") ? b._dist : Infinity;
+      if(ad !== bd) return ad - bd;
+      return b._m.expected - a._m.expected;
+    });
+  } else {
+    route.sort((a,b)=>b._m.expected - a._m.expected);
+  }
+
   area.innerHTML = `
-    <div class="kv">
-      <div class="pill"><b>今日行く</b> ${todays.length}店舗</div>
+    <div class="card">
+      <div class="sectionTitle">🗓 今日のおすすめルート</div>
+      <div class="kv">
+        <div class="pill"><b>対象</b> ${route.length}店舗</div>
+        <div class="pill"><b>並び順</b> ${window.lastPos ? "近い順" : "期待値順"}</div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>順番</th>
+            <th>店舗</th>
+            <th>都道府県</th>
+            <th>距離</th>
+            <th>期待値</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${route.map((s, idx)=>`
+            <tr>
+              <td>${idx + 1}</td>
+              <td>${escapeHtml(s.name)}</td>
+              <td>${escapeHtml((s.pref || "").trim() || "未設定")}</td>
+              <td>${typeof s._dist === "number" ? `${s._dist.toFixed(1)}km` : "—"}</td>
+              <td>${Math.round(s._m.expected).toLocaleString()}円</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
     </div>
-    <div class="gray">ルート最適化の詳細処理はこの後 app.js に追加していけます。</div>
   `;
+
+  alert(`今日のルートを作成しました（${route.length}店舗）`);
 }
 
 function buildCardHeader(s, i, extraBadgesHtml=""){
