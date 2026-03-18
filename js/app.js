@@ -273,26 +273,50 @@ function optimizeRoute(){
 
 function showNearbyStores(){
   if(!navigator.geolocation){
-    alert("位置情報が使えません");
+    alert("この端末では位置情報が使えません。");
     return;
   }
+
   navigator.geolocation.getCurrentPosition(
-    pos=>{
+    pos => {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-      window.lastPos = {lat, lng};
+      window.lastPos = { lat, lng };
+
       nearbyStoreIds = new Set();
-      stores.forEach(s=>{
+
+      let checkedCount = 0;
+
+      stores.forEach(s => {
         if(typeof s.lat !== "number" || typeof s.lng !== "number") return;
+        checkedCount++;
+
         const dist = distanceKm(lat, lng, s.lat, s.lng);
-        if(dist <= 3) nearbyStoreIds.add(s.id);
+        if(dist <= 3){
+          nearbyStoreIds.add(s.id);
+        }
       });
+
       nearbyMode = true;
       render();
       renderMapMarkers();
+
+      if(checkedCount === 0){
+        alert("座標入りの店舗がありません。住所だけでは近く判定できないため、座標取得済みの店舗を登録してください。");
+        return;
+      }
+
+      if(nearbyStoreIds.size === 0){
+        alert("3km以内に店舗が見つかりませんでした。");
+      } else {
+        alert(`近くの店舗が ${nearbyStoreIds.size} 件見つかりました。`);
+      }
     },
-    ()=> alert("位置情報が取得できませんでした。"),
-    {enableHighAccuracy:true, timeout:10000}
+    err => {
+      console.error(err);
+      alert("現在地を取得できませんでした。Safariの位置情報設定を確認してください。");
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
   );
 }
 
