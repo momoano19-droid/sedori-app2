@@ -1,0 +1,553 @@
+:root{
+  --btn-font: 16px;
+  --btn-pad: 10px;
+  --btn-radius: 10px;
+}
+
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding:16px;
+  background:#f4f6f8;
+  color:#222;
+}
+
+h1{
+  font-size:22px;
+  margin:0 0 6px 0;
+}
+
+.sub{
+  color:#667;
+  font-size:13px;
+  margin-bottom:12px;
+}
+
+input,select,button,textarea{
+  padding:10px;
+  margin:6px 0;
+  width:100%;
+  font-size:16px;
+  box-sizing:border-box;
+}
+
+button{
+  background:#007aff;
+  color:#fff;
+  border:none;
+  border-radius:var(--btn-radius);
+  padding:var(--btn-pad);
+  font-size:var(--btn-font);
+}
+
+button.secondary{
+  background:#e9eef6;
+  color:#123;
+}
+
+button.danger{
+  background:#ff3b30;
+}
+
+button.neutral{
+  background:#34c759;
+}
+
+.toolbar,.card{
+  background:#fff;
+  border-radius:12px;
+  padding:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.06);
+  margin-top:12px;
+}
+
+.row2{
+  display:flex;
+  gap:8px;
+}
+
+.row2 > *{
+  flex:1;
+}
+
+.grid{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.smallbtn{
+  flex:1 1 calc(50% - 8px);
+}
+
+.gray{
+  color:#666;
+  font-size:14px;
+}
+
+.mini{
+  color:#667;
+  font-size:12px;
+}
+
+.store{
+  background:#fff;
+  padding:12px;
+  border-radius:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.08);
+  margin-top:12px;
+}
+
+.storeTitle{
+  font-size:22px;
+  font-weight:900;
+  line-height:1.2;
+  margin-bottom:6px;
+  color:#111;
+}
+
+.meta{
+  line-height:1.7;
+  color:#222;
+}
+
+.badge{
+  display:inline-block;
+  padding:2px 8px;
+  border-radius:999px;
+  background:#eef2f7;
+  color:#334;
+  font-size:12px;
+  margin:4px 6px 0 0;
+}
+
+.badge.addr{
+  background:#fff0d6;
+  color:#6a3d00;
+  border:1px solid #ffd59a;
+}
+
+.badge.near{
+  background:#e6ffed;
+  color:#126b2e;
+  border:1px solid #a7efb5;
+}
+
+.badge.noCoord{
+  background:#fff1f0;
+  color:#a8071a;
+  border:1px solid #ffa39e;
+}
+
+.badge.map{
+  background:#eef6ff;
+  color:#0b4ea2;
+  border:1px solid #b7d4ff;
+}
+
+.kv{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:8px;
+}
+
+.pill{
+  background:#f0f3f8;
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:13px;
+}
+
+.sectionTitle{
+  font-weight:800;
+  color:#223;
+  margin-top:18px;
+  margin-bottom:8px;
+}
+
+.checkline{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:8px;
+}
+
+.checkline input{
+  width:auto;
+  margin:0;
+}
+
+.checkline label{
+  font-size:14px;
+  color:#223;
+}
+
+.addrRow{
+  display:flex;
+  gap:8px;
+  align-items:flex-start;
+  margin-top:4px;
+}
+
+.addrText{
+  flex:1;
+  min-width:0;
+}
+
+.addrCopyBtn{
+  width:auto !important;
+  flex:0 0 auto;
+  padding:4px 10px !important;
+  font-size:12px !important;
+  line-height:1.2;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  background:#fff;
+  border-radius:12px;
+  overflow:hidden;
+  box-shadow:0 2px 8px rgba(0,0,0,0.06);
+  margin-top:10px;
+}
+
+th,td{
+  padding:10px;
+  border-bottom:1px solid #eef2f7;
+  text-align:left;
+  font-size:14px;
+}
+
+th{
+  background:#f7f9fc;
+  color:#223;
+}
+
+tr:last-child td{
+  border-bottom:none;
+}
+
+.mapWrap{
+  display:none;
+  margin-top:12px;
+}
+
+.mapWrap.show{
+  display:block;
+}
+
+#map{
+  width:100%;
+  height:420px;
+  border-radius:12px;
+  overflow:hidden;
+  border:1px solid #dfe6f2;
+}
+
+.mapLegend{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+
+.legendItem{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:13px;
+  color:#334;
+}
+
+.legendDot{
+  width:14px;
+  height:14px;
+  border-radius:50%;
+  border:2px solid #fff;
+  box-shadow:0 0 0 1px rgba(0,0,0,0.15);
+}
+
+.legendDot.red{background:#ff4d4f;}
+.legendDot.orange{background:#fa8c16;}
+.legendDot.yellow{background:#fadb14;}
+.legendDot.blue{background:#1677ff;}
+
+.marker-pin{
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  border:3px solid #fff;
+  box-shadow:0 2px 8px rgba(0,0,0,0.25);
+}
+
+.marker-red{background:#ff4d4f;}
+.marker-orange{background:#fa8c16;}
+.marker-yellow{background:#fadb14;}
+.marker-blue{background:#1677ff;}
+
+.leaflet-div-icon{
+  background:transparent;
+  border:none;
+}
+
+.calendarHead{
+  display:grid;
+  grid-template-columns:repeat(7, 1fr);
+  gap:6px;
+  margin-bottom:6px;
+}
+
+.calendarHead div{
+  text-align:center;
+  font-size:12px;
+  color:#667;
+  font-weight:700;
+}
+
+.calendarGrid{
+  display:grid;
+  grid-template-columns:repeat(7, 1fr);
+  gap:6px;
+}
+
+.dayCell{
+  min-height:62px;
+  border:none;
+  border-radius:12px;
+  background:#ffffff;
+  color:#223;
+  padding:8px 6px;
+  text-align:left;
+  font-size:14px;
+  position:relative;
+  box-shadow:0 1px 2px rgba(0,0,0,0.04);
+}
+
+.dayCell.empty{
+  background:transparent;
+  box-shadow:none;
+}
+
+.dayCell.hasData{
+  background:#fff8db;
+}
+
+.dayCell.good{
+  background:#ffe58f;
+}
+
+.dayCell.big{
+  background:#ffb3b3;
+}
+
+.dayCell.selected{
+  outline:2px solid #007aff;
+  outline-offset:0;
+}
+
+.dayNum{
+  font-weight:800;
+  font-size:15px;
+  line-height:1;
+}
+
+.dayMini{
+  margin-top:6px;
+  font-size:10px;
+  color:#556;
+  line-height:1.25;
+  word-break:break-word;
+}
+
+.legend{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+
+.legendBox{
+  width:14px;
+  height:14px;
+  border-radius:4px;
+  background:#ffffff;
+  border:1px solid #dde5f0;
+}
+
+.legendBox.hasData{ background:#fff8db; }
+.legendBox.good{ background:#ffe58f; }
+.legendBox.big{ background:#ffb3b3; }
+
+/* ===== スマホ対応 ===== */
+html{
+  -webkit-text-size-adjust: 100%;
+}
+
+body{
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+img, iframe, video, canvas, svg{
+  max-width: 100%;
+  height: auto;
+}
+
+input, select, button, textarea{
+  min-height: 44px;
+}
+
+button{
+  white-space: normal;
+  word-break: break-word;
+}
+
+.storeTitle{
+  font-size: 20px;
+}
+
+.meta{
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+#map{
+  height: 320px;
+}
+
+@media (max-width: 900px){
+  body{
+    padding: 12px;
+  }
+
+  .row2{
+    flex-direction: column;
+  }
+
+  .row2 > *{
+    width: 100%;
+    min-width: 0;
+  }
+
+  .grid{
+    flex-direction: column;
+  }
+
+  .smallbtn{
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .kv{
+    gap: 6px;
+  }
+
+  .pill{
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  .store{
+    padding: 10px;
+  }
+
+  .storeTitle{
+    font-size: 18px;
+    line-height: 1.3;
+  }
+
+  .addrRow{
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .addrCopyBtn{
+    width: 100% !important;
+    padding: 8px 10px !important;
+    font-size: 14px !important;
+  }
+
+  .calendarHead{
+    gap: 4px;
+  }
+
+  .calendarGrid{
+    gap: 4px;
+  }
+
+  .dayCell{
+    min-height: 64px;
+    padding: 6px 4px;
+    border-radius: 10px;
+  }
+
+  .dayNum{
+    font-size: 14px;
+  }
+
+  .dayMini{
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  #map{
+    height: 260px;
+  }
+
+  table{
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 480px){
+  body{
+    padding: 10px;
+  }
+
+  h1{
+    font-size: 20px;
+  }
+
+  .sub{
+    font-size: 12px;
+  }
+
+  input, select, button, textarea{
+    font-size: 16px;
+    padding: 10px;
+  }
+
+  .toolbar, .card, .store{
+    border-radius: 10px;
+    padding: 10px;
+  }
+
+  .storeTitle{
+    font-size: 17px;
+  }
+
+  .badge{
+    font-size: 11px;
+    padding: 2px 7px;
+  }
+
+  .pill{
+    font-size: 11px;
+    padding: 5px 9px;
+  }
+
+  .dayCell{
+    min-height: 58px;
+  }
+
+  .dayMini{
+    font-size: 9px;
+  }
+
+  #map{
+    height: 220px;
+  }
+}

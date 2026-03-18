@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>分析画面 | せどりGPS管理PRO</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <h1>📊 分析画面</h1>
+  <div class="sub">月次サマリー・カレンダー・日別詳細・曜日分析・ランキングを見る画面です。</div>
+
+  <div class="toolbar">
+    <div class="row2">
+      <button onclick="location.href='index.html'">🏠 店舗管理へ戻る</button>
+      <button class="secondary" onclick="renderReport()">更新</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="row2">
+      <select id="monthSelect" onchange="selectedDate=''; renderReport()"></select>
+      <select id="prefFilter" onchange="selectedDate=''; renderReport()"></select>
+    </div>
+  </div>
+
+  <div id="reportArea"></div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/report.js"></script>
+</body>
+</html>
