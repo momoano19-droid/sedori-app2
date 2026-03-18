@@ -11,8 +11,8 @@ let stores = loadStores().map(s => ({
   items: Number(s.items ?? 0),
   profit: Number(s.profit ?? 0),
   mapUrl: (s.mapUrl ?? "").toString().trim(),
-  lat: (typeof s.lat === "number") ? s.lat : null,
-  lng: (typeof s.lng === "number") ? s.lng : null,
+  lat: (s.lat !== null && s.lat !== "" && !isNaN(Number(s.lat))) ? Number(s.lat) : null,
+  lng: (s.lng !== null && s.lng !== "" && !isNaN(Number(s.lng))) ? Number(s.lng) : null,
   defaultCategory: (s.defaultCategory ?? "").toString().trim(),
   categoryCounts: (s.categoryCounts && typeof s.categoryCounts === "object") ? s.categoryCounts : {},
   quickCategories: Array.isArray(s.quickCategories) ? s.quickCategories.filter(Boolean).slice(0, QUICK_LIMIT) : [],
@@ -91,8 +91,8 @@ function restoreAutoBackup(){
       items: Number(s.items ?? 0),
       profit: Number(s.profit ?? 0),
       mapUrl: (s.mapUrl ?? "").toString().trim(),
-      lat: (typeof s.lat === "number") ? s.lat : null,
-      lng: (typeof s.lng === "number") ? s.lng : null,
+      lat: (s.lat !== null && s.lat !== "" && !isNaN(Number(s.lat))) ? Number(s.lat) : null,
+      lng: (s.lng !== null && s.lng !== "" && !isNaN(Number(s.lng))) ? Number(s.lng) : null,
       defaultCategory: (s.defaultCategory ?? "").toString().trim(),
       categoryCounts: (s.categoryCounts && typeof s.categoryCounts === "object") ? s.categoryCounts : {},
       quickCategories: Array.isArray(s.quickCategories) ? s.quickCategories.filter(Boolean).slice(0, QUICK_LIMIT) : [],
@@ -201,8 +201,8 @@ function importBackup(event){
         items: Number(s.items ?? 0),
         profit: Number(s.profit ?? 0),
         mapUrl: (s.mapUrl ?? "").toString().trim(),
-        lat: (typeof s.lat === "number") ? s.lat : null,
-        lng: (typeof s.lng === "number") ? s.lng : null,
+        lat: (s.lat !== null && s.lat !== "" && !isNaN(Number(s.lat))) ? Number(s.lat) : null,
+        lng: (s.lng !== null && s.lng !== "" && !isNaN(Number(s.lng))) ? Number(s.lng) : null,
         defaultCategory: (s.defaultCategory ?? "").toString().trim(),
         categoryCounts: (s.categoryCounts && typeof s.categoryCounts === "object") ? s.categoryCounts : {},
         quickCategories: Array.isArray(s.quickCategories) ? s.quickCategories.filter(Boolean).slice(0, QUICK_LIMIT) : [],
@@ -557,7 +557,6 @@ function showNearbyStores(){
       }
 
       if(nearbyStoreIds.size === 0){
-        // 3km以内が無い時は、近い順で全件対象
         distances.sort((a,b)=>a.dist - b.dist);
         nearbyStoreIds = new Set(distances.map(d => d.id));
         alert(`3km以内の店舗はありません。最寄りは ${distances[0].dist.toFixed(1)}km です。近い順で表示します。`);
@@ -572,6 +571,58 @@ function showNearbyStores(){
     err => {
       console.error(err);
       alert("現在地を取得できませんでした。Safariの位置情報設定を確認してください。");
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+function autoDetectNearbyStores(silent = true){
+  if(!navigator.geolocation) return;
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      window.lastPos = { lat, lng };
+
+      nearbyStoreIds = new Set();
+      let distances = [];
+
+      stores.forEach(s => {
+        const slat = (s.lat !== null && s.lat !== "" && !isNaN(Number(s.lat))) ? Number(s.lat) : null;
+        const slng = (s.lng !== null && s.lng !== "" && !isNaN(Number(s.lng))) ? Number(s.lng) : null;
+
+        if(slat === null || slng === null) return;
+
+        const dist = distanceKm(lat, lng, slat, slng);
+
+        distances.push({
+          id: s.id,
+          dist: dist
+        });
+
+        if(dist <= 3){
+          nearbyStoreIds.add(s.id);
+        }
+      });
+
+      if(distances.length === 0) return;
+
+      if(nearbyStoreIds.size === 0){
+        distances.sort((a,b)=>a.dist - b.dist);
+        nearbyStoreIds = new Set(distances.map(d => d.id));
+      }
+
+      nearbyMode = true;
+      render();
+      renderMapMarkers();
+
+      if(!silent){
+        alert("近い店舗を自動表示しました。");
+      }
+    },
+    err => {
+      console.error(err);
     },
     { enableHighAccuracy: true, timeout: 10000 }
   );
@@ -675,14 +726,14 @@ function renderStoreCard(s, forceNearbyBadge){
       </div>
 
       <div class="actionGrid">
-        <button class="actionBtn plus" onclick="visit(${i})">訪問＋</button>
-        <button class="actionBtn minus" onclick="visitMinus(${i})">訪問−</button>
+        <button class="actionBtn visit" onclick="visit(${i})">訪問<br><small>＋</small></button>
+        <button class="actionBtn visitMinus" onclick="visitMinus(${i})">訪問<br><small>−</small></button>
 
-        <button class="actionBtn plus" onclick="itemsPlus(${i})">個数＋</button>
-        <button class="actionBtn minus" onclick="itemsMinus(${i})">個数−</button>
+        <button class="actionBtn items" onclick="itemsPlus(${i})">個数<br><small>＋</small></button>
+        <button class="actionBtn itemsMinus" onclick="itemsMinus(${i})">個数<br><small>−</small></button>
 
-        <button class="actionBtn plus" onclick="profitPlus(${i})">利益＋</button>
-        <button class="actionBtn minus" onclick="profitMinus(${i})">利益−</button>
+        <button class="actionBtn profit" onclick="profitPlus(${i})">利益<br><small>＋</small></button>
+        <button class="actionBtn profitMinus" onclick="profitMinus(${i})">利益<br><small>−</small></button>
 
         <button class="actionBtn setting" onclick="editStore(${i})">設定</button>
         <button class="actionBtn delete" onclick="deleteStore(${i})">削除</button>
@@ -781,24 +832,23 @@ function render(){
   }
 
   view.sort((a,b)=>{
-  // 近くの店舗モード中は、最優先で距離順
-  if(nearbyMode){
-    const ad = (typeof a._dist === "number") ? a._dist : Infinity;
-    const bd = (typeof b._dist === "number") ? b._dist : Infinity;
-    if(ad !== bd) return ad - bd;
-  }
+    if(nearbyMode){
+      const ad = (typeof a._dist === "number") ? a._dist : Infinity;
+      const bd = (typeof b._dist === "number") ? b._dist : Infinity;
+      if(ad !== bd) return ad - bd;
+    }
 
-  if(sortType === "route"){
-    const as = (typeof a._score === "number") ? a._score : -Infinity;
-    const bs = (typeof b._score === "number") ? b._score : -Infinity;
-    if(bs !== as) return bs - as;
+    if(sortType === "route"){
+      const as = (typeof a._score === "number") ? a._score : -Infinity;
+      const bs = (typeof b._score === "number") ? b._score : -Infinity;
+      if(bs !== as) return bs - as;
+      return b._m.expected - a._m.expected;
+    }
+    if(sortType === "rate") return b._m.rate - a._m.rate;
+    if(sortType === "avgProfit") return b._m.avgProfit - a._m.avgProfit;
+    if(sortType === "visits") return b._m.visits - a._m.visits;
     return b._m.expected - a._m.expected;
-  }
-  if(sortType === "rate") return b._m.rate - a._m.rate;
-  if(sortType === "avgProfit") return b._m.avgProfit - a._m.avgProfit;
-  if(sortType === "visits") return b._m.visits - a._m.visits;
-  return b._m.expected - a._m.expected;
-});
+  });
 
   const list = document.getElementById("storeList");
   if(!list) return;
@@ -817,3 +867,8 @@ function render(){
 }
 
 render();
+
+// 起動時に近い店舗を自動で上に出す
+setTimeout(() => {
+  autoDetectNearbyStores(true);
+}, 800);
