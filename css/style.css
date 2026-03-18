@@ -551,3 +551,53 @@ button{
     height: 220px;
   }
 }
+.actionGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:14px;
+}
+
+.actionBtn{
+  width:100%;
+  min-height:52px;
+  border:none;
+  border-radius:14px;
+  font-size:20px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.actionBtn.plus{
+  background:#1677ff;
+  color:#fff;
+}
+
+.actionBtn.minus{
+  background:#ff4d4f;
+  color:#fff;
+}
+
+.actionBtn.setting{
+  background:#e9eef6;
+  color:#223;
+}
+
+.actionBtn.delete{
+  background:#ff4d4f;
+  color:#fff;
+}
+
+@media (max-width:480px){
+  .actionGrid{
+    gap:8px;
+  }
+
+  .actionBtn{
+    min-height:48px;
+    font-size:18px;
+    border-radius:12px;
+  }
+}
