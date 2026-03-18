@@ -31,9 +31,9 @@ function saveAutoBackup(){
     const backup = {
       version: 1,
       savedAt: new Date().toISOString(),
-      stores: stores,
-      logs: logs,
-      layout: layout
+      stores,
+      logs,
+      layout
     };
     localStorage.setItem(KEY_AUTO_BACKUP, JSON.stringify(backup));
   }catch(e){
@@ -139,9 +139,9 @@ function exportBackup(){
     const backup = {
       version: 1,
       exportedAt: new Date().toISOString(),
-      stores: stores,
-      logs: logs,
-      layout: layout
+      stores,
+      logs,
+      layout
     };
 
     const json = JSON.stringify(backup, null, 2);
@@ -158,7 +158,7 @@ function exportBackup(){
     a.click();
     a.remove();
 
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     alert("バックアップを書き出しました。");
   }catch(e){
     console.error(e);
@@ -249,7 +249,8 @@ function buildPrefFilter(){
   if(!sel) return;
 
   const current = sel.value || "__ALL__";
-  sel.innerHTML = `<option value="__ALL__">全て（都道府県ごと表示）</option>` +
+  sel.innerHTML =
+    `<option value="__ALL__">全て（都道府県ごと表示）</option>` +
     prefs.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("");
 
   if(["__ALL__", ...prefs].includes(current)) sel.value = current;
@@ -267,7 +268,8 @@ function buildTodayPrefSelect(){
   const prefs = Array.from(set).sort((a,b)=>a.localeCompare(b,'ja'));
   const cur = sel.value || "__ALL__";
 
-  sel.innerHTML = `<option value="__ALL__">（全都道府県）</option>` +
+  sel.innerHTML =
+    `<option value="__ALL__">（全都道府県）</option>` +
     prefs.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("");
 
   if(["__ALL__", ...prefs].includes(cur)) sel.value = cur;
@@ -277,7 +279,13 @@ function matchesQuery(s, q){
   if(!q) return true;
   const cats = Object.keys(s.categoryCounts || {}).join(" ");
   const qcats = (s.quickCategories || []).join(" ");
-  const t = (s.name + " " + (s.pref || "") + " " + (s.address || "") + " " + (s.defaultCategory || "") + " " + qcats + " " + cats).toLowerCase();
+  const t = (
+    (s.name || "") + " " +
+    (s.pref || "") + " " +
+    (s.address || "") + " " +
+    (s.defaultCategory || "") + " " +
+    qcats + " " + cats
+  ).toLowerCase();
   return t.includes(q.toLowerCase());
 }
 
@@ -332,11 +340,15 @@ function openMapSearchFromAddress(){
 }
 
 async function addStore(){
-  const name = document.getElementById("storeName")?.value.trim();
-  const pref = document.getElementById("prefName")?.value.trim() || "";
-  const address = document.getElementById("address")?.value.trim() || "";
-  const mapUrl = document.getElementById("mapUrl")?.value.trim() || "";
-  if(!name) return;
+  const name = (document.getElementById("storeName")?.value || "").trim();
+  const pref = (document.getElementById("prefName")?.value || "").trim();
+  const address = (document.getElementById("address")?.value || "").trim();
+  const mapUrl = (document.getElementById("mapUrl")?.value || "").trim();
+
+  if(!name){
+    alert("店舗名を入れてください。");
+    return;
+  }
 
   stores.push({
     id: ensureId(),
@@ -368,6 +380,8 @@ async function addStore(){
 
 function editStore(i){
   const s = stores[i];
+  if(!s) return;
+
   const name = prompt("店舗名", s.name || "");
   if(name === null) return;
   s.name = String(name).trim() || s.name;
@@ -383,6 +397,7 @@ function editStore(i){
 }
 
 function deleteStore(i){
+  if(!stores[i]) return;
   if(!confirm(`「${stores[i].name}」を削除しますか？`)) return;
   stores.splice(i,1);
   saveAll();
@@ -391,6 +406,8 @@ function deleteStore(i){
 
 function navigateToStore(i){
   const s = stores[i];
+  if(!s) return;
+
   if(typeof s.lat === "number" && typeof s.lng === "number"){
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(s.lat + "," + s.lng)}&travelmode=driving`, "_blank");
     return;
@@ -404,6 +421,8 @@ function navigateToStore(i){
 
 function visit(i){
   const s = stores[i];
+  if(!s) return;
+
   s.visits++;
   s.lastVisitDate = tokyoDateStr();
   addLog(logs, s.id, "visit", 1);
@@ -413,6 +432,8 @@ function visit(i){
 
 function visitMinus(i){
   const s = stores[i];
+  if(!s) return;
+
   s.visits = clampNonNeg(s.visits - 1);
   if(s.buyDays > s.visits) s.buyDays = s.visits;
   addLog(logs, s.id, "visit", -1);
@@ -422,11 +443,16 @@ function visitMinus(i){
 
 function itemsPlus(i){
   const s = stores[i];
+  if(!s) return;
+
   const n = clampNonNeg(parseInt(prompt("追加する個数は？", "1"), 10));
   if(!n) return;
+
   s.items += n;
   s.buyDays++;
   if(s.buyDays > s.visits) s.visits = s.buyDays;
+  s.lastVisitDate = tokyoDateStr();
+
   addLog(logs, s.id, "success", 1);
   addLog(logs, s.id, "items", n);
   saveAll();
@@ -435,8 +461,11 @@ function itemsPlus(i){
 
 function itemsMinus(i){
   const s = stores[i];
+  if(!s) return;
+
   const n = clampNonNeg(parseInt(prompt("減らす個数は？", "1"), 10));
   if(!n) return;
+
   s.items = clampNonNeg(s.items - n);
   addLog(logs, s.id, "items", -n);
   saveAll();
@@ -445,8 +474,11 @@ function itemsMinus(i){
 
 function profitPlus(i){
   const s = stores[i];
+  if(!s) return;
+
   const d = clampNonNeg(parseInt(prompt("追加する利益（円）は？", "1000"), 10));
   if(!d) return;
+
   s.profit += d;
   addLog(logs, s.id, "profit", d);
   saveAll();
@@ -455,8 +487,11 @@ function profitPlus(i){
 
 function profitMinus(i){
   const s = stores[i];
+  if(!s) return;
+
   const d = clampNonNeg(parseInt(prompt("利益減算（円）は？", "1000"), 10));
   if(!d) return;
+
   s.profit = clampNonNeg(s.profit - d);
   addLog(logs, s.id, "profit", -d);
   saveAll();
@@ -468,6 +503,7 @@ function optimizeRoute(){
     alert("この端末では位置情報が使えません。");
     return;
   }
+
   navigator.geolocation.getCurrentPosition(
     pos=>{
       window.lastPos = {lat: pos.coords.latitude, lng: pos.coords.longitude};
@@ -518,7 +554,7 @@ function showNearbyStores(){
 
       if(nearbyStoreIds.size === 0){
         alert("3km以内に店舗が見つかりませんでした。");
-      } else {
+      }else{
         alert(`近くの店舗が ${nearbyStoreIds.size} 件見つかりました。`);
       }
     },
@@ -531,6 +567,7 @@ function showNearbyStores(){
 }
 
 function toggleToday(i, checked){
+  if(!stores[i]) return;
   stores[i].today = !!checked;
   saveAll();
   renderTodayPlan();
@@ -552,6 +589,7 @@ function todayBulkOn(){
   const sel = document.getElementById("todayPrefSelect");
   bulkSetTodayByPref(sel ? sel.value : "__ALL__", true);
 }
+
 function todayBulkOff(){
   const sel = document.getElementById("todayPrefSelect");
   bulkSetTodayByPref(sel ? sel.value : "__ALL__", false);
@@ -566,6 +604,7 @@ function buildTodayRoute(){
     area.innerHTML = `<div class="gray">「今日行く」にチェックした店舗がありません。</div>`;
     return;
   }
+
   area.innerHTML = `
     <div class="kv">
       <div class="pill"><b>今日行く</b> ${todays.length}店舗</div>
@@ -585,6 +624,7 @@ function buildCardHeader(s, i, extraBadgesHtml=""){
       <span class="badge">${escapeHtml((s.pref || "").trim() || "未設定")}</span>
       ${(s.address || "").trim() ? `<span class="badge addr">📍 住所あり</span>` : ""}
       ${!(typeof s.lat === "number" && typeof s.lng === "number") ? `<span class="badge noCoord">座標なし</span>` : `<span class="badge map">MAP表示可</span>`}
+      ${(s.defaultCategory || "").trim() ? `<span class="badge">カテゴリ:${escapeHtml(s.defaultCategory.trim())}</span>` : ""}
       ${s.lastVisitDate ? `<span class="badge">最終訪問:${escapeHtml(s.lastVisitDate)}</span>` : ""}
       ${s.today ? `<span class="badge">今日行く</span>` : ""}
       ${extraBadgesHtml}
@@ -641,7 +681,7 @@ function renderStoreCard(s, forceNearbyBadge){
 }
 
 function renderMapMarkers(){
-  if(!mapInitialized) return;
+  if(typeof mapInitialized === "undefined" || !mapInitialized) return;
   clearMapMarkers();
 
   const q = (document.getElementById("q")?.value || "").trim();
@@ -676,8 +716,11 @@ function renderMapMarkers(){
     bounds.push([s.lat, s.lng]);
   });
 
-  if(bounds.length === 1) map.setView(bounds[0], 15);
-  else map.fitBounds(bounds, { padding:[30,30] });
+  if(bounds.length === 1){
+    map.setView(bounds[0], 15);
+  }else{
+    map.fitBounds(bounds, { padding:[30,30] });
+  }
 }
 
 function renderTodayPlan(){
@@ -697,7 +740,8 @@ function render(){
 
   let view = stores.map((s, idx)=>{
     const m = getStoreAdvancedMetrics(logs, s);
-    let dist = null, score = null;
+    let dist = null;
+    let score = null;
 
     if(window.lastPos && typeof s.lat === "number" && typeof s.lng === "number"){
       dist = distanceKm(window.lastPos.lat, window.lastPos.lng, s.lat, s.lng);
@@ -705,7 +749,14 @@ function render(){
     }
 
     const isNearby = nearbyStoreIds.has(s.id);
-    return {...s, _idx:idx, _m:m, _dist:dist, _score:score, _isNearby:isNearby};
+    return {
+      ...s,
+      _idx: idx,
+      _m: m,
+      _dist: dist,
+      _score: score,
+      _isNearby: isNearby
+    };
   })
   .filter(s=>matchesQuery(s,q))
   .filter(s=>s._m.expected >= minExpected && s._m.rate >= minRate);
@@ -717,10 +768,6 @@ function render(){
   if(nearbyMode){
     view = view.filter(s => nearbyStoreIds.has(s.id));
   }
-
-  const list = document.getElementById("storeList");
-  if(!list) return;
-  list.innerHTML = "";
 
   view.sort((a,b)=>{
     if(sortType === "route"){
@@ -735,12 +782,12 @@ function render(){
     return b._m.expected - a._m.expected;
   });
 
+  const list = document.getElementById("storeList");
+  if(!list) return;
+  list.innerHTML = "";
+
   if(!view.length){
-    if(nearbyMode){
-      list.innerHTML = `<div class="gray" style="margin-top:14px;">近くの店舗は見つかりませんでした。</div>`;
-    }else{
-      list.innerHTML = `<div class="gray" style="margin-top:14px;">該当する店舗がありません。</div>`;
-    }
+    list.innerHTML = `<div class="gray" style="margin-top:14px;">${nearbyMode ? "近くの店舗は見つかりませんでした。" : "該当する店舗がありません。"}</div>`;
   }else{
     view.forEach(s => {
       list.innerHTML += renderStoreCard(s, false);
