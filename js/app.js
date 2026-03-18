@@ -657,7 +657,7 @@ function todayBulkOff(){
   bulkSetTodayByPref(sel ? sel.value : "__ALL__", false);
 }
 
-function buildTodayRoute(){
+function buildTodayRoute(showAlert = false){
   const area = document.getElementById("todayPlanArea");
   if(!area) return;
 
@@ -684,13 +684,14 @@ function buildTodayRoute(){
 
   if(!todays.length){
     area.innerHTML = `<div class="gray">「今日行く」にチェックした店舗がありません。</div>`;
-    alert("「今日行く」にチェックした店舗がありません。");
+    if(showAlert){
+      alert("「今日行く」にチェックした店舗がありません。");
+    }
     return;
   }
 
   let route = [...todays];
 
-  // 現在地があれば近い順、なければ期待値順
   if(window.lastPos){
     route.sort((a,b)=>{
       const ad = (typeof a._dist === "number") ? a._dist : Infinity;
@@ -735,11 +736,10 @@ function buildTodayRoute(){
     </div>
   `;
 
-  function buildTodayRoute(showAlert = false){
+  if(showAlert){
+    alert(`今日のルートを作成しました（${route.length}店舗）`);
+  }
 }
- if(showAlert){
-  alert(`今日のルートを作成しました（${route.length}店舗）`);
-} 
 
 function buildCardHeader(s, i, extraBadgesHtml=""){
   const addressBlock = (s.address || "").trim()
@@ -852,7 +852,7 @@ function renderMapMarkers(){
 }
 
 function renderTodayPlan(){
-  buildTodayRoute();
+  buildTodayRoute(false);
 }
 
 function render(){
@@ -934,7 +934,6 @@ function render(){
 
 render();
 
-// 起動時に近い店舗を自動で上に出す
 setTimeout(() => {
   autoDetectNearbyStores(true);
 }, 800);
