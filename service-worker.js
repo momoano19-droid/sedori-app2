@@ -1,4 +1,4 @@
-const CACHE_NAME = "sedori-gps-pro-v1";
+const CACHE_NAME = "sedori-v2";
 
 const ASSETS = [
   "./",
