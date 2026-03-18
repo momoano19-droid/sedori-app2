@@ -616,3 +616,89 @@ tr:last-child td{
     font-size:12px;
   }
 }
+
+/* ===== 上部ボタン群をコンパクト化 ===== */
+.compactPanel{
+  background:#fff;
+  border-radius:12px;
+  padding:10px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.06);
+  margin-top:10px;
+}
+
+.compactGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+
+.compactBtn{
+  width:100%;
+  min-height:52px;
+  height:52px;
+  border:none;
+  border-radius:12px;
+  font-size:15px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  line-height:1.2;
+  padding:8px 10px;
+  margin:0;
+}
+
+.compactBtn.primary{
+  background:#1677ff;
+  color:#fff;
+}
+
+.compactBtn.secondary{
+  background:#e9eef6;
+  color:#223;
+}
+
+.compactNote{
+  margin-top:8px;
+  font-size:12px;
+  color:#667;
+  line-height:1.4;
+}
+
+.compactStack{
+  display:grid;
+  gap:8px;
+}
+
+.compactTitle{
+  font-size:14px;
+  font-weight:800;
+  color:#223;
+  margin-bottom:6px;
+}
+
+@media (max-width: 480px){
+  .compactPanel{
+    padding:8px;
+    border-radius:10px;
+    margin-top:8px;
+  }
+
+  .compactGrid{
+    gap:6px;
+  }
+
+  .compactBtn{
+    min-height:46px;
+    height:46px;
+    border-radius:10px;
+    font-size:14px;
+    padding:6px 8px;
+  }
+
+  .compactNote{
+    font-size:11px;
+    margin-top:6px;
+  }
+}
