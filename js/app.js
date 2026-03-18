@@ -534,8 +534,8 @@ function showNearbyStores(){
       let distances = [];
 
       stores.forEach(s => {
-        const slat = (s.lat !== null && !isNaN(Number(s.lat))) ? Number(s.lat) : null;
-        const slng = (s.lng !== null && !isNaN(Number(s.lng))) ? Number(s.lng) : null;
+        const slat = (s.lat !== null && s.lat !== "" && !isNaN(Number(s.lat))) ? Number(s.lat) : null;
+        const slng = (s.lng !== null && s.lng !== "" && !isNaN(Number(s.lng))) ? Number(s.lng) : null;
 
         if(slat === null || slng === null) return;
 
@@ -551,16 +551,18 @@ function showNearbyStores(){
         }
       });
 
-      // ▼ ここが重要 ▼
+      if(distances.length === 0){
+        alert("座標入りの店舗がありません。");
+        return;
+      }
+
       if(nearbyStoreIds.size === 0){
-        // 3km以内が無い → 近い順TOP全部表示
+        // 3km以内が無い時は、近い順で全件対象
         distances.sort((a,b)=>a.dist - b.dist);
-
         nearbyStoreIds = new Set(distances.map(d => d.id));
-
-        alert("3km以内なし → 近い順で表示します");
+        alert(`3km以内の店舗はありません。最寄りは ${distances[0].dist.toFixed(1)}km です。近い順で表示します。`);
       }else{
-        alert(`近くの店舗が ${nearbyStoreIds.size} 件見つかりました`);
+        alert(`3km以内の店舗が ${nearbyStoreIds.size} 件見つかりました。`);
       }
 
       nearbyMode = true;
@@ -569,7 +571,7 @@ function showNearbyStores(){
     },
     err => {
       console.error(err);
-      alert("現在地を取得できませんでした");
+      alert("現在地を取得できませんでした。Safariの位置情報設定を確認してください。");
     },
     { enableHighAccuracy: true, timeout: 10000 }
   );
