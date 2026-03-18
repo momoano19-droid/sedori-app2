@@ -781,17 +781,24 @@ function render(){
   }
 
   view.sort((a,b)=>{
-    if(sortType === "route"){
-      const as = (typeof a._score === "number") ? a._score : -Infinity;
-      const bs = (typeof b._score === "number") ? b._score : -Infinity;
-      if(bs !== as) return bs - as;
-      return b._m.expected - a._m.expected;
-    }
-    if(sortType === "rate") return b._m.rate - a._m.rate;
-    if(sortType === "avgProfit") return b._m.avgProfit - a._m.avgProfit;
-    if(sortType === "visits") return b._m.visits - a._m.visits;
+  // 近くの店舗モード中は、最優先で距離順
+  if(nearbyMode){
+    const ad = (typeof a._dist === "number") ? a._dist : Infinity;
+    const bd = (typeof b._dist === "number") ? b._dist : Infinity;
+    if(ad !== bd) return ad - bd;
+  }
+
+  if(sortType === "route"){
+    const as = (typeof a._score === "number") ? a._score : -Infinity;
+    const bs = (typeof b._score === "number") ? b._score : -Infinity;
+    if(bs !== as) return bs - as;
     return b._m.expected - a._m.expected;
-  });
+  }
+  if(sortType === "rate") return b._m.rate - a._m.rate;
+  if(sortType === "avgProfit") return b._m.avgProfit - a._m.avgProfit;
+  if(sortType === "visits") return b._m.visits - a._m.visits;
+  return b._m.expected - a._m.expected;
+});
 
   const list = document.getElementById("storeList");
   if(!list) return;
