@@ -1,5 +1,4 @@
 const QUICK_LIMIT = 12;
-
 const KEY_AUTO_BACKUP = "sedori_auto_backup_v1";
 
 let stores = loadStores().map(s => ({
@@ -27,11 +26,217 @@ window.lastPos = null;
 let nearbyMode = false;
 let nearbyStoreIds = new Set();
 
+function saveAutoBackup(){
+  try{
+    const backup = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      stores: stores,
+      logs: logs,
+      layout: layout
+    };
+    localStorage.setItem(KEY_AUTO_BACKUP, JSON.stringify(backup));
+  }catch(e){
+    console.error("自動バックアップ保存失敗", e);
+  }
+}
+
+function getAutoBackup(){
+  try{
+    const raw = localStorage.getItem(KEY_AUTO_BACKUP);
+    if(!raw) return null;
+    const data = JSON.parse(raw);
+    if(!data || typeof data !== "object") return null;
+    if(!Array.isArray(data.stores) || !Array.isArray(data.logs)) return null;
+    return data;
+  }catch(e){
+    console.error("自動バックアップ読込失敗", e);
+    return null;
+  }
+}
+
+function showAutoBackupInfo(){
+  const backup = getAutoBackup();
+  if(!backup){
+    alert("自動バックアップはまだありません。");
+    return;
+  }
+
+  const savedAt = backup.savedAt ? new Date(backup.savedAt) : null;
+  const text = savedAt
+    ? `自動バックアップあり\n保存日時: ${savedAt.getFullYear()}-${String(savedAt.getMonth()+1).padStart(2,"0")}-${String(savedAt.getDate()).padStart(2,"0")} ${String(savedAt.getHours()).padStart(2,"0")}:${String(savedAt.getMinutes()).padStart(2,"0")}\n店舗数: ${backup.stores.length}件\nログ数: ${backup.logs.length}件`
+    : `自動バックアップあり\n店舗数: ${backup.stores.length}件\nログ数: ${backup.logs.length}件`;
+
+  alert(text);
+}
+
+function restoreAutoBackup(){
+  const backup = getAutoBackup();
+  if(!backup){
+    alert("復元できる自動バックアップがありません。");
+    return;
+  }
+
+  const ok = confirm("自動バックアップで現在のデータを上書きします。よろしいですか？");
+  if(!ok) return;
+
+  try{
+    stores = backup.stores.map(s => ({
+      id: s.id || ensureId(),
+      name: (s.name ?? "店舗").toString(),
+      pref: (s.pref ?? "").toString().trim(),
+      address: (s.address ?? "").toString().trim(),
+      visits: Number(s.visits ?? 0),
+      buyDays: Number(s.buyDays ?? 0),
+      items: Number(s.items ?? 0),
+      profit: Number(s.profit ?? 0),
+      mapUrl: (s.mapUrl ?? "").toString().trim(),
+      lat: (typeof s.lat === "number") ? s.lat : null,
+      lng: (typeof s.lng === "number") ? s.lng : null,
+      defaultCategory: (s.defaultCategory ?? "").toString().trim(),
+      categoryCounts: (s.categoryCounts && typeof s.categoryCounts === "object") ? s.categoryCounts : {},
+      quickCategories: Array.isArray(s.quickCategories) ? s.quickCategories.filter(Boolean).slice(0, QUICK_LIMIT) : [],
+      lastVisitDate: (s.lastVisitDate ?? "").toString().trim(),
+      today: !!s.today
+    }));
+
+    logs = backup.logs.map(l => ({
+      date: (l.date ?? "").toString(),
+      storeId: (l.storeId ?? "").toString(),
+      type: (l.type ?? "").toString(),
+      delta: Number(l.delta ?? 0),
+      ...(l.category ? { category: String(l.category).trim() } : {})
+    }));
+
+    if(typeof backup.layout === "string"){
+      layout = backup.layout;
+    }
+
+    saveStores(stores);
+    saveLogs(logs);
+    saveLayout(layout);
+
+    clearNearbyMode();
+    render();
+    renderTodayPlan();
+
+    alert("自動バックアップから復元しました。");
+  }catch(e){
+    console.error(e);
+    alert("自動バックアップの復元に失敗しました。");
+  }
+}
+
 function saveAll(){
   saveStores(stores);
   saveLogs(logs);
   saveLayout(layout);
   saveAutoBackup();
+}
+
+function exportBackup(){
+  try{
+    const backup = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      stores: stores,
+      logs: logs,
+      layout: layout
+    };
+
+    const json = JSON.stringify(backup, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const now = new Date();
+    const fileName = `sedori-backup-${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}.json`;
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
+    alert("バックアップを書き出しました。");
+  }catch(e){
+    console.error(e);
+    alert("バックアップ書き出しに失敗しました。");
+  }
+}
+
+function importBackup(event){
+  const file = event.target.files && event.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(e){
+    try{
+      const text = e.target.result;
+      const data = JSON.parse(text);
+
+      if(!data || typeof data !== "object"){
+        throw new Error("JSON形式が不正です");
+      }
+
+      if(!Array.isArray(data.stores) || !Array.isArray(data.logs)){
+        throw new Error("stores または logs が見つかりません");
+      }
+
+      const ok = confirm("現在のデータをバックアップデータで上書きします。よろしいですか？");
+      if(!ok){
+        event.target.value = "";
+        return;
+      }
+
+      stores = data.stores.map(s => ({
+        id: s.id || ensureId(),
+        name: (s.name ?? "店舗").toString(),
+        pref: (s.pref ?? "").toString().trim(),
+        address: (s.address ?? "").toString().trim(),
+        visits: Number(s.visits ?? 0),
+        buyDays: Number(s.buyDays ?? 0),
+        items: Number(s.items ?? 0),
+        profit: Number(s.profit ?? 0),
+        mapUrl: (s.mapUrl ?? "").toString().trim(),
+        lat: (typeof s.lat === "number") ? s.lat : null,
+        lng: (typeof s.lng === "number") ? s.lng : null,
+        defaultCategory: (s.defaultCategory ?? "").toString().trim(),
+        categoryCounts: (s.categoryCounts && typeof s.categoryCounts === "object") ? s.categoryCounts : {},
+        quickCategories: Array.isArray(s.quickCategories) ? s.quickCategories.filter(Boolean).slice(0, QUICK_LIMIT) : [],
+        lastVisitDate: (s.lastVisitDate ?? "").toString().trim(),
+        today: !!s.today
+      }));
+
+      logs = data.logs.map(l => ({
+        date: (l.date ?? "").toString(),
+        storeId: (l.storeId ?? "").toString(),
+        type: (l.type ?? "").toString(),
+        delta: Number(l.delta ?? 0),
+        ...(l.category ? { category: String(l.category).trim() } : {})
+      }));
+
+      if(typeof data.layout === "string"){
+        layout = data.layout;
+      }
+
+      saveAll();
+      clearNearbyMode();
+      render();
+      renderTodayPlan();
+
+      alert("バックアップを読み込みました。");
+    }catch(err){
+      console.error(err);
+      alert("バックアップ読込に失敗しました。JSONファイルを確認してください。");
+    }finally{
+      event.target.value = "";
+    }
+  };
+
+  reader.readAsText(file, "utf-8");
 }
 
 function buildPrefFilter(){
@@ -41,14 +246,19 @@ function buildPrefFilter(){
   });
   const prefs = Array.from(prefSet).sort((a,b)=>a.localeCompare(b,'ja'));
   const sel = document.getElementById("prefFilter");
+  if(!sel) return;
+
   const current = sel.value || "__ALL__";
   sel.innerHTML = `<option value="__ALL__">全て（都道府県ごと表示）</option>` +
     prefs.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("");
+
   if(["__ALL__", ...prefs].includes(current)) sel.value = current;
 }
 
 function buildTodayPrefSelect(){
   const sel = document.getElementById("todayPrefSelect");
+  if(!sel) return;
+
   const set = new Set();
   stores.forEach(s=>{
     const p = (s.pref || "").trim();
@@ -110,9 +320,9 @@ function applyLayoutButtonState(){
 }
 
 function openMapSearchFromAddress(){
-  const address = (document.getElementById("address").value || "").trim();
-  const pref = (document.getElementById("prefName").value || "").trim();
-  const name = (document.getElementById("storeName").value || "").trim();
+  const address = (document.getElementById("address")?.value || "").trim();
+  const pref = (document.getElementById("prefName")?.value || "").trim();
+  const name = (document.getElementById("storeName")?.value || "").trim();
   const q = [pref, address, name].filter(Boolean).join(" ");
   if(!q){
     alert("住所か店舗名を入れてください。");
@@ -122,10 +332,10 @@ function openMapSearchFromAddress(){
 }
 
 async function addStore(){
-  const name = document.getElementById("storeName").value.trim();
-  const pref = document.getElementById("prefName").value.trim();
-  const address = document.getElementById("address").value.trim();
-  const mapUrl = document.getElementById("mapUrl").value.trim();
+  const name = document.getElementById("storeName")?.value.trim();
+  const pref = document.getElementById("prefName")?.value.trim() || "";
+  const address = document.getElementById("address")?.value.trim() || "";
+  const mapUrl = document.getElementById("mapUrl")?.value.trim() || "";
   if(!name) return;
 
   stores.push({
@@ -147,10 +357,10 @@ async function addStore(){
     today:false
   });
 
-  document.getElementById("storeName").value = "";
-  document.getElementById("prefName").value = "";
-  document.getElementById("address").value = "";
-  document.getElementById("mapUrl").value = "";
+  if(document.getElementById("storeName")) document.getElementById("storeName").value = "";
+  if(document.getElementById("prefName")) document.getElementById("prefName").value = "";
+  if(document.getElementById("address")) document.getElementById("address").value = "";
+  if(document.getElementById("mapUrl")) document.getElementById("mapUrl").value = "";
 
   saveAll();
   render();
@@ -262,7 +472,8 @@ function optimizeRoute(){
     pos=>{
       window.lastPos = {lat: pos.coords.latitude, lng: pos.coords.longitude};
       clearNearbyMode();
-      document.getElementById("sortType").value = "route";
+      const sortEl = document.getElementById("sortType");
+      if(sortEl) sortEl.value = "route";
       render();
       renderMapMarkers();
     },
@@ -284,7 +495,6 @@ function showNearbyStores(){
       window.lastPos = { lat, lng };
 
       nearbyStoreIds = new Set();
-
       let checkedCount = 0;
 
       stores.forEach(s => {
@@ -339,14 +549,18 @@ function bulkSetTodayByPref(prefValue, on){
 }
 
 function todayBulkOn(){
-  bulkSetTodayByPref(document.getElementById("todayPrefSelect").value, true);
+  const sel = document.getElementById("todayPrefSelect");
+  bulkSetTodayByPref(sel ? sel.value : "__ALL__", true);
 }
 function todayBulkOff(){
-  bulkSetTodayByPref(document.getElementById("todayPrefSelect").value, false);
+  const sel = document.getElementById("todayPrefSelect");
+  bulkSetTodayByPref(sel ? sel.value : "__ALL__", false);
 }
 
 function buildTodayRoute(){
   const area = document.getElementById("todayPlanArea");
+  if(!area) return;
+
   const todays = stores.map((s,idx)=>({...s,_idx:idx})).filter(s=>s.today);
   if(!todays.length){
     area.innerHTML = `<div class="gray">「今日行く」にチェックした店舗がありません。</div>`;
@@ -410,18 +624,18 @@ function renderStoreCard(s, forceNearbyBadge){
       </div>
 
       <div class="actionGrid">
-  <button class="actionBtn plus" onclick="visit(${i})">訪問＋</button>
-  <button class="actionBtn minus" onclick="visitMinus(${i})">訪問−</button>
+        <button class="actionBtn plus" onclick="visit(${i})">訪問＋</button>
+        <button class="actionBtn minus" onclick="visitMinus(${i})">訪問−</button>
 
-  <button class="actionBtn plus" onclick="itemsPlus(${i})">個数＋</button>
-  <button class="actionBtn minus" onclick="itemsMinus(${i})">個数−</button>
+        <button class="actionBtn plus" onclick="itemsPlus(${i})">個数＋</button>
+        <button class="actionBtn minus" onclick="itemsMinus(${i})">個数−</button>
 
-  <button class="actionBtn plus" onclick="profitPlus(${i})">利益＋</button>
-  <button class="actionBtn minus" onclick="profitMinus(${i})">利益−</button>
+        <button class="actionBtn plus" onclick="profitPlus(${i})">利益＋</button>
+        <button class="actionBtn minus" onclick="profitMinus(${i})">利益−</button>
 
-  <button class="actionBtn setting" onclick="editStore(${i})">設定</button>
-  <button class="actionBtn delete" onclick="deleteStore(${i})">削除</button>
-</div>
+        <button class="actionBtn setting" onclick="editStore(${i})">設定</button>
+        <button class="actionBtn delete" onclick="deleteStore(${i})">削除</button>
+      </div>
     </div>
   `;
 }
@@ -430,17 +644,21 @@ function renderMapMarkers(){
   if(!mapInitialized) return;
   clearMapMarkers();
 
-  const q = (document.getElementById("q").value || "").trim();
-  const prefFilter = document.getElementById("prefFilter").value;
-  const minExpected = clampNonNeg(parseFloat(document.getElementById("minExpected").value || "0"));
-  const minRate = clampNonNeg(parseFloat(document.getElementById("minRate").value || "0"));
+  const q = (document.getElementById("q")?.value || "").trim();
+  const prefFilter = document.getElementById("prefFilter")?.value || "__ALL__";
+  const minExpected = clampNonNeg(parseFloat(document.getElementById("minExpected")?.value || "0"));
+  const minRate = clampNonNeg(parseFloat(document.getElementById("minRate")?.value || "0"));
 
-  const visibleStores = stores
+  let visibleStores = stores
     .map((s, idx)=>({ ...s, _idx:idx, _m:getStoreAdvancedMetrics(logs, s) }))
     .filter(s=>typeof s.lat === "number" && typeof s.lng === "number")
     .filter(s=>matchesQuery(s,q))
     .filter(s=>prefFilter === "__ALL__" ? true : (s.pref || "").trim() === prefFilter)
     .filter(s=>s._m.expected >= minExpected && s._m.rate >= minRate);
+
+  if(nearbyMode){
+    visibleStores = visibleStores.filter(s => nearbyStoreIds.has(s.id));
+  }
 
   if(!visibleStores.length) return;
 
@@ -471,19 +689,21 @@ function render(){
   buildTodayPrefSelect();
   applyLayoutButtonState();
 
-  const filter = document.getElementById("prefFilter").value;
-  const q = (document.getElementById("q").value || "").trim();
-  const minExpected = clampNonNeg(parseFloat(document.getElementById("minExpected").value || "0"));
-  const minRate = clampNonNeg(parseFloat(document.getElementById("minRate").value || "0"));
-  const sortType = document.getElementById("sortType").value;
+  const filter = document.getElementById("prefFilter")?.value || "__ALL__";
+  const q = (document.getElementById("q")?.value || "").trim();
+  const minExpected = clampNonNeg(parseFloat(document.getElementById("minExpected")?.value || "0"));
+  const minRate = clampNonNeg(parseFloat(document.getElementById("minRate")?.value || "0"));
+  const sortType = document.getElementById("sortType")?.value || "expected";
 
   let view = stores.map((s, idx)=>{
     const m = getStoreAdvancedMetrics(logs, s);
     let dist = null, score = null;
+
     if(window.lastPos && typeof s.lat === "number" && typeof s.lng === "number"){
       dist = distanceKm(window.lastPos.lat, window.lastPos.lng, s.lat, s.lng);
       score = m.expected / (dist + 0.2);
     }
+
     const isNearby = nearbyStoreIds.has(s.id);
     return {...s, _idx:idx, _m:m, _dist:dist, _score:score, _isNearby:isNearby};
   })
@@ -494,7 +714,12 @@ function render(){
     view = view.filter(s=>(s.pref || "").trim() === filter);
   }
 
+  if(nearbyMode){
+    view = view.filter(s => nearbyStoreIds.has(s.id));
+  }
+
   const list = document.getElementById("storeList");
+  if(!list) return;
   list.innerHTML = "";
 
   view.sort((a,b)=>{
@@ -511,9 +736,15 @@ function render(){
   });
 
   if(!view.length){
-    list.innerHTML = `<div class="gray" style="margin-top:14px;">該当する店舗がありません。</div>`;
+    if(nearbyMode){
+      list.innerHTML = `<div class="gray" style="margin-top:14px;">近くの店舗は見つかりませんでした。</div>`;
+    }else{
+      list.innerHTML = `<div class="gray" style="margin-top:14px;">該当する店舗がありません。</div>`;
+    }
   }else{
-    view.forEach(s => list.innerHTML += renderStoreCard(s, false));
+    view.forEach(s => {
+      list.innerHTML += renderStoreCard(s, false);
+    });
   }
 
   renderMapMarkers();
@@ -521,209 +752,3 @@ function render(){
 }
 
 render();
-
-function exportBackup(){
-  try{
-    const backup = {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      stores: stores,
-      logs: logs,
-      layout: layout
-    };
-
-    const json = JSON.stringify(backup, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-
-    const now = new Date();
-    const fileName = `sedori-backup-${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}.json`;
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-
-    URL.revokeObjectURL(url);
-    alert("バックアップを書き出しました。");
-  }catch(e){
-    console.error(e);
-    alert("バックアップ書き出しに失敗しました。");
-  }
-}
-
-function importBackup(event){
-  const file = event.target.files && event.target.files[0];
-  if(!file) return;
-
-  const reader = new FileReader();
-
-  reader.onload = function(e){
-    try{
-      const text = e.target.result;
-      const data = JSON.parse(text);
-
-      if(!data || typeof data !== "object"){
-        throw new Error("JSON形式が不正です");
-      }
-
-      if(!Array.isArray(data.stores) || !Array.isArray(data.logs)){
-        throw new Error("stores または logs が見つかりません");
-      }
-
-      const ok = confirm("現在のデータをバックアップデータで上書きします。よろしいですか？");
-      if(!ok){
-        event.target.value = "";
-        return;
-      }
-
-      stores = data.stores.map(s => ({
-        id: s.id || ensureId(),
-        name: (s.name ?? "店舗").toString(),
-        pref: (s.pref ?? "").toString().trim(),
-        address: (s.address ?? "").toString().trim(),
-        visits: Number(s.visits ?? 0),
-        buyDays: Number(s.buyDays ?? 0),
-        items: Number(s.items ?? 0),
-        profit: Number(s.profit ?? 0),
-        mapUrl: (s.mapUrl ?? "").toString().trim(),
-        lat: (typeof s.lat === "number") ? s.lat : null,
-        lng: (typeof s.lng === "number") ? s.lng : null,
-        defaultCategory: (s.defaultCategory ?? "").toString().trim(),
-        categoryCounts: (s.categoryCounts && typeof s.categoryCounts === "object") ? s.categoryCounts : {},
-        quickCategories: Array.isArray(s.quickCategories) ? s.quickCategories.filter(Boolean).slice(0, QUICK_LIMIT) : [],
-        lastVisitDate: (s.lastVisitDate ?? "").toString().trim(),
-        today: !!s.today
-      }));
-
-      logs = data.logs.map(l => ({
-        date: (l.date ?? "").toString(),
-        storeId: (l.storeId ?? "").toString(),
-        type: (l.type ?? "").toString(),
-        delta: Number(l.delta ?? 0),
-        ...(l.category ? { category: String(l.category).trim() } : {})
-      }));
-
-      if(typeof data.layout === "string"){
-        layout = data.layout;
-      }
-
-      saveAll();
-      clearNearbyMode();
-      render();
-      renderTodayPlan();
-
-      alert("バックアップを読み込みました。");
-    }catch(err){
-      console.error(err);
-      alert("バックアップ読込に失敗しました。JSONファイルを確認してください。");
-    }finally{
-      event.target.value = "";
-    }
-  };
-
-  reader.readAsText(file, "utf-8");
-}
-
-function saveAutoBackup(){
-  try{
-    const backup = {
-      version: 1,
-      savedAt: new Date().toISOString(),
-      stores: stores,
-      logs: logs,
-      layout: layout
-    };
-    localStorage.setItem(KEY_AUTO_BACKUP, JSON.stringify(backup));
-  }catch(e){
-    console.error("自動バックアップ保存失敗", e);
-  }
-}
-
-function getAutoBackup(){
-  try{
-    const raw = localStorage.getItem(KEY_AUTO_BACKUP);
-    if(!raw) return null;
-    const data = JSON.parse(raw);
-    if(!data || typeof data !== "object") return null;
-    if(!Array.isArray(data.stores) || !Array.isArray(data.logs)) return null;
-    return data;
-  }catch(e){
-    console.error("自動バックアップ読込失敗", e);
-    return null;
-  }
-}
-
-function showAutoBackupInfo(){
-  const backup = getAutoBackup();
-  if(!backup){
-    alert("自動バックアップはまだありません。");
-    return;
-  }
-
-  const savedAt = backup.savedAt ? new Date(backup.savedAt) : null;
-  const text = savedAt
-    ? `自動バックアップあり\n保存日時: ${savedAt.getFullYear()}-${String(savedAt.getMonth()+1).padStart(2,"0")}-${String(savedAt.getDate()).padStart(2,"0")} ${String(savedAt.getHours()).padStart(2,"0")}:${String(savedAt.getMinutes()).padStart(2,"0")}\n店舗数: ${backup.stores.length}件\nログ数: ${backup.logs.length}件`
-    : `自動バックアップあり\n店舗数: ${backup.stores.length}件\nログ数: ${backup.logs.length}件`;
-
-  alert(text);
-}
-
-function restoreAutoBackup(){
-  const backup = getAutoBackup();
-  if(!backup){
-    alert("復元できる自動バックアップがありません。");
-    return;
-  }
-
-  const ok = confirm("自動バックアップで現在のデータを上書きします。よろしいですか？");
-  if(!ok) return;
-
-  try{
-    stores = backup.stores.map(s => ({
-      id: s.id || ensureId(),
-      name: (s.name ?? "店舗").toString(),
-      pref: (s.pref ?? "").toString().trim(),
-      address: (s.address ?? "").toString().trim(),
-      visits: Number(s.visits ?? 0),
-      buyDays: Number(s.buyDays ?? 0),
-      items: Number(s.items ?? 0),
-      profit: Number(s.profit ?? 0),
-      mapUrl: (s.mapUrl ?? "").toString().trim(),
-      lat: (typeof s.lat === "number") ? s.lat : null,
-      lng: (typeof s.lng === "number") ? s.lng : null,
-      defaultCategory: (s.defaultCategory ?? "").toString().trim(),
-      categoryCounts: (s.categoryCounts && typeof s.categoryCounts === "object") ? s.categoryCounts : {},
-      quickCategories: Array.isArray(s.quickCategories) ? s.quickCategories.filter(Boolean).slice(0, QUICK_LIMIT) : [],
-      lastVisitDate: (s.lastVisitDate ?? "").toString().trim(),
-      today: !!s.today
-    }));
-
-    logs = backup.logs.map(l => ({
-      date: (l.date ?? "").toString(),
-      storeId: (l.storeId ?? "").toString(),
-      type: (l.type ?? "").toString(),
-      delta: Number(l.delta ?? 0),
-      ...(l.category ? { category: String(l.category).trim() } : {})
-    }));
-
-    if(typeof backup.layout === "string"){
-      layout = backup.layout;
-    }
-
-    saveStores(stores);
-    saveLogs(logs);
-    saveLayout(layout);
-
-    clearNearbyMode();
-    render();
-    renderTodayPlan();
-
-    alert("自動バックアップから復元しました。");
-  }catch(e){
-    console.error(e);
-    alert("自動バックアップの復元に失敗しました。");
-  }
-}
