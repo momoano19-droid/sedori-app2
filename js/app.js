@@ -385,16 +385,19 @@ function renderStoreCard(s, forceNearbyBadge){
         距離：${distText} / <b>ルート効率：${effText}</b>
       </div>
 
-      <div class="grid" style="margin-top:10px;">
-        <button class="smallbtn" onclick="visit(${i})">訪問＋</button>
-        <button class="smallbtn danger" onclick="visitMinus(${i})">訪問−</button>
-        <button class="smallbtn" onclick="itemsPlus(${i})">個数＋</button>
-        <button class="smallbtn danger" onclick="itemsMinus(${i})">個数−</button>
-        <button class="smallbtn" onclick="profitPlus(${i})">利益＋</button>
-        <button class="smallbtn danger" onclick="profitMinus(${i})">利益−</button>
-        <button class="smallbtn secondary" onclick="editStore(${i})">設定</button>
-        <button class="smallbtn danger" onclick="deleteStore(${i})">削除</button>
-      </div>
+      <div class="actionGrid">
+  <button class="actionBtn plus" onclick="visit(${i})">訪問＋</button>
+  <button class="actionBtn minus" onclick="visitMinus(${i})">訪問−</button>
+
+  <button class="actionBtn plus" onclick="itemsPlus(${i})">個数＋</button>
+  <button class="actionBtn minus" onclick="itemsMinus(${i})">個数−</button>
+
+  <button class="actionBtn plus" onclick="profitPlus(${i})">利益＋</button>
+  <button class="actionBtn minus" onclick="profitMinus(${i})">利益−</button>
+
+  <button class="actionBtn setting" onclick="editStore(${i})">設定</button>
+  <button class="actionBtn delete" onclick="deleteStore(${i})">削除</button>
+</div>
     </div>
   `;
 }
