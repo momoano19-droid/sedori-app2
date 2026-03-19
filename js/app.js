@@ -180,7 +180,6 @@ function importBackup(event){
       if(!data || typeof data !== "object"){
         throw new Error("JSON形式が不正です");
       }
-
       if(!Array.isArray(data.stores) || !Array.isArray(data.logs)){
         throw new Error("stores または logs が見つかりません");
       }
@@ -419,6 +418,42 @@ function navigateToStore(i){
   alert("住所または座標が登録されていません。");
 }
 
+function getCategoryCandidates(s){
+  const baseCategories = [
+    "家電","家具","ホビー","おもちゃ","ゲーム","CD","DVD","本",
+    "釣具","工具","楽器","スポーツ","アウトドア","ブランド",
+    "バッグ","靴","服","アクセ","スマホ","PC","カメラ","オーディオ"
+  ];
+
+  const quicks = Array.isArray(s.quickCategories) ? s.quickCategories : [];
+  const existing = Object.keys(s.categoryCounts || {});
+  return [...new Set([
+    ...(s.defaultCategory ? [s.defaultCategory] : []),
+    ...quicks,
+    ...existing,
+    ...baseCategories
+  ].filter(Boolean))];
+}
+
+function normalizeCategoryCounts(s){
+  if(!s.categoryCounts || typeof s.categoryCounts !== "object"){
+    s.categoryCounts = {};
+  }
+}
+
+function refreshQuickCategories(s){
+  normalizeCategoryCounts(s);
+  const positiveCats = Object.entries(s.categoryCounts)
+    .filter(([,qty]) => Number(qty) > 0)
+    .map(([cat]) => cat);
+
+  s.quickCategories = [...new Set([
+    ...(s.defaultCategory ? [s.defaultCategory] : []),
+    ...positiveCats,
+    ...(Array.isArray(s.quickCategories) ? s.quickCategories : [])
+  ])].filter(Boolean).slice(0, QUICK_LIMIT);
+}
+
 function visit(i){
   const s = stores[i];
   if(!s) return;
@@ -445,7 +480,7 @@ function itemsPlus(i){
   const s = stores[i];
   if(!s) return;
 
-  const n = clampNonNeg(parseInt(prompt("追加する個数は？", "1"), 10));
+  const n = clampNonNeg(parseInt(prompt("追加する仕入れ個数は？", "1"), 10));
   if(!n) return;
 
   s.items += n;
@@ -455,6 +490,64 @@ function itemsPlus(i){
 
   addLog(logs, s.id, "success", 1);
   addLog(logs, s.id, "items", n);
+
+  const merged = getCategoryCandidates(s);
+  let remain = n;
+  const picked = {};
+
+  while(remain > 0){
+    const guide = merged.map((c, idx) => `${idx + 1}:${c}`).join(" / ");
+    const input = prompt(
+      `残り ${remain} 個\nカテゴリ番号またはカテゴリ名を入力してください。\n\n${guide}\n\n例: 家電\n例: 1`,
+      s.defaultCategory || merged[0] || ""
+    );
+
+    if(input === null) break;
+
+    let cat = input.trim();
+
+    if(/^\d+$/.test(cat)){
+      const idx = Number(cat) - 1;
+      if(idx >= 0 && idx < merged.length){
+        cat = merged[idx];
+      }
+    }
+
+    if(!cat) cat = "未分類";
+
+    const qtyInput = prompt(`「${cat}」に何個入れますか？（残り ${remain} 個）`, "1");
+    if(qtyInput === null) break;
+
+    const qty = clampNonNeg(parseInt(qtyInput, 10));
+    if(!qty || qty > remain){
+      alert("個数が不正です。");
+      continue;
+    }
+
+    picked[cat] = (picked[cat] || 0) + qty;
+    remain -= qty;
+
+    if(!merged.includes(cat)) merged.unshift(cat);
+  }
+
+  if(remain > 0){
+    const fallback = (s.defaultCategory || "未分類").trim() || "未分類";
+    picked[fallback] = (picked[fallback] || 0) + remain;
+  }
+
+  normalizeCategoryCounts(s);
+
+  Object.entries(picked).forEach(([cat, qty]) => {
+    s.categoryCounts[cat] = (s.categoryCounts[cat] || 0) + qty;
+    addLog(logs, s.id, "category", qty, cat);
+  });
+
+  const usedCats = Object.keys(picked);
+  if(usedCats.length === 1){
+    s.defaultCategory = usedCats[0];
+  }
+  refreshQuickCategories(s);
+
   saveAll();
   render();
 }
@@ -462,12 +555,92 @@ function itemsPlus(i){
 function itemsMinus(i){
   const s = stores[i];
   if(!s) return;
+  if(Number(s.items || 0) <= 0){
+    alert("個数がありません。");
+    return;
+  }
 
-  const n = clampNonNeg(parseInt(prompt("減らす個数は？", "1"), 10));
-  if(!n) return;
+  normalizeCategoryCounts(s);
 
-  s.items = clampNonNeg(s.items - n);
-  addLog(logs, s.id, "items", -n);
+  const candidates = Object.entries(s.categoryCounts)
+    .filter(([,qty]) => Number(qty) > 0)
+    .map(([cat, qty]) => ({ cat, qty: Number(qty) }));
+
+  if(!candidates.length){
+    const n = clampNonNeg(parseInt(prompt(`減らす個数は？（現在 ${s.items} 個）`, "1"), 10));
+    if(!n) return;
+    if(n > s.items){
+      alert("現在の個数より多くは減らせません。");
+      return;
+    }
+
+    s.items = clampNonNeg(s.items - n);
+    addLog(logs, s.id, "items", -n);
+    saveAll();
+    render();
+    return;
+  }
+
+  let remain = clampNonNeg(parseInt(prompt(`減らす個数は？（現在 ${s.items} 個）`, "1"), 10));
+  if(!remain) return;
+  if(remain > s.items){
+    alert("現在の個数より多くは減らせません。");
+    return;
+  }
+
+  while(remain > 0){
+    const active = Object.entries(s.categoryCounts)
+      .filter(([,qty]) => Number(qty) > 0)
+      .map(([cat, qty]) => ({ cat, qty: Number(qty) }));
+
+    if(!active.length) break;
+
+    const guide = active.map((x, idx) => `${idx + 1}:${x.cat}(${x.qty})`).join(" / ");
+    const input = prompt(
+      `残り ${remain} 個 減らします\nカテゴリ番号またはカテゴリ名を入力してください。\n\n${guide}`,
+      active[0].cat
+    );
+    if(input === null) break;
+
+    let cat = input.trim();
+    if(/^\d+$/.test(cat)){
+      const idx = Number(cat) - 1;
+      if(idx >= 0 && idx < active.length){
+        cat = active[idx].cat;
+      }
+    }
+
+    if(!cat || !active.some(x => x.cat === cat)){
+      alert("カテゴリが見つかりません。");
+      continue;
+    }
+
+    const maxQty = Number(s.categoryCounts[cat] || 0);
+    const qtyInput = prompt(`「${cat}」を何個減らしますか？（最大 ${Math.min(maxQty, remain)} 個）`, "1");
+    if(qtyInput === null) break;
+
+    const qty = clampNonNeg(parseInt(qtyInput, 10));
+    if(!qty || qty > remain || qty > maxQty){
+      alert("個数が不正です。");
+      continue;
+    }
+
+    s.categoryCounts[cat] = clampNonNeg((s.categoryCounts[cat] || 0) - qty);
+    s.items = clampNonNeg(s.items - qty);
+    addLog(logs, s.id, "items", -qty);
+    addLog(logs, s.id, "category", -qty, cat);
+
+    remain -= qty;
+  }
+
+  Object.keys(s.categoryCounts).forEach(cat => {
+    if(Number(s.categoryCounts[cat]) <= 0){
+      delete s.categoryCounts[cat];
+    }
+  });
+
+  refreshQuickCategories(s);
+
   saveAll();
   render();
 }
@@ -541,10 +714,7 @@ function showNearbyStores(){
 
         const dist = distanceKm(lat, lng, slat, slng);
 
-        distances.push({
-          id: s.id,
-          dist: dist
-        });
+        distances.push({ id: s.id, dist });
 
         if(dist <= 3){
           nearbyStoreIds.add(s.id);
@@ -595,11 +765,7 @@ function autoDetectNearbyStores(silent = true){
         if(slat === null || slng === null) return;
 
         const dist = distanceKm(lat, lng, slat, slng);
-
-        distances.push({
-          id: s.id,
-          dist: dist
-        });
+        distances.push({ id: s.id, dist });
 
         if(dist <= 3){
           nearbyStoreIds.add(s.id);
@@ -684,9 +850,6 @@ function buildTodayRoute(showAlert = false){
 
   if(!todays.length){
     area.innerHTML = `<div class="gray">「今日行く」にチェックした店舗がありません。</div>`;
-    if(showAlert){
-      alert("「今日行く」にチェックした店舗がありません。");
-    }
     return;
   }
 
@@ -742,6 +905,12 @@ function buildTodayRoute(showAlert = false){
 }
 
 function buildCardHeader(s, i, extraBadgesHtml=""){
+  normalizeCategoryCounts(s);
+  const categorySummary = Object.entries(s.categoryCounts)
+    .filter(([,qty]) => Number(qty) > 0)
+    .map(([cat, qty]) => `${cat}:${qty}`)
+    .join(" / ");
+
   const addressBlock = (s.address || "").trim()
     ? `<div class="addrRow"><div class="mini addrText">住所：${escapeHtml(s.address.trim())}</div><button class="secondary addrCopyBtn" onclick="navigateToStore(${i})">ナビ</button></div>`
     : "";
@@ -758,6 +927,7 @@ function buildCardHeader(s, i, extraBadgesHtml=""){
       ${extraBadgesHtml}
     </div>
     ${addressBlock}
+    ${categorySummary ? `<div class="mini" style="margin-top:6px;">個数内訳：${escapeHtml(categorySummary)}</div>` : ""}
     <div class="checkline">
       <input type="checkbox" id="today_${i}" ${s.today ? "checked" : ""} onchange="toggleToday(${i}, this.checked)">
       <label for="today_${i}">今日行く</label>
