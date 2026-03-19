@@ -26,6 +26,86 @@ window.lastPos = null;
 let nearbyMode = false;
 let nearbyStoreIds = new Set();
 
+/* =========================
+   個数入力モーダル
+========================= */
+let qtyResolver = null;
+
+function openQtyModal(title = "個数を選択"){
+  const modal = document.getElementById("qtyModal");
+  const titleEl = document.getElementById("qtyModalTitle");
+  const manualArea = document.getElementById("qtyManualArea");
+  const manualInput = document.getElementById("qtyManualInput");
+
+  if(titleEl) titleEl.textContent = title;
+  if(manualArea) manualArea.classList.remove("show");
+  if(manualInput) manualInput.value = "";
+
+  if(modal){
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+  }
+}
+
+function closeQtyModal(){
+  const modal = document.getElementById("qtyModal");
+  if(modal){
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  if(typeof qtyResolver === "function"){
+    const resolver = qtyResolver;
+    qtyResolver = null;
+    resolver(0);
+  }
+}
+
+function resolveQtyModal(value){
+  const modal = document.getElementById("qtyModal");
+  if(modal){
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  if(typeof qtyResolver === "function"){
+    const resolver = qtyResolver;
+    qtyResolver = null;
+    resolver(value);
+  }
+}
+
+function selectQtyQuick(n){
+  resolveQtyModal(Number(n) || 0);
+}
+
+function toggleQtyManual(){
+  const manualArea = document.getElementById("qtyManualArea");
+  const manualInput = document.getElementById("qtyManualInput");
+  if(manualArea) manualArea.classList.add("show");
+  if(manualInput) manualInput.focus();
+}
+
+function confirmQtyManual(){
+  const manualInput = document.getElementById("qtyManualInput");
+  const n = clampNonNeg(parseInt((manualInput?.value || "0"), 10));
+  if(!n){
+    alert("個数を入力してください。");
+    return;
+  }
+  resolveQtyModal(n);
+}
+
+function askItemQtyModal(title = "個数を選択"){
+  return new Promise(resolve => {
+    qtyResolver = resolve;
+    openQtyModal(title);
+  });
+}
+
+/* =========================
+   バックアップ
+========================= */
 function saveAutoBackup(){
   try{
     const backup = {
@@ -238,6 +318,9 @@ function importBackup(event){
   reader.readAsText(file, "utf-8");
 }
 
+/* =========================
+   共通ユーティリティ
+========================= */
 function buildPrefFilter(){
   const prefSet = new Set();
   stores.forEach(s=>{
@@ -338,6 +421,9 @@ function openMapSearchFromAddress(){
   window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`, "_blank");
 }
 
+/* =========================
+   店舗 CRUD
+========================= */
 async function addStore(){
   const name = (document.getElementById("storeName")?.value || "").trim();
   const pref = (document.getElementById("prefName")?.value || "").trim();
@@ -354,18 +440,18 @@ async function addStore(){
     name,
     pref,
     address,
-    visits:0,
-    buyDays:0,
-    items:0,
-    profit:0,
+    visits: 0,
+    buyDays: 0,
+    items: 0,
+    profit: 0,
     mapUrl,
-    lat:null,
-    lng:null,
-    defaultCategory:"",
-    categoryCounts:{},
-    quickCategories:[],
-    lastVisitDate:"",
-    today:false
+    lat: null,
+    lng: null,
+    defaultCategory: "",
+    categoryCounts: {},
+    quickCategories: [],
+    lastVisitDate: "",
+    today: false
   });
 
   if(document.getElementById("storeName")) document.getElementById("storeName").value = "";
@@ -398,7 +484,7 @@ function editStore(i){
 function deleteStore(i){
   if(!stores[i]) return;
   if(!confirm(`「${stores[i].name}」を削除しますか？`)) return;
-  stores.splice(i,1);
+  stores.splice(i, 1);
   saveAll();
   render();
 }
@@ -418,6 +504,9 @@ function navigateToStore(i){
   alert("住所または座標が登録されていません。");
 }
 
+/* =========================
+   カテゴリ補助
+========================= */
 function getCategoryCandidates(s){
   const baseCategories = [
     "家電","家具","ホビー","おもちゃ","ゲーム","CD","DVD","本",
@@ -454,6 +543,9 @@ function refreshQuickCategories(s){
   ])].filter(Boolean).slice(0, QUICK_LIMIT);
 }
 
+/* =========================
+   訪問 / 個数 / 利益
+========================= */
 function visit(i){
   const s = stores[i];
   if(!s) return;
@@ -476,11 +568,11 @@ function visitMinus(i){
   render();
 }
 
-function itemsPlus(i){
+async function itemsPlus(i){
   const s = stores[i];
   if(!s) return;
 
-  const n = clampNonNeg(parseInt(prompt("追加する仕入れ個数は？", "1"), 10));
+  const n = await askItemQtyModal("追加する仕入れ個数を選んでください");
   if(!n) return;
 
   s.items += n;
@@ -515,12 +607,11 @@ function itemsPlus(i){
 
     if(!cat) cat = "未分類";
 
-    const qtyInput = prompt(`「${cat}」に何個入れますか？（残り ${remain} 個）`, "1");
-    if(qtyInput === null) break;
+    const qty = await askItemQtyModal(`「${cat}」に入れる個数を選んでください（残り ${remain} 個）`);
+    if(!qty) break;
 
-    const qty = clampNonNeg(parseInt(qtyInput, 10));
-    if(!qty || qty > remain){
-      alert("個数が不正です。");
+    if(qty > remain){
+      alert("残り個数を超えています。");
       continue;
     }
 
@@ -552,7 +643,7 @@ function itemsPlus(i){
   render();
 }
 
-function itemsMinus(i){
+async function itemsMinus(i){
   const s = stores[i];
   if(!s) return;
   if(Number(s.items || 0) <= 0){
@@ -567,7 +658,7 @@ function itemsMinus(i){
     .map(([cat, qty]) => ({ cat, qty: Number(qty) }));
 
   if(!candidates.length){
-    const n = clampNonNeg(parseInt(prompt(`減らす個数は？（現在 ${s.items} 個）`, "1"), 10));
+    const n = await askItemQtyModal(`減らす個数を選んでください（現在 ${s.items} 個）`);
     if(!n) return;
     if(n > s.items){
       alert("現在の個数より多くは減らせません。");
@@ -581,7 +672,7 @@ function itemsMinus(i){
     return;
   }
 
-  let remain = clampNonNeg(parseInt(prompt(`減らす個数は？（現在 ${s.items} 個）`, "1"), 10));
+  let remain = await askItemQtyModal(`減らす個数を選んでください（現在 ${s.items} 個）`);
   if(!remain) return;
   if(remain > s.items){
     alert("現在の個数より多くは減らせません。");
@@ -616,11 +707,10 @@ function itemsMinus(i){
     }
 
     const maxQty = Number(s.categoryCounts[cat] || 0);
-    const qtyInput = prompt(`「${cat}」を何個減らしますか？（最大 ${Math.min(maxQty, remain)} 個）`, "1");
-    if(qtyInput === null) break;
+    const qty = await askItemQtyModal(`「${cat}」を何個減らしますか？（最大 ${Math.min(maxQty, remain)} 個）`);
+    if(!qty) break;
 
-    const qty = clampNonNeg(parseInt(qtyInput, 10));
-    if(!qty || qty > remain || qty > maxQty){
+    if(qty > remain || qty > maxQty){
       alert("個数が不正です。");
       continue;
     }
@@ -671,6 +761,9 @@ function profitMinus(i){
   render();
 }
 
+/* =========================
+   位置情報 / 近くの店舗
+========================= */
 function optimizeRoute(){
   if(!navigator.geolocation){
     alert("この端末では位置情報が使えません。");
@@ -794,6 +887,9 @@ function autoDetectNearbyStores(silent = true){
   );
 }
 
+/* =========================
+   今日ルート
+========================= */
 function toggleToday(i, checked){
   if(!stores[i]) return;
   stores[i].today = !!checked;
@@ -904,6 +1000,9 @@ function buildTodayRoute(showAlert = false){
   }
 }
 
+/* =========================
+   カード描画
+========================= */
 function buildCardHeader(s, i, extraBadgesHtml=""){
   normalizeCategoryCounts(s);
   const categorySummary = Object.entries(s.categoryCounts)
@@ -978,6 +1077,9 @@ function renderStoreCard(s, forceNearbyBadge){
   `;
 }
 
+/* =========================
+   地図
+========================= */
 function renderMapMarkers(){
   if(typeof mapInitialized === "undefined" || !mapInitialized) return;
   clearMapMarkers();
@@ -1021,6 +1123,9 @@ function renderMapMarkers(){
   }
 }
 
+/* =========================
+   描画
+========================= */
 function renderTodayPlan(){
   buildTodayRoute(false);
 }
