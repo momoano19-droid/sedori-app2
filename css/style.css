@@ -74,6 +74,61 @@ button.neutral{
   margin-top:12px;
 }
 
+.compactPanel{
+  background:#fff;
+  border-radius:12px;
+  padding:10px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.06);
+  margin-top:10px;
+}
+
+.compactGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+
+.compactBtn{
+  width:100%;
+  min-height:52px;
+  height:52px;
+  border:none;
+  border-radius:12px;
+  font-size:15px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  line-height:1.2;
+  padding:8px 10px;
+  margin:0;
+}
+
+.compactBtn.primary{
+  background:#1677ff;
+  color:#fff;
+}
+
+.compactBtn.secondary{
+  background:#e9eef6;
+  color:#223;
+}
+
+.compactNote{
+  margin-top:8px;
+  font-size:12px;
+  color:#667;
+  line-height:1.4;
+}
+
+.compactTitle{
+  font-size:14px;
+  font-weight:800;
+  color:#223;
+  margin-bottom:6px;
+}
+
 .row2{
   display:flex;
   gap:8px;
@@ -396,7 +451,6 @@ tr:last-child td{
 .legendBox.good{ background:#ffe58f; }
 .legendBox.big{ background:#ffb3b3; }
 
-/* 操作ボタン */
 .actionGrid{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -425,47 +479,137 @@ tr:last-child td{
   opacity:0.85;
 }
 
-.visit{
+.visit{ background:#1677ff; color:#fff; }
+.visitMinus{ background:#5c6f8c; color:#fff; }
+.items{ background:#13c2c2; color:#fff; }
+.itemsMinus{ background:#08979c; color:#fff; }
+.profit{ background:#52c41a; color:#fff; }
+.profitMinus{ background:#389e0d; color:#fff; }
+.setting{ background:#e9eef6; color:#333; }
+.delete{ background:#ff4d4f; color:#fff; }
+
+/* 個数モーダル */
+.qtyModal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.45);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:99999;
+  padding:16px;
+}
+
+.qtyModal.show{
+  display:flex;
+}
+
+.qtyModalCard{
+  width:min(100%, 420px);
+  background:#fff;
+  border-radius:18px;
+  padding:16px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.2);
+}
+
+.qtyModalTitle{
+  font-size:18px;
+  font-weight:800;
+  color:#223;
+  margin-bottom:12px;
+  text-align:center;
+}
+
+.qtyQuickGrid{
+  display:grid;
+  grid-template-columns:repeat(3, 1fr);
+  gap:10px;
+}
+
+.qtyQuickBtn{
+  min-height:58px;
+  border:none;
+  border-radius:14px;
   background:#1677ff;
   color:#fff;
+  font-size:22px;
+  font-weight:800;
+  margin:0;
+  width:100%;
 }
 
-.visitMinus{
-  background:#5c6f8c;
-  color:#fff;
-}
-
-.items{
-  background:#13c2c2;
-  color:#fff;
-}
-
-.itemsMinus{
-  background:#08979c;
-  color:#fff;
-}
-
-.profit{
-  background:#52c41a;
-  color:#fff;
-}
-
-.profitMinus{
-  background:#389e0d;
-  color:#fff;
-}
-
-.setting{
+.qtyManualBtn{
   background:#e9eef6;
-  color:#333;
+  color:#223;
+  font-size:16px;
 }
 
-.delete{
-  background:#ff4d4f;
+.qtyManualArea{
+  display:none;
+  margin-top:12px;
+  gap:10px;
+}
+
+.qtyManualArea.show{
+  display:grid;
+}
+
+.qtyManualArea input{
+  margin:0;
+  min-height:50px;
+  font-size:18px;
+  text-align:center;
+}
+
+.qtyConfirmBtn{
+  min-height:48px;
+  border:none;
+  border-radius:12px;
+  background:#34c759;
   color:#fff;
+  font-size:16px;
+  font-weight:700;
+  margin:0;
 }
 
-/* スマホ対応 */
+.qtyModalActions{
+  margin-top:12px;
+  display:grid;
+  gap:8px;
+}
+
+.qtyCancelBtn{
+  width:100%;
+  min-height:46px;
+  border:none;
+  border-radius:12px;
+  background:#eef2f7;
+  color:#223;
+  font-size:15px;
+  font-weight:700;
+  margin:0;
+}
+
+/* カテゴリモーダル */
+.categoryChoiceGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:8px;
+}
+
+.categoryChoiceBtn{
+  min-height:52px;
+  border:none;
+  border-radius:12px;
+  background:#1677ff;
+  color:#fff;
+  font-size:16px;
+  font-weight:700;
+  margin:0;
+  width:100%;
+}
+
 @media (max-width: 900px){
   body{
     padding:12px;
@@ -552,7 +696,7 @@ tr:last-child td{
   }
 }
 
-@media (max-width: 480px){
+@media (max-width:480px){
   body{
     padding:10px;
   }
@@ -570,9 +714,31 @@ tr:last-child td{
     padding:10px;
   }
 
-  .toolbar, .card, .store{
+  .toolbar, .card, .store, .compactPanel{
     border-radius:10px;
     padding:10px;
+  }
+
+  .compactPanel{
+    padding:8px;
+    margin-top:8px;
+  }
+
+  .compactGrid{
+    gap:6px;
+  }
+
+  .compactBtn{
+    min-height:46px;
+    height:46px;
+    border-radius:10px;
+    font-size:14px;
+    padding:6px 8px;
+  }
+
+  .compactNote{
+    font-size:11px;
+    margin-top:6px;
   }
 
   .storeTitle{
@@ -615,90 +781,33 @@ tr:last-child td{
   .actionBtn small{
     font-size:12px;
   }
-}
 
-/* ===== 上部ボタン群をコンパクト化 ===== */
-.compactPanel{
-  background:#fff;
-  border-radius:12px;
-  padding:10px;
-  box-shadow:0 2px 8px rgba(0,0,0,0.06);
-  margin-top:10px;
-}
-
-.compactGrid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-}
-
-.compactBtn{
-  width:100%;
-  min-height:52px;
-  height:52px;
-  border:none;
-  border-radius:12px;
-  font-size:15px;
-  font-weight:700;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  line-height:1.2;
-  padding:8px 10px;
-  margin:0;
-}
-
-.compactBtn.primary{
-  background:#1677ff;
-  color:#fff;
-}
-
-.compactBtn.secondary{
-  background:#e9eef6;
-  color:#223;
-}
-
-.compactNote{
-  margin-top:8px;
-  font-size:12px;
-  color:#667;
-  line-height:1.4;
-}
-
-.compactStack{
-  display:grid;
-  gap:8px;
-}
-
-.compactTitle{
-  font-size:14px;
-  font-weight:800;
-  color:#223;
-  margin-bottom:6px;
-}
-
-@media (max-width: 480px){
-  .compactPanel{
-    padding:8px;
-    border-radius:10px;
-    margin-top:8px;
+  .qtyModal{
+    padding:12px;
   }
 
-  .compactGrid{
-    gap:6px;
+  .qtyModalCard{
+    border-radius:16px;
+    padding:14px;
   }
 
-  .compactBtn{
-    min-height:46px;
-    height:46px;
-    border-radius:10px;
+  .qtyQuickGrid,
+  .categoryChoiceGrid{
+    gap:8px;
+  }
+
+  .qtyQuickBtn{
+    min-height:54px;
+    font-size:20px;
+    border-radius:12px;
+  }
+
+  .qtyManualBtn{
+    font-size:15px;
+  }
+
+  .categoryChoiceBtn{
+    min-height:48px;
     font-size:14px;
-    padding:6px 8px;
-  }
-
-  .compactNote{
-    font-size:11px;
-    margin-top:6px;
   }
 }
