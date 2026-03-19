@@ -26,10 +26,11 @@ window.lastPos = null;
 let nearbyMode = false;
 let nearbyStoreIds = new Set();
 
-/* =========================
-   個数入力モーダル
-========================= */
+/* -------------------------
+   モーダル
+------------------------- */
 let qtyResolver = null;
+let categoryResolver = null;
 
 function openQtyModal(title = "個数を選択"){
   const modal = document.getElementById("qtyModal");
@@ -103,9 +104,88 @@ function askItemQtyModal(title = "個数を選択"){
   });
 }
 
-/* =========================
+function openCategoryModal(title = "カテゴリを選択", categories = []){
+  const modal = document.getElementById("categoryModal");
+  const titleEl = document.getElementById("categoryModalTitle");
+  const listEl = document.getElementById("categoryList");
+  const manualArea = document.getElementById("categoryManualArea");
+  const manualInput = document.getElementById("categoryManualInput");
+
+  if(titleEl) titleEl.textContent = title;
+  if(listEl) listEl.innerHTML = "";
+  if(manualArea) manualArea.classList.remove("show");
+  if(manualInput) manualInput.value = "";
+
+  categories.forEach(cat => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "categoryChoiceBtn";
+    btn.textContent = cat;
+    btn.onclick = () => resolveCategoryModal(cat);
+    listEl.appendChild(btn);
+  });
+
+  if(modal){
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+  }
+}
+
+function closeCategoryModal(){
+  const modal = document.getElementById("categoryModal");
+  if(modal){
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  if(typeof categoryResolver === "function"){
+    const resolver = categoryResolver;
+    categoryResolver = null;
+    resolver("");
+  }
+}
+
+function resolveCategoryModal(value){
+  const modal = document.getElementById("categoryModal");
+  if(modal){
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  if(typeof categoryResolver === "function"){
+    const resolver = categoryResolver;
+    categoryResolver = null;
+    resolver(String(value || "").trim());
+  }
+}
+
+function toggleCategoryManual(){
+  const area = document.getElementById("categoryManualArea");
+  const input = document.getElementById("categoryManualInput");
+  if(area) area.classList.add("show");
+  if(input) input.focus();
+}
+
+function confirmCategoryManual(){
+  const input = document.getElementById("categoryManualInput");
+  const value = String(input?.value || "").trim();
+  if(!value){
+    alert("カテゴリ名を入力してください。");
+    return;
+  }
+  resolveCategoryModal(value);
+}
+
+function askCategoryModal(title = "カテゴリを選択", categories = []){
+  return new Promise(resolve => {
+    categoryResolver = resolve;
+    openCategoryModal(title, categories);
+  });
+}
+
+/* -------------------------
    バックアップ
-========================= */
+------------------------- */
 function saveAutoBackup(){
   try{
     const backup = {
@@ -318,9 +398,9 @@ function importBackup(event){
   reader.readAsText(file, "utf-8");
 }
 
-/* =========================
-   共通ユーティリティ
-========================= */
+/* -------------------------
+   共通
+------------------------- */
 function buildPrefFilter(){
   const prefSet = new Set();
   stores.forEach(s=>{
@@ -421,9 +501,9 @@ function openMapSearchFromAddress(){
   window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`, "_blank");
 }
 
-/* =========================
+/* -------------------------
    店舗 CRUD
-========================= */
+------------------------- */
 async function addStore(){
   const name = (document.getElementById("storeName")?.value || "").trim();
   const pref = (document.getElementById("prefName")?.value || "").trim();
@@ -504,23 +584,16 @@ function navigateToStore(i){
   alert("住所または座標が登録されていません。");
 }
 
-/* =========================
+/* -------------------------
    カテゴリ補助
-========================= */
+------------------------- */
 function getCategoryCandidates(s){
-  const baseCategories = [
-    "家電","家具","ホビー","おもちゃ","ゲーム","CD","DVD","本",
-    "釣具","工具","楽器","スポーツ","アウトドア","ブランド",
-    "バッグ","靴","服","アクセ","スマホ","PC","カメラ","オーディオ"
-  ];
-
   const quicks = Array.isArray(s.quickCategories) ? s.quickCategories : [];
   const existing = Object.keys(s.categoryCounts || {});
   return [...new Set([
     ...(s.defaultCategory ? [s.defaultCategory] : []),
     ...quicks,
-    ...existing,
-    ...baseCategories
+    ...existing
   ].filter(Boolean))];
 }
 
@@ -543,9 +616,9 @@ function refreshQuickCategories(s){
   ])].filter(Boolean).slice(0, QUICK_LIMIT);
 }
 
-/* =========================
+/* -------------------------
    訪問 / 個数 / 利益
-========================= */
+------------------------- */
 function visit(i){
   const s = stores[i];
   if(!s) return;
@@ -583,29 +656,20 @@ async function itemsPlus(i){
   addLog(logs, s.id, "success", 1);
   addLog(logs, s.id, "items", n);
 
-  const merged = getCategoryCandidates(s);
+  let categories = getCategoryCandidates(s);
+  if(!categories.length && s.defaultCategory){
+    categories = [s.defaultCategory];
+  }
+
   let remain = n;
   const picked = {};
 
   while(remain > 0){
-    const guide = merged.map((c, idx) => `${idx + 1}:${c}`).join(" / ");
-    const input = prompt(
-      `残り ${remain} 個\nカテゴリ番号またはカテゴリ名を入力してください。\n\n${guide}\n\n例: 家電\n例: 1`,
-      s.defaultCategory || merged[0] || ""
+    const cat = await askCategoryModal(
+      `カテゴリを選んでください（残り ${remain} 個）`,
+      categories
     );
-
-    if(input === null) break;
-
-    let cat = input.trim();
-
-    if(/^\d+$/.test(cat)){
-      const idx = Number(cat) - 1;
-      if(idx >= 0 && idx < merged.length){
-        cat = merged[idx];
-      }
-    }
-
-    if(!cat) cat = "未分類";
+    if(!cat) break;
 
     const qty = await askItemQtyModal(`「${cat}」に入れる個数を選んでください（残り ${remain} 個）`);
     if(!qty) break;
@@ -618,11 +682,13 @@ async function itemsPlus(i){
     picked[cat] = (picked[cat] || 0) + qty;
     remain -= qty;
 
-    if(!merged.includes(cat)) merged.unshift(cat);
+    if(!categories.includes(cat)){
+      categories.unshift(cat);
+    }
   }
 
   if(remain > 0){
-    const fallback = (s.defaultCategory || "未分類").trim() || "未分類";
+    const fallback = (s.defaultCategory || categories[0] || "未分類").trim() || "未分類";
     picked[fallback] = (picked[fallback] || 0) + remain;
   }
 
@@ -637,8 +703,8 @@ async function itemsPlus(i){
   if(usedCats.length === 1){
     s.defaultCategory = usedCats[0];
   }
-  refreshQuickCategories(s);
 
+  refreshQuickCategories(s);
   saveAll();
   render();
 }
@@ -686,28 +752,21 @@ async function itemsMinus(i){
 
     if(!active.length) break;
 
-    const guide = active.map((x, idx) => `${idx + 1}:${x.cat}(${x.qty})`).join(" / ");
-    const input = prompt(
-      `残り ${remain} 個 減らします\nカテゴリ番号またはカテゴリ名を入力してください。\n\n${guide}`,
-      active[0].cat
+    const cat = await askCategoryModal(
+      `減らすカテゴリを選んでください（残り ${remain} 個）`,
+      active.map(x => `${x.cat}（${x.qty}）`)
     );
-    if(input === null) break;
+    if(!cat) break;
 
-    let cat = input.trim();
-    if(/^\d+$/.test(cat)){
-      const idx = Number(cat) - 1;
-      if(idx >= 0 && idx < active.length){
-        cat = active[idx].cat;
-      }
-    }
+    const cleanCat = cat.replace(/（\d+）$/, "").trim();
+    const maxQty = Number(s.categoryCounts[cleanCat] || 0);
 
-    if(!cat || !active.some(x => x.cat === cat)){
+    if(maxQty <= 0){
       alert("カテゴリが見つかりません。");
       continue;
     }
 
-    const maxQty = Number(s.categoryCounts[cat] || 0);
-    const qty = await askItemQtyModal(`「${cat}」を何個減らしますか？（最大 ${Math.min(maxQty, remain)} 個）`);
+    const qty = await askItemQtyModal(`「${cleanCat}」を何個減らしますか？（最大 ${Math.min(maxQty, remain)} 個）`);
     if(!qty) break;
 
     if(qty > remain || qty > maxQty){
@@ -715,10 +774,10 @@ async function itemsMinus(i){
       continue;
     }
 
-    s.categoryCounts[cat] = clampNonNeg((s.categoryCounts[cat] || 0) - qty);
+    s.categoryCounts[cleanCat] = clampNonNeg((s.categoryCounts[cleanCat] || 0) - qty);
     s.items = clampNonNeg(s.items - qty);
     addLog(logs, s.id, "items", -qty);
-    addLog(logs, s.id, "category", -qty, cat);
+    addLog(logs, s.id, "category", -qty, cleanCat);
 
     remain -= qty;
   }
@@ -730,7 +789,6 @@ async function itemsMinus(i){
   });
 
   refreshQuickCategories(s);
-
   saveAll();
   render();
 }
@@ -761,9 +819,9 @@ function profitMinus(i){
   render();
 }
 
-/* =========================
+/* -------------------------
    位置情報 / 近くの店舗
-========================= */
+------------------------- */
 function optimizeRoute(){
   if(!navigator.geolocation){
     alert("この端末では位置情報が使えません。");
@@ -887,9 +945,9 @@ function autoDetectNearbyStores(silent = true){
   );
 }
 
-/* =========================
+/* -------------------------
    今日ルート
-========================= */
+------------------------- */
 function toggleToday(i, checked){
   if(!stores[i]) return;
   stores[i].today = !!checked;
@@ -1000,9 +1058,9 @@ function buildTodayRoute(showAlert = false){
   }
 }
 
-/* =========================
-   カード描画
-========================= */
+/* -------------------------
+   描画
+------------------------- */
 function buildCardHeader(s, i, extraBadgesHtml=""){
   normalizeCategoryCounts(s);
   const categorySummary = Object.entries(s.categoryCounts)
@@ -1077,9 +1135,9 @@ function renderStoreCard(s, forceNearbyBadge){
   `;
 }
 
-/* =========================
+/* -------------------------
    地図
-========================= */
+------------------------- */
 function renderMapMarkers(){
   if(typeof mapInitialized === "undefined" || !mapInitialized) return;
   clearMapMarkers();
@@ -1123,9 +1181,6 @@ function renderMapMarkers(){
   }
 }
 
-/* =========================
-   描画
-========================= */
 function renderTodayPlan(){
   buildTodayRoute(false);
 }
