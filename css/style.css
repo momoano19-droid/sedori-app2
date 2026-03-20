@@ -719,3 +719,82 @@ tr:last-child td{
   font-weight: bold;
   margin-bottom: 6px;
 }
+
+.reportCalendarGrid{
+  display:grid;
+  grid-template-columns:repeat(7, 1fr);
+  gap:8px;
+}
+
+.reportCalendarHeader{
+  margin-bottom:8px;
+}
+
+.reportCalendarWeek{
+  text-align:center;
+  font-weight:800;
+  color:#223;
+  padding:8px 4px;
+}
+
+.reportCalendarCell{
+  background:#fff;
+  border:1px solid #e5ebf3;
+  border-radius:12px;
+  min-height:110px;
+  padding:10px 8px;
+  box-sizing:border-box;
+}
+
+.reportCalendarCell.hasData{
+  background:#1677ff;
+  color:#fff;
+  border-color:#1677ff;
+}
+
+.reportCalendarCell.empty{
+  background:transparent;
+  border:none;
+}
+
+.reportCalendarDate{
+  font-size:16px;
+  font-weight:800;
+  margin-bottom:6px;
+}
+
+.reportCalendarLine{
+  font-size:13px;
+  line-height:1.5;
+}
+
+.reportCalendarDash{
+  font-size:13px;
+  opacity:0.8;
+}
+
+@media (max-width: 700px){
+  .reportCalendarGrid{
+    grid-template-columns:repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 480px){
+  .reportCalendarGrid{
+    grid-template-columns:repeat(2, 1fr);
+  }
+
+  .reportCalendarCell{
+    min-height:96px;
+    padding:8px;
+  }
+
+  .reportCalendarDate{
+    font-size:15px;
+  }
+
+  .reportCalendarLine,
+  .reportCalendarDash{
+    font-size:12px;
+  }
+}
