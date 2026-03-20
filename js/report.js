@@ -283,19 +283,24 @@ function renderCalendar() {
 
   let html = `
     <div class="sectionTitle">🗓 月カレンダー</div>
-    <div class="store">
-      <table style="width:100%; border-collapse:separate; border-spacing:4px; table-layout:fixed;">
+    <div class="store" style="padding:8px;">
+      <table style="
+        width:100%;
+        border-collapse:separate;
+        border-spacing:2px;
+        table-layout:fixed;
+      ">
         <thead>
           <tr>
             ${weekLabels.map(w => `
               <th style="
                 text-align:center;
-                padding:6px 2px;
-                font-size:13px;
+                padding:4px 1px;
+                font-size:11px;
                 font-weight:800;
                 color:#223;
                 background:#f3f6fb;
-                border-radius:8px;
+                border-radius:6px;
               ">${w}</th>
             `).join("")}
           </tr>
@@ -310,7 +315,7 @@ function renderCalendar() {
     if (cell % 7 === 0) html += `<tr>`;
 
     if (cell < startWeekday || day > totalDays) {
-      html += `<td style="height:78px;"></td>`;
+      html += `<td style="height:58px;"></td>`;
     } else {
       const key = reportFormatYmd(new Date(now.getFullYear(), now.getMonth(), day));
       const raw = sum.daily[key] || {
@@ -325,25 +330,46 @@ function renderCalendar() {
       const visits = Math.max(0, Number(raw.visits || 0));
       const hasData = profit > 0 || items > 0 || visits > 0;
 
+      const line1 = profit > 0 ? `${Math.round(profit / 1000)}k円` : "-";
+      const line2 = hasData
+        ? `${items > 0 ? "個" + items : ""}${items > 0 && visits > 0 ? " " : ""}${visits > 0 ? "訪" + visits : ""}`
+        : "";
+
       html += `
         <td style="
           vertical-align:top;
-          height:78px;
-          padding:6px 6px;
-          border-radius:10px;
+          height:58px;
+          padding:4px 4px;
+          border-radius:8px;
           background:${hasData ? "#1677ff" : "#ffffff"};
           color:${hasData ? "#ffffff" : "#223"};
           border:1px solid ${hasData ? "#1677ff" : "#e5ebf3"};
           overflow:hidden;
         ">
-          <div style="font-size:14px; font-weight:800; margin-bottom:4px;">${day}</div>
-          ${
-            profit > 0
-              ? `<div style="font-size:11px; line-height:1.25;">利益 ${profit.toLocaleString()}円</div>`
-              : `<div style="font-size:11px; line-height:1.25; opacity:${hasData ? "0.8" : "0.6"};">-</div>`
-          }
-          ${items > 0 ? `<div style="font-size:11px; line-height:1.25;">個数 ${items}個</div>` : ``}
-          ${visits > 0 ? `<div style="font-size:11px; line-height:1.25;">訪問 ${visits}回</div>` : ``}
+          <div style="
+            font-size:10px;
+            font-weight:800;
+            line-height:1.1;
+            margin-bottom:3px;
+          ">${day}</div>
+
+          <div style="
+            font-size:9px;
+            line-height:1.15;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+            opacity:${hasData ? "1" : "0.65"};
+          ">${line1}</div>
+
+          <div style="
+            font-size:9px;
+            line-height:1.15;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+            opacity:${hasData ? "0.95" : "0.65"};
+          ">${line2}</div>
         </td>
       `;
 
@@ -358,7 +384,7 @@ function renderCalendar() {
       </table>
       ${
         sum.source === "stores"
-          ? `<div class="mini" style="margin-top:8px;">※ 履歴ログが無い月は、最終訪問日ベースの簡易表示です</div>`
+          ? `<div class="mini" style="margin-top:6px;">※ 履歴ログが無い月は簡易表示です</div>`
           : ""
       }
     </div>
