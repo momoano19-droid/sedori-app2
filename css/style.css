@@ -26,6 +26,7 @@ h1{
   color:#667;
   font-size:13px;
   margin-bottom:12px;
+  line-height:1.5;
 }
 
 img, iframe, video, canvas, svg{
@@ -40,6 +41,12 @@ input,select,button,textarea{
   font-size:16px;
   box-sizing:border-box;
   min-height:44px;
+}
+
+input, select, textarea{
+  border:1px solid #d8e0ea;
+  border-radius:12px;
+  background:#fff;
 }
 
 button{
@@ -64,6 +71,10 @@ button.danger{
 
 button.neutral{
   background:#34c759;
+}
+
+.fileLike{
+  cursor:pointer;
 }
 
 .toolbar,.card{
@@ -400,7 +411,6 @@ tr:last-child td{
 .setting{ background:#e9eef6; color:#333; }
 .delete{ background:#ff4d4f; color:#fff; }
 
-/* 個数モーダル */
 .qtyModal{
   position:fixed;
   inset:0;
@@ -456,20 +466,17 @@ tr:last-child td{
   font-size:16px;
 }
 
-#qtyManualArea,
-#categoryManualArea{
+.qtyManualArea{
   display:none;
   margin-top:12px;
   gap:10px;
 }
 
-#qtyManualArea.show,
-#categoryManualArea.show{
+.qtyManualArea.show{
   display:grid;
 }
 
-#qtyManualArea input,
-#categoryManualArea input{
+.qtyManualArea input{
   margin:0;
   min-height:50px;
   font-size:18px;
@@ -505,8 +512,7 @@ tr:last-child td{
   margin:0;
 }
 
-/* カテゴリモーダル */
-#categoryList{
+.categoryChoiceGrid{
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:10px;
@@ -689,7 +695,7 @@ tr:last-child td{
     font-size:15px;
   }
 
-  #categoryList{
+  .categoryChoiceGrid{
     gap:8px;
   }
 
