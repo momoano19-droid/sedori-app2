@@ -2,241 +2,177 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>店舗管理アプリ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>店舗管理 | せどりGPS管理PRO</title>
 
-  <style>
-    body {
-      font-family: sans-serif;
-      padding: 20px;
-      background: #f5f5f5;
-    }
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#007aff">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
-    input, select, button {
-      width: 100%;
-      padding: 12px;
-      margin-top: 10px;
-      font-size: 16px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-    }
-
-    button {
-      background: #007bff;
-      color: white;
-      border: none;
-    }
-
-    .card {
-      background: white;
-      padding: 15px;
-      margin-top: 15px;
-      border-radius: 10px;
-    }
-  </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<h2>店舗登録</h2>
+  <h1>📱 店舗管理</h1>
+  <div class="sub">
+    現場で使う画面です。店舗追加・一覧・近くの店舗・地図・今日ルートをここで操作します。
+  </div>
 
-<input type="text" id="storeName" placeholder="店舗名">
+  <div class="compactPanel">
+    <div class="compactGrid">
+      <button class="compactBtn primary" onclick="location.href='report.html'">📊 分析画面へ</button>
+      <button class="compactBtn secondary" onclick="render()">再表示</button>
+    </div>
+  </div>
 
-<input type="text" id="locationUrl" placeholder="地図URL（Google / Apple）">
+  <div class="compactPanel">
+    <div class="compactTitle">バックアップ</div>
+    <div class="compactGrid">
+      <button class="compactBtn secondary" onclick="exportBackup()">📦 書き出し</button>
+      <label class="compactBtn secondary" style="cursor:pointer;">
+        📥 読込
+        <input type="file" accept=".json,application/json" style="display:none" onchange="importBackup(event)">
+      </label>
+    </div>
+    <div class="compactNote">店舗データ・ログデータをJSONで保存/復元</div>
+  </div>
 
-<button onclick="handleLocationUrlInput()">URLから座標取得</button>
+  <div class="compactPanel">
+    <div class="compactTitle">自動バックアップ</div>
+    <div class="compactGrid">
+      <button class="compactBtn secondary" onclick="restoreAutoBackup()">♻ 復元</button>
+      <button class="compactBtn secondary" onclick="showAutoBackupInfo()">🕒 確認</button>
+    </div>
+    <div class="compactNote">更新時に自動保存されます</div>
+  </div>
 
-<select id="quantity">
-  <option value="">個数を選択</option>
-  <option value="1">1個</option>
-  <option value="2">2個</option>
-  <option value="3">3個</option>
-  <option value="4">4個</option>
-  <option value="5">5個</option>
-</select>
+  <div class="card">
+    <div class="sectionTitle">店舗追加</div>
 
-<input type="text" id="categoryInput" placeholder="カテゴリ入力">
+    <input id="storeName" placeholder="店舗名">
+    <input id="prefName" placeholder="都道府県">
+    <input id="address" placeholder="住所">
+    <input id="mapUrl" placeholder="GoogleマップURL（任意）">
 
-<button onclick="saveCategory()">カテゴリ保存</button>
+    <div class="row2">
+      <button onclick="addStore()">追加</button>
+      <button class="secondary" onclick="openMapSearchFromAddress()">地図検索</button>
+    </div>
+  </div>
 
-<select id="categorySelect" multiple></select>
+  <div class="card">
+    <input id="q" placeholder="検索（店舗名/都道府県/住所/カテゴリ）" oninput="render()">
 
-<button onclick="saveStore()">登録</button>
+    <select id="prefFilter" onchange="render()"></select>
 
-<h2>登録一覧</h2>
-<div id="list"></div>
+    <input id="minExpected" placeholder="期待値 下限" oninput="render()">
+    <input id="minRate" placeholder="成功率 下限%" oninput="render()">
 
-<script>
-let savedCategories = JSON.parse(localStorage.getItem("categories") || "[]");
-let stores = JSON.parse(localStorage.getItem("stores") || "[]");
+    <select id="sortType" onchange="render()">
+      <option value="expected">期待値順</option>
+      <option value="rate">成功率順</option>
+      <option value="avgProfit">平均利益順</option>
+      <option value="visits">訪問回数順</option>
+      <option value="route">ルート効率順</option>
+    </select>
+  </div>
 
-let currentLat = null;
-let currentLng = null;
+  <div class="compactPanel">
+    <div class="compactGrid">
+      <button class="compactBtn primary" onclick="showNearbyStores()">📍 近くの店舗（3km）</button>
+      <button class="compactBtn secondary" onclick="clearNearbyMode(); render()">通常表示</button>
 
-// =====================
-// カテゴリ処理
-// =====================
-function saveCategory() {
-  const input = document.getElementById("categoryInput");
-  const value = input.value.trim();
+      <button class="compactBtn secondary" onclick="toggleMapPanel()">🗺 店舗MAP</button>
+      <button class="compactBtn secondary" onclick="moveMapToCurrentLocation()">📍 現在地へ移動</button>
+    </div>
+  </div>
 
-  if (!value) return;
+  <div class="compactPanel">
+    <div class="compactTitle">今日のルート</div>
+    <div class="row2">
+      <button class="compactBtn primary" onclick="buildTodayRoute(true)">🗓 今日ルート作成</button>
+      <select id="todayPrefSelect"></select>
+    </div>
+    <div class="compactGrid" style="margin-top:8px;">
+      <button class="compactBtn secondary" onclick="todayBulkOn()">この都道府県ON</button>
+      <button class="compactBtn secondary" onclick="todayBulkOff()">この都道府県OFF</button>
+    </div>
+  </div>
 
-  if (!savedCategories.includes(value)) {
-    savedCategories.push(value);
-    localStorage.setItem("categories", JSON.stringify(savedCategories));
-    renderCategories();
-  }
+  <div id="todayPlanArea"></div>
 
-  input.value = "";
-}
+  <div id="mapWrap" class="mapWrap">
+    <div id="map"></div>
+    <div class="mapLegend">
+      <div class="legendItem"><span class="legendDot red"></span>期待値 10000円以上</div>
+      <div class="legendItem"><span class="legendDot orange"></span>期待値 3000〜9999円</div>
+      <div class="legendItem"><span class="legendDot yellow"></span>期待値 1000〜2999円</div>
+      <div class="legendItem"><span class="legendDot blue"></span>期待値 999円以下</div>
+    </div>
+  </div>
 
-function renderCategories() {
-  const select = document.getElementById("categorySelect");
-  select.innerHTML = "";
+  <div id="storeList"></div>
 
-  savedCategories.forEach(cat => {
-    const option = document.createElement("option");
-    option.value = cat;
-    option.textContent = cat;
-    select.appendChild(option);
-  });
-}
+  <!-- 個数入力モーダル -->
+  <div id="qtyModal" class="qtyModal" aria-hidden="true">
+    <div class="qtyModalCard">
+      <div class="qtyModalTitle" id="qtyModalTitle">個数を選択</div>
 
-// =====================
-// URL → 座標取得
-// =====================
-function handleLocationUrlInput() {
-  const value = document.getElementById("locationUrl").value;
-  const result = extractLatLngFromUrl(value);
+      <div class="qtyQuickGrid">
+        <button type="button" class="qtyQuickBtn" onclick="selectQtyQuick(1)">1</button>
+        <button type="button" class="qtyQuickBtn" onclick="selectQtyQuick(2)">2</button>
+        <button type="button" class="qtyQuickBtn" onclick="selectQtyQuick(3)">3</button>
+        <button type="button" class="qtyQuickBtn" onclick="selectQtyQuick(4)">4</button>
+        <button type="button" class="qtyQuickBtn" onclick="selectQtyQuick(5)">5</button>
+        <button type="button" class="qtyQuickBtn qtyManualBtn" onclick="toggleQtyManual()">手入力</button>
+      </div>
 
-  if (result) {
-    currentLat = result.lat;
-    currentLng = result.lng;
+      <div id="qtyManualArea" class="qtyManualArea">
+        <input id="qtyManualInput" type="number" inputmode="numeric" min="1" step="1" placeholder="6以上も入力できます">
+        <button type="button" class="qtyConfirmBtn" onclick="confirmQtyManual()">この個数で決定</button>
+      </div>
 
-    alert(`座標取得成功\n緯度: ${currentLat}\n経度: ${currentLng}`);
-  } else {
-    alert("座標を取得できませんでした。URLを確認してください。");
-  }
-}
+      <div class="qtyModalActions">
+        <button type="button" class="qtyCancelBtn" onclick="closeQtyModal()">キャンセル</button>
+      </div>
+    </div>
+  </div>
 
-function extractLatLngFromUrl(input) {
-  if (!input) return null;
+  <!-- カテゴリ選択モーダル -->
+  <div id="categoryModal" class="qtyModal" aria-hidden="true">
+    <div class="qtyModalCard">
+      <div class="qtyModalTitle" id="categoryModalTitle">カテゴリを選択</div>
 
-  const text = input.trim();
+      <div id="categoryList" class="categoryChoiceGrid"></div>
 
-  // 生入力対応
-  const direct = text.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
-  if (direct) {
-    return { lat: parseFloat(direct[1]), lng: parseFloat(direct[2]) };
-  }
+      <div class="qtyManualArea" id="categoryManualArea">
+        <input id="categoryManualInput" type="text" placeholder="新しいカテゴリ名を入力">
+        <button type="button" class="qtyConfirmBtn" onclick="confirmCategoryManual()">このカテゴリで決定</button>
+      </div>
 
-  try {
-    const url = new URL(text);
+      <div class="qtyModalActions">
+        <button type="button" class="qtyQuickBtn qtyManualBtn" onclick="toggleCategoryManual()">手入力</button>
+        <button type="button" class="qtyCancelBtn" onclick="closeCategoryModal()">キャンセル</button>
+      </div>
+    </div>
+  </div>
 
-    // @形式
-    const at = url.href.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-    if (at) {
-      return { lat: parseFloat(at[1]), lng: parseFloat(at[2]) };
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js")
+          .then(() => console.log("Service Worker registered"))
+          .catch(err => console.error("Service Worker registration failed:", err));
+      });
     }
-
-    // q=
-    const q = url.searchParams.get("q");
-    if (q) {
-      const m = q.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
-      if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
-    }
-
-    // ll=
-    const ll = url.searchParams.get("ll");
-    if (ll) {
-      const m = ll.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
-      if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
-    }
-
-    // 最終 fallback
-    const all = decodeURIComponent(url.href);
-    const fallback = all.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
-    if (fallback) {
-      return { lat: parseFloat(fallback[1]), lng: parseFloat(fallback[2]) };
-    }
-
-  } catch (e) {}
-
-  return null;
-}
-
-// =====================
-// 登録
-// =====================
-function saveStore() {
-  const name = document.getElementById("storeName").value;
-  const quantity = document.getElementById("quantity").value;
-
-  const categorySelect = document.getElementById("categorySelect");
-  const selectedCategories = Array.from(categorySelect.selectedOptions).map(o => o.value);
-
-  if (!name || !quantity || selectedCategories.length === 0) {
-    alert("未入力項目があります");
-    return;
-  }
-
-  if (!currentLat || !currentLng) {
-    alert("先にURLから座標を取得してください");
-    return;
-  }
-
-  const store = {
-    name,
-    quantity,
-    categories: selectedCategories,
-    lat: currentLat,
-    lng: currentLng
-  };
-
-  stores.push(store);
-  localStorage.setItem("stores", JSON.stringify(stores));
-
-  renderStores();
-  resetForm();
-}
-
-// =====================
-// 表示
-// =====================
-function renderStores() {
-  const list = document.getElementById("list");
-  list.innerHTML = "";
-
-  stores.forEach(s => {
-    const div = document.createElement("div");
-    div.className = "card";
-
-    div.innerHTML = `
-      <b>${s.name}</b><br>
-      個数: ${s.quantity}<br>
-      カテゴリ: ${s.categories.join(", ")}<br>
-      座標: ${s.lat}, ${s.lng}
-    `;
-
-    list.appendChild(div);
-  });
-}
-
-// =====================
-// リセット
-// =====================
-function resetForm() {
-  document.getElementById("storeName").value = "";
-  document.getElementById("locationUrl").value = "";
-  document.getElementById("quantity").value = "";
-  document.getElementById("categoryInput").value = "";
-  currentLat = null;
-  currentLng = null;
-}
-
-// 初期化
-renderCategories();
-renderStores();
-</script>
-
+  </script>
 </body>
 </html>
