@@ -251,48 +251,48 @@ function ensureCalendarModal() {
   const modal = document.createElement("div");
   modal.id = "calendarDetailModal";
   modal.style.cssText = `
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,0.45);
-    display:none;
-    align-items:center;
-    justify-content:center;
-    z-index:99999;
-    padding:16px;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    padding: 16px;
   `;
 
   modal.innerHTML = `
     <div style="
-      width:min(100%, 360px);
-      background:#fff;
-      border-radius:18px;
-      padding:16px;
-      box-shadow:0 10px 30px rgba(0,0,0,0.2);
+      width: min(100%, 360px);
+      background: #fff;
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     ">
       <div id="calendarDetailTitle" style="
-        font-size:18px;
-        font-weight:800;
-        margin-bottom:10px;
-        text-align:center;
-        color:#223;
+        font-size: 18px;
+        font-weight: 800;
+        margin-bottom: 10px;
+        text-align: center;
+        color: #223;
       ">日付詳細</div>
 
       <div id="calendarDetailBody" style="
-        font-size:15px;
-        line-height:1.8;
-        color:#223;
+        font-size: 15px;
+        line-height: 1.8;
+        color: #223;
       "></div>
 
       <button onclick="closeCalendarDetail()" style="
-        width:100%;
-        margin-top:14px;
-        min-height:46px;
-        border:none;
-        border-radius:12px;
-        background:#1677ff;
-        color:#fff;
-        font-size:16px;
-        font-weight:700;
+        width: 100%;
+        margin-top: 14px;
+        min-height: 46px;
+        border: none;
+        border-radius: 12px;
+        background: #1677ff;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 700;
       ">閉じる</button>
     </div>
   `;
@@ -383,19 +383,19 @@ function renderCalendar() {
     <div class="store" style="padding:6px;">
       <div style="
         display:grid;
-        grid-template-columns: repeat(7, 1fr);
+        grid-template-columns: repeat(7, minmax(0, 1fr));
         gap:6px;
+        width:100%;
       ">
   `;
 
-  // 曜日
   weekLabels.forEach(w => {
     html += `
       <div style="
         text-align:center;
         font-size:13px;
         font-weight:800;
-        padding:6px 0;
+        padding:8px 0;
         background:#f3f6fb;
         border-radius:8px;
       ">${w}</div>
@@ -406,13 +406,11 @@ function renderCalendar() {
   const totalCells = Math.ceil((startWeekday + totalDays) / 7) * 7;
 
   for (let i = 0; i < totalCells; i++) {
-
     if (i < startWeekday || day > totalDays) {
       html += `<div></div>`;
     } else {
-
       const key = reportFormatYmd(new Date(now.getFullYear(), now.getMonth(), day));
-      const raw = sum.daily[key] || { profit: 0 };
+      const raw = sum.daily[key] || { profit: 0, items: 0, visits: 0, success: 0 };
 
       const profit = Math.max(0, Number(raw.profit || 0));
       const hasData = profit > 0;
@@ -430,28 +428,44 @@ function renderCalendar() {
         ? "#ff9f0a"
         : (hasData ? "#1677ff" : "#dfe6f2");
 
-      const text = hasData ? `${Math.round(profit / 1000)}k` : "-";
+      const text = hasData ? `${profit.toLocaleString()}円` : "-";
 
       html += `
         <div
           onclick='openCalendarDetail(${JSON.stringify(key)}, ${JSON.stringify(raw)})'
           style="
-            aspect-ratio:1/1;
-            border-radius:12px;
-            background:${bg};
-            color:${color};
-            border:1px solid ${borderColor};
-            display:flex;
-            flex-direction:column;
-            align-items:center;
-            justify-content:center;
-            font-weight:800;
-            cursor:pointer;
+            aspect-ratio: 1 / 1;
+            border-radius: 12px;
+            background: ${bg};
+            color: ${color};
+            border: 1px solid ${borderColor};
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            cursor: pointer;
+            padding: 4px 2px;
+            min-width: 0;
             ${isToday ? "box-shadow:0 0 0 2px rgba(255,159,10,0.25) inset;" : ""}
           "
         >
-          <div style="font-size:12px; margin-bottom:4px;">${day}</div>
-          <div style="font-size:14px;">${text}</div>
+          <div style="
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 6px;
+            white-space: nowrap;
+          ">${day}</div>
+
+          <div style="
+            font-size: 9px;
+            font-weight: 700;
+            line-height: 1.15;
+            text-align: center;
+            word-break: break-all;
+            padding: 0 2px;
+          ">${text}</div>
         </div>
       `;
 
