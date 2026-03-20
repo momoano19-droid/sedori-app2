@@ -283,7 +283,7 @@ function renderCalendar() {
 
   let html = `
     <div class="sectionTitle">🗓 月カレンダー</div>
-    <div class="store" style="padding:8px;">
+    <div class="store" style="padding:6px;">
       <table style="
         width:100%;
         border-collapse:separate;
@@ -295,8 +295,8 @@ function renderCalendar() {
             ${weekLabels.map(w => `
               <th style="
                 text-align:center;
-                padding:4px 1px;
-                font-size:11px;
+                padding:3px 0;
+                font-size:10px;
                 font-weight:800;
                 color:#223;
                 background:#f3f6fb;
@@ -315,61 +315,41 @@ function renderCalendar() {
     if (cell % 7 === 0) html += `<tr>`;
 
     if (cell < startWeekday || day > totalDays) {
-      html += `<td style="height:58px;"></td>`;
+      html += `<td style="height:48px;"></td>`;
     } else {
       const key = reportFormatYmd(new Date(now.getFullYear(), now.getMonth(), day));
-      const raw = sum.daily[key] || {
-        profit: 0,
-        items: 0,
-        visits: 0,
-        success: 0
-      };
+      const raw = sum.daily[key] || { profit: 0 };
 
       const profit = Math.max(0, Number(raw.profit || 0));
-      const items = Math.max(0, Number(raw.items || 0));
-      const visits = Math.max(0, Number(raw.visits || 0));
-      const hasData = profit > 0 || items > 0 || visits > 0;
-
-      const line1 = profit > 0 ? `${Math.round(profit / 1000)}k円` : "-";
-      const line2 = hasData
-        ? `${items > 0 ? "個" + items : ""}${items > 0 && visits > 0 ? " " : ""}${visits > 0 ? "訪" + visits : ""}`
-        : "";
+      const hasData = profit > 0;
+      const text = hasData ? `${Math.round(profit / 1000)}k` : "-";
 
       html += `
         <td style="
-          vertical-align:top;
-          height:58px;
-          padding:4px 4px;
+          height:48px;
+          padding:3px;
           border-radius:8px;
           background:${hasData ? "#1677ff" : "#ffffff"};
-          color:${hasData ? "#ffffff" : "#223"};
+          color:${hasData ? "#ffffff" : "#999"};
           border:1px solid ${hasData ? "#1677ff" : "#e5ebf3"};
+          text-align:center;
           overflow:hidden;
         ">
           <div style="
             font-size:10px;
-            font-weight:800;
-            line-height:1.1;
-            margin-bottom:3px;
+            font-weight:700;
+            line-height:1;
+            margin-bottom:2px;
           ">${day}</div>
 
           <div style="
-            font-size:9px;
-            line-height:1.15;
+            font-size:10px;
+            font-weight:700;
+            line-height:1;
             white-space:nowrap;
             overflow:hidden;
             text-overflow:ellipsis;
-            opacity:${hasData ? "1" : "0.65"};
-          ">${line1}</div>
-
-          <div style="
-            font-size:9px;
-            line-height:1.15;
-            white-space:nowrap;
-            overflow:hidden;
-            text-overflow:ellipsis;
-            opacity:${hasData ? "0.95" : "0.65"};
-          ">${line2}</div>
+          ">${text}</div>
         </td>
       `;
 
