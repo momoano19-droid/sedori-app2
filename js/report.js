@@ -496,31 +496,58 @@ function renderTopStores() {
 
   area.innerHTML = `
     <div class="sectionTitle">🏆 上位店舗</div>
-    <div class="store">
-      <table>
-        <thead>
-          <tr>
-            <th>順位</th>
-            <th>店舗</th>
-            <th>都道府県</th>
-            <th>期待値</th>
-            <th>成功率</th>
-            <th>利益</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${top.map((s, idx) => `
-            <tr>
-              <td>${idx + 1}</td>
-              <td>${reportEscapeHtml(s.name)}</td>
-              <td>${reportEscapeHtml(s.pref || "未設定")}</td>
-              <td>${Math.round(s.expected).toLocaleString()}円</td>
-              <td>${s.rate.toFixed(1)}%</td>
-              <td>${Math.round(s.profit).toLocaleString()}円</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
+    <div>
+      ${top.map((s, idx) => `
+        <div class="store" style="margin-top:10px;">
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:10px;
+            margin-bottom:8px;
+          ">
+            <div style="flex:1; min-width:0;">
+              <div style="
+                font-size:18px;
+                font-weight:800;
+                line-height:1.35;
+                word-break:break-word;
+              ">
+                ${idx + 1}. ${reportEscapeHtml(s.name)}
+              </div>
+              <div class="mini" style="margin-top:4px;">
+                ${reportEscapeHtml(s.pref || "未設定")}
+              </div>
+            </div>
+
+            <div style="
+              flex:0 0 auto;
+              background:#1677ff;
+              color:#fff;
+              border-radius:999px;
+              padding:6px 10px;
+              font-size:12px;
+              font-weight:800;
+              white-space:nowrap;
+            ">
+              期待値 ${Math.round(s.expected).toLocaleString()}円
+            </div>
+          </div>
+
+          <div style="
+            display:grid;
+            grid-template-columns:repeat(2, minmax(0, 1fr));
+            gap:8px;
+          ">
+            <div class="pill">利益 ${Math.round(s.profit).toLocaleString()}円</div>
+            <div class="pill">成功率 ${s.rate.toFixed(1)}%</div>
+            <div class="pill">訪問 ${Math.round(s.visits).toLocaleString()}回</div>
+            <div class="pill">成功 ${Math.round(s.buyDays).toLocaleString()}回</div>
+            <div class="pill">個数 ${Math.round(s.items).toLocaleString()}個</div>
+            <div class="pill">平均利益 ${Math.round(s.avgProfit).toLocaleString()}円</div>
+          </div>
+        </div>
+      `).join("")}
     </div>
   `;
 }
