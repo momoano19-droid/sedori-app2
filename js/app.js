@@ -25,13 +25,12 @@ let layout = loadLayout();
 window.lastPos = null;
 let nearbyMode = false;
 let nearbyStoreIds = new Set();
-
-/* -------------------------
-   モーダル
-------------------------- */
 let qtyResolver = null;
 let categoryResolver = null;
 
+/* =========================
+   モーダル: 個数
+========================= */
 function openQtyModal(title = "個数を選択"){
   const modal = document.getElementById("qtyModal");
   const titleEl = document.getElementById("qtyModalTitle");
@@ -104,6 +103,9 @@ function askItemQtyModal(title = "個数を選択"){
   });
 }
 
+/* =========================
+   モーダル: カテゴリ
+========================= */
 function openCategoryModal(title = "カテゴリを選択", categories = []){
   const modal = document.getElementById("categoryModal");
   const titleEl = document.getElementById("categoryModalTitle");
@@ -122,7 +124,7 @@ function openCategoryModal(title = "カテゴリを選択", categories = []){
     btn.className = "categoryChoiceBtn";
     btn.textContent = cat;
     btn.onclick = () => resolveCategoryModal(cat);
-    listEl.appendChild(btn);
+    if(listEl) listEl.appendChild(btn);
   });
 
   if(modal){
@@ -183,9 +185,9 @@ function askCategoryModal(title = "カテゴリを選択", categories = []){
   });
 }
 
-/* -------------------------
+/* =========================
    バックアップ
-------------------------- */
+========================= */
 function saveAutoBackup(){
   try{
     const backup = {
@@ -398,9 +400,9 @@ function importBackup(event){
   reader.readAsText(file, "utf-8");
 }
 
-/* -------------------------
+/* =========================
    共通
-------------------------- */
+========================= */
 function buildPrefFilter(){
   const prefSet = new Set();
   stores.forEach(s=>{
@@ -501,9 +503,90 @@ function openMapSearchFromAddress(){
   window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`, "_blank");
 }
 
-/* -------------------------
+function toggleMapPanel(){
+  const wrap = document.getElementById("mapWrap");
+  if(!wrap) return;
+  wrap.classList.toggle("show");
+  if(wrap.classList.contains("show") && typeof map !== "undefined"){
+    setTimeout(() => {
+      if(map && map.invalidateSize) map.invalidateSize();
+      renderMapMarkers();
+    }, 150);
+  }
+}
+
+function moveMapToCurrentLocation(){
+  if(!navigator.geolocation){
+    alert("この端末では位置情報が使えません。");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      window.lastPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+
+      const wrap = document.getElementById("mapWrap");
+      if(wrap && !wrap.classList.contains("show")){
+        wrap.classList.add("show");
+      }
+
+      if(typeof map !== "undefined" && map){
+        map.setView([window.lastPos.lat, window.lastPos.lng], 15);
+      }
+
+      render();
+    },
+    () => alert("現在地を取得できませんでした。"),
+    { enableHighAccuracy:true, timeout:10000 }
+  );
+}
+
+/* =========================
    店舗 CRUD
-------------------------- */
+========================= */
+async function geocodeAddress(pref, address, name){
+  const q = [pref, address, name].filter(Boolean).join(" ").trim();
+  if(!q) return null;
+
+  try{
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(q)}`;
+    const res = await fetch(url, {
+      headers: { "Accept": "application/json" }
+    });
+
+    if(!res.ok) return null;
+
+    const data = await res.json();
+    if(!Array.isArray(data) || !data.length) return null;
+
+    const lat = Number(data[0].lat);
+    const lng = Number(data[0].lon);
+
+    if(isNaN(lat) || isNaN(lng)) return null;
+
+    return { lat, lng };
+  }catch(e){
+    console.error("住所から座標取得失敗", e);
+    return null;
+  }
+}
+
+function askLatLng(currentLat, currentLng){
+  const latInput = prompt("緯度（空欄で未設定）", currentLat ?? "");
+  if(latInput === null) return null;
+
+  const lngInput = prompt("経度（空欄で未設定）", currentLng ?? "");
+  if(lngInput === null) return null;
+
+  const lat = String(latInput).trim();
+  const lng = String(lngInput).trim();
+
+  return {
+    lat: lat === "" ? null : (isNaN(Number(lat)) ? null : Number(lat)),
+    lng: lng === "" ? null : (isNaN(Number(lng)) ? null : Number(lng))
+  };
+}
+
 async function addStore(){
   const name = (document.getElementById("storeName")?.value || "").trim();
   const pref = (document.getElementById("prefName")?.value || "").trim();
@@ -513,6 +596,19 @@ async function addStore(){
   if(!name){
     alert("店舗名を入れてください。");
     return;
+  }
+
+  let lat = null;
+  let lng = null;
+
+  if(address){
+    const geo = await geocodeAddress(pref, address, name);
+    if(geo){
+      lat = geo.lat;
+      lng = geo.lng;
+    }else{
+      alert("住所から座標を取得できませんでした。あとで設定から緯度・経度を手入力してください。");
+    }
   }
 
   stores.push({
@@ -525,8 +621,8 @@ async function addStore(){
     items: 0,
     profit: 0,
     mapUrl,
-    lat: null,
-    lng: null,
+    lat,
+    lng,
     defaultCategory: "",
     categoryCounts: {},
     quickCategories: [],
@@ -543,7 +639,7 @@ async function addStore(){
   render();
 }
 
-function editStore(i){
+async function editStore(i){
   const s = stores[i];
   if(!s) return;
 
@@ -556,6 +652,26 @@ function editStore(i){
 
   const address = prompt("住所", s.address || "");
   if(address !== null) s.address = String(address).trim();
+
+  const mapUrl = prompt("GoogleマップURL", s.mapUrl || "");
+  if(mapUrl !== null) s.mapUrl = String(mapUrl).trim();
+
+  const latlng = askLatLng(s.lat, s.lng);
+  if(latlng === null) return;
+
+  s.lat = latlng.lat;
+  s.lng = latlng.lng;
+
+  if((s.lat === null || s.lng === null) && s.address){
+    const geo = await geocodeAddress(s.pref, s.address, s.name);
+    if(geo){
+      s.lat = geo.lat;
+      s.lng = geo.lng;
+      alert("住所から座標を取得しました。");
+    }else{
+      alert("住所から座標を取得できませんでした。緯度・経度を手入力してください。");
+    }
+  }
 
   saveAll();
   render();
@@ -584,9 +700,9 @@ function navigateToStore(i){
   alert("住所または座標が登録されていません。");
 }
 
-/* -------------------------
+/* =========================
    カテゴリ補助
-------------------------- */
+========================= */
 function getCategoryCandidates(s){
   const quicks = Array.isArray(s.quickCategories) ? s.quickCategories : [];
   const existing = Object.keys(s.categoryCounts || {});
@@ -605,20 +721,23 @@ function normalizeCategoryCounts(s){
 
 function refreshQuickCategories(s){
   normalizeCategoryCounts(s);
+
   const positiveCats = Object.entries(s.categoryCounts)
     .filter(([,qty]) => Number(qty) > 0)
     .map(([cat]) => cat);
 
+  const currentQuick = Array.isArray(s.quickCategories) ? s.quickCategories : [];
+
   s.quickCategories = [...new Set([
     ...(s.defaultCategory ? [s.defaultCategory] : []),
     ...positiveCats,
-    ...(Array.isArray(s.quickCategories) ? s.quickCategories : [])
+    ...currentQuick
   ])].filter(Boolean).slice(0, QUICK_LIMIT);
 }
 
-/* -------------------------
+/* =========================
    訪問 / 個数 / 利益
-------------------------- */
+========================= */
 function visit(i){
   const s = stores[i];
   if(!s) return;
@@ -671,7 +790,10 @@ async function itemsPlus(i){
     );
     if(!cat) break;
 
-    const qty = await askItemQtyModal(`「${cat}」に入れる個数を選んでください（残り ${remain} 個）`);
+    const cleanCat = String(cat).trim();
+    if(!cleanCat) break;
+
+    const qty = await askItemQtyModal(`「${cleanCat}」に入れる個数を選んでください（残り ${remain} 個）`);
     if(!qty) break;
 
     if(qty > remain){
@@ -679,17 +801,23 @@ async function itemsPlus(i){
       continue;
     }
 
-    picked[cat] = (picked[cat] || 0) + qty;
+    picked[cleanCat] = (picked[cleanCat] || 0) + qty;
     remain -= qty;
 
-    if(!categories.includes(cat)){
-      categories.unshift(cat);
+    if(!Array.isArray(s.quickCategories)) s.quickCategories = [];
+    s.quickCategories = [...new Set([cleanCat, ...s.quickCategories])].slice(0, QUICK_LIMIT);
+
+    if(!categories.includes(cleanCat)){
+      categories.unshift(cleanCat);
     }
   }
 
   if(remain > 0){
     const fallback = (s.defaultCategory || categories[0] || "未分類").trim() || "未分類";
     picked[fallback] = (picked[fallback] || 0) + remain;
+
+    if(!Array.isArray(s.quickCategories)) s.quickCategories = [];
+    s.quickCategories = [...new Set([fallback, ...s.quickCategories])].slice(0, QUICK_LIMIT);
   }
 
   normalizeCategoryCounts(s);
@@ -819,9 +947,9 @@ function profitMinus(i){
   render();
 }
 
-/* -------------------------
-   位置情報 / 近くの店舗
-------------------------- */
+/* =========================
+   近くの店舗
+========================= */
 function optimizeRoute(){
   if(!navigator.geolocation){
     alert("この端末では位置情報が使えません。");
@@ -864,7 +992,6 @@ function showNearbyStores(){
         if(slat === null || slng === null) return;
 
         const dist = distanceKm(lat, lng, slat, slng);
-
         distances.push({ id: s.id, dist });
 
         if(dist <= 3){
@@ -945,9 +1072,9 @@ function autoDetectNearbyStores(silent = true){
   );
 }
 
-/* -------------------------
+/* =========================
    今日ルート
-------------------------- */
+========================= */
 function toggleToday(i, checked){
   if(!stores[i]) return;
   stores[i].today = !!checked;
@@ -1058,9 +1185,9 @@ function buildTodayRoute(showAlert = false){
   }
 }
 
-/* -------------------------
-   描画
-------------------------- */
+/* =========================
+   カード
+========================= */
 function buildCardHeader(s, i, extraBadgesHtml=""){
   normalizeCategoryCounts(s);
   const categorySummary = Object.entries(s.categoryCounts)
@@ -1135,12 +1262,12 @@ function renderStoreCard(s, forceNearbyBadge){
   `;
 }
 
-/* -------------------------
+/* =========================
    地図
-------------------------- */
+========================= */
 function renderMapMarkers(){
   if(typeof mapInitialized === "undefined" || !mapInitialized) return;
-  clearMapMarkers();
+  if(typeof clearMapMarkers === "function") clearMapMarkers();
 
   const q = (document.getElementById("q")?.value || "").trim();
   const prefFilter = document.getElementById("prefFilter")?.value || "__ALL__";
@@ -1159,10 +1286,16 @@ function renderMapMarkers(){
   }
 
   if(!visibleStores.length) return;
+  if(typeof L === "undefined" || typeof map === "undefined") return;
 
   const bounds = [];
   visibleStores.forEach(s=>{
-    const marker = L.marker([s.lat, s.lng], { icon: makeMarkerIcon(getMarkerLevel(s._m.expected)) });
+    let markerOptions = {};
+    if(typeof makeMarkerIcon === "function" && typeof getMarkerLevel === "function"){
+      markerOptions.icon = makeMarkerIcon(getMarkerLevel(s._m.expected));
+    }
+
+    const marker = L.marker([s.lat, s.lng], markerOptions);
     marker.bindPopup(`
       <div><b>${escapeHtml(s.name)}</b></div>
       <div>${escapeHtml((s.pref || "").trim() || "未設定")}</div>
@@ -1170,7 +1303,7 @@ function renderMapMarkers(){
       <div>成功率：${s._m.rate.toFixed(1)}%</div>
     `);
     marker.addTo(map);
-    mapMarkers.push(marker);
+    if(typeof mapMarkers !== "undefined") mapMarkers.push(marker);
     bounds.push([s.lat, s.lng]);
   });
 
@@ -1181,6 +1314,9 @@ function renderMapMarkers(){
   }
 }
 
+/* =========================
+   描画
+========================= */
 function renderTodayPlan(){
   buildTodayRoute(false);
 }
