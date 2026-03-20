@@ -1,49 +1,41 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>分析画面 | せどりGPS管理PRO</title>
-  <link rel="stylesheet" href="css/style.css" />
+
   <link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#007aff">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="せどりGPS">
-<link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <meta name="theme-color" content="#007aff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="分析画面">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+
   <h1>📊 分析画面</h1>
-  <div class="sub">月次サマリー・カレンダー・日別詳細・曜日分析・ランキングを見る画面です。</div>
+  <div class="sub">
+    月サマリー・月カレンダー・上位店舗・カテゴリ集計を表示します。
+  </div>
 
-  <div class="toolbar">
-    <div class="row2">
-      <button onclick="location.href='index.html'">🏠 店舗管理へ戻る</button>
-      <button class="secondary" onclick="renderReport()">更新</button>
+  <div class="compactPanel">
+    <div class="compactGrid">
+      <button class="compactBtn primary" onclick="location.href='index.html'">📱 店舗管理へ</button>
+      <button class="compactBtn secondary" onclick="renderReportPage()">再表示</button>
     </div>
   </div>
 
-  <div class="toolbar">
-    <div class="row2">
-      <select id="monthSelect" onchange="selectedDate=''; renderReport()"></select>
-      <select id="prefFilter" onchange="selectedDate=''; renderReport()"></select>
-    </div>
-  </div>
+  <div id="monthlySummary"></div>
 
-  <div id="reportArea"></div>
+  <div id="calendarArea"></div>
 
-  <script src="js/utils.js"></script>
-  <script src="js/storage.js"></script>
-  <script src="js/analytics.js"></script>
+  <div id="topStoresArea"></div>
+
+  <div id="categorySummaryArea"></div>
+
   <script src="js/report.js"></script>
-  <script>
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js")
-      .then(() => console.log("Service Worker registered"))
-      .catch(err => console.error("Service Worker registration failed:", err));
-  });
-}
-</script>
 </body>
 </html>
