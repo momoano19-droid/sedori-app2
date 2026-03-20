@@ -1,338 +1,447 @@
-let stores = loadStores();
-let logs = loadLogs();
-let selectedDate = "";
+const REPORT_STORE_KEYS = [
+  "sedori_stores_v2",
+  "sedori_stores_v1",
+  "sedori_stores",
+  "stores"
+];
 
-function buildMonthSelect(){
-  const sel = document.getElementById("monthSelect");
-  if(!sel) return;
+const REPORT_LOG_KEYS = [
+  "sedori_logs_v2",
+  "sedori_logs_v1",
+  "sedori_logs",
+  "logs"
+];
 
-  const set = new Set();
+/* =========================
+   共通
+========================= */
+function reportEscapeHtml(str) {
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
-  logs.forEach(l=>{
-    if(l.date && String(l.date).length >= 7){
-      set.add(String(l.date).slice(0,7));
+function reportClampNonNeg(n) {
+  const x = Number(n);
+  if (isNaN(x) || x < 0) return 0;
+  return x;
+}
+
+function reportFormatYmd(dateObj) {
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const d = String(dateObj.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function reportFormatYm(dateObj) {
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+function reportGetMonthRange(baseDate = new Date()) {
+  const first = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+  const last = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0);
+  return { first, last };
+}
+
+function reportWeekLabel(num) {
+  return ["日", "月", "火", "水", "木", "金", "土"][num] || "";
+}
+
+/* =========================
+   読込
+========================= */
+function reportReadFirstAvailable(keys) {
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (parsed) return parsed;
+    } catch (e) {
+      console.error(`read failed: ${key}`, e);
     }
+  }
+  return null;
+}
+
+function getStoresSafe() {
+  const parsed = reportReadFirstAvailable(REPORT_STORE_KEYS);
+  if (!Array.isArray(parsed)) return [];
+  return parsed.map(normalizeReportStore);
+}
+
+function getLogsSafe() {
+  const parsed = reportReadFirstAvailable(REPORT_LOG_KEYS);
+  if (!Array.isArray(parsed)) return [];
+  return parsed.map(l => ({
+    date: String(l.date || "").trim(),
+    storeId: String(l.storeId || "").trim(),
+    type: String(l.type || "").trim(),
+    delta: Number(l.delta || 0),
+    category: String(l.category || "").trim()
+  }));
+}
+
+function normalizeReportStore(s) {
+  return {
+    id: String(s.id || ""),
+    name: String(s.name || "店舗"),
+    pref: String(s.pref || "").trim(),
+    address: String(s.address || "").trim(),
+    visits: Number(s.visits || 0),
+    buyDays: Number(s.buyDays || 0),
+    items: Number(s.items || 0),
+    profit: Number(s.profit || 0),
+    mapUrl: String(s.mapUrl || "").trim(),
+    lat: (s.lat !== null && s.lat !== "" && !isNaN(Number(s.lat))) ? Number(s.lat) : null,
+    lng: (s.lng !== null && s.lng !== "" && !isNaN(Number(s.lng))) ? Number(s.lng) : null,
+    defaultCategory: String(s.defaultCategory || "").trim(),
+    categoryCounts: (s.categoryCounts && typeof s.categoryCounts === "object") ? s.categoryCounts : {},
+    quickCategories: Array.isArray(s.quickCategories) ? s.quickCategories.filter(Boolean) : [],
+    lastVisitDate: String(s.lastVisitDate || "").trim(),
+    today: !!s.today
+  };
+}
+
+/* =========================
+   集計
+========================= */
+function buildDailyFromLogs(logs, baseDate = new Date()) {
+  const { last } = reportGetMonthRange(baseDate);
+  const days = {};
+
+  for (let d = 1; d <= last.getDate(); d++) {
+    const key = reportFormatYmd(new Date(baseDate.getFullYear(), baseDate.getMonth(), d));
+    days[key] = {
+      profit: 0,
+      items: 0,
+      visits: 0,
+      success: 0
+    };
+  }
+
+  logs.forEach(log => {
+    const date = String(log.date || "").trim();
+    if (!days[date]) return;
+
+    if (log.type === "profit") days[date].profit += Number(log.delta || 0);
+    if (log.type === "items") days[date].items += Number(log.delta || 0);
+    if (log.type === "visit") days[date].visits += Number(log.delta || 0);
+    if (log.type === "success") days[date].success += Number(log.delta || 0);
   });
 
-  if(set.size === 0){
-    const now = new Date();
-    const month = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
-    set.add(month);
-  }
-
-  const months = Array.from(set).sort().reverse();
-  const current = sel.value || months[0] || "";
-
-  sel.innerHTML = months.map(m => `<option value="${m}">${m}</option>`).join("");
-
-  if(months.includes(current)){
-    sel.value = current;
-  }else if(months.length){
-    sel.value = months[0];
-  }
+  return days;
 }
 
-function buildPrefFilter(){
-  const sel = document.getElementById("prefFilter");
-  if(!sel) return;
+function buildFallbackDailyFromStores(stores, baseDate = new Date()) {
+  const { last } = reportGetMonthRange(baseDate);
+  const days = {};
 
-  const prefSet = new Set();
-  stores.forEach(s=>{
-    const p = String(s.pref || "").trim();
-    if(p) prefSet.add(p);
+  for (let d = 1; d <= last.getDate(); d++) {
+    const key = reportFormatYmd(new Date(baseDate.getFullYear(), baseDate.getMonth(), d));
+    days[key] = {
+      profit: 0,
+      items: 0,
+      visits: 0,
+      success: 0
+    };
+  }
+
+  stores.forEach(store => {
+    const date = String(store.lastVisitDate || "").trim();
+    if (!date || !days[date]) return;
+
+    days[date].profit += Number(store.profit || 0);
+    days[date].items += Number(store.items || 0);
+    days[date].visits += Number(store.visits || 0);
+    days[date].success += Number(store.buyDays || 0);
   });
 
-  const prefs = Array.from(prefSet).sort((a,b)=>a.localeCompare(b,'ja'));
-  const current = sel.value || "__ALL__";
+  return days;
+}
 
-  sel.innerHTML =
-    `<option value="__ALL__">全都道府県</option>` +
-    prefs.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("");
+function getMonthlySummarySmart(baseDate = new Date()) {
+  const stores = getStoresSafe();
+  const logs = getLogsSafe();
 
-  if(["__ALL__", ...prefs].includes(current)){
-    sel.value = current;
-  }else{
-    sel.value = "__ALL__";
+  if (logs.length > 0) {
+    const daily = buildDailyFromLogs(logs, baseDate);
+    let profit = 0;
+    let items = 0;
+    let visits = 0;
+    let success = 0;
+
+    Object.values(daily).forEach(v => {
+      profit += Number(v.profit || 0);
+      items += Number(v.items || 0);
+      visits += Number(v.visits || 0);
+      success += Number(v.success || 0);
+    });
+
+    return {
+      source: "logs",
+      stores,
+      logs,
+      storesCount: stores.length,
+      profit,
+      items,
+      visits,
+      success,
+      rate: visits > 0 ? (success / visits) * 100 : 0,
+      daily
+    };
   }
+
+  const daily = buildFallbackDailyFromStores(stores, baseDate);
+
+  let profit = 0;
+  let items = 0;
+  let visits = 0;
+  let success = 0;
+
+  stores.forEach(store => {
+    profit += Number(store.profit || 0);
+    items += Number(store.items || 0);
+    visits += Number(store.visits || 0);
+    success += Number(store.buyDays || 0);
+  });
+
+  return {
+    source: "stores",
+    stores,
+    logs,
+    storesCount: stores.length,
+    profit,
+    items,
+    visits,
+    success,
+    rate: visits > 0 ? (success / visits) * 100 : 0,
+    daily
+  };
 }
 
-function getFilteredStores(){
-  const prefEl = document.getElementById("prefFilter");
-  const pref = prefEl ? prefEl.value : "__ALL__";
-  if(pref === "__ALL__") return stores.slice();
-  return stores.filter(s => String(s.pref || "").trim() === pref);
+function getTopStores(stores, limit = 20) {
+  return [...stores]
+    .map(store => {
+      const visits = Number(store.visits || 0);
+      const buyDays = Number(store.buyDays || 0);
+      const profit = Number(store.profit || 0);
+      const items = Number(store.items || 0);
+
+      return {
+        ...store,
+        expected: visits > 0 ? profit / visits : 0,
+        rate: visits > 0 ? (buyDays / visits) * 100 : 0,
+        avgProfit: buyDays > 0 ? profit / buyDays : 0,
+        avgItems: buyDays > 0 ? items / buyDays : 0
+      };
+    })
+    .sort((a, b) => b.expected - a.expected)
+    .slice(0, limit);
 }
 
-function getMonthLogs(month, storeIdsSet){
-  return logs.filter(l => String(l.date || "").startsWith(month) && storeIdsSet.has(l.storeId));
+/* =========================
+   描画
+========================= */
+function renderSummary() {
+  const target = document.getElementById("monthlySummary");
+  if (!target) return;
+
+  const now = new Date();
+  const ym = reportFormatYm(now);
+  const sum = getMonthlySummarySmart(now);
+
+  target.innerHTML = `
+    <div class="store">
+      <div class="storeTitle">📌 ${ym} サマリー</div>
+      <div class="kv">
+        <div class="pill">対象店舗 ${sum.storesCount}件</div>
+        <div class="pill">今月利益 ${Math.round(sum.profit).toLocaleString()}円</div>
+        <div class="pill">今月訪問 ${Math.round(sum.visits).toLocaleString()}回</div>
+        <div class="pill">今月成功 ${Math.round(sum.success).toLocaleString()}回</div>
+        <div class="pill">今月個数 ${Math.round(sum.items).toLocaleString()}個</div>
+        <div class="pill">今月成功率 ${sum.rate.toFixed(1)}%</div>
+      </div>
+      ${
+        sum.source === "stores"
+          ? `<div class="mini" style="margin-top:8px;">※ 履歴ログが無いため、現在の店舗集計から表示しています</div>`
+          : ""
+      }
+    </div>
+  `;
 }
 
-function getCellClass(d){
-  if(!d) return "dayCell";
-  if((d.profit || 0) >= 100000) return "dayCell big";
-  if((d.success || 0) > 0 || (d.profit || 0) > 0) return "dayCell good";
-  if((d.visits || 0) > 0 || (d.items || 0) > 0) return "dayCell hasData";
-  return "dayCell";
-}
+function renderCalendar() {
+  const area = document.getElementById("calendarArea");
+  if (!area) return;
 
-function renderCalendar(month, dailyMap){
-  const [year, mon] = month.split("-").map(Number);
-  const first = new Date(year, mon - 1, 1);
-  const lastDay = new Date(year, mon, 0).getDate();
-  const firstWeekday = first.getDay();
+  const now = new Date();
+  const sum = getMonthlySummarySmart(now);
+  const { first, last } = reportGetMonthRange(now);
+
+  const weekLabels = ["日", "月", "火", "水", "木", "金", "土"];
+  const startWeekday = first.getDay();
 
   let html = `
     <div class="sectionTitle">🗓 月カレンダー</div>
-    <div class="card">
-      <div class="calendarHead">
-        <div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div>
-      </div>
-      <div class="calendarGrid">
+    <div class="store">
+      <table>
+        <thead>
+          <tr>
+            ${weekLabels.map(w => `<th>${w}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
   `;
 
-  for(let i=0;i<firstWeekday;i++){
-    html += `<div class="dayCell empty"></div>`;
-  }
+  let day = 1;
+  const totalCells = Math.ceil((startWeekday + last.getDate()) / 7) * 7;
 
-  for(let day=1; day<=lastDay; day++){
-    const date = formatDate(year, mon, day);
-    const d = dailyMap[date];
-    let cls = getCellClass(d);
-    if(selectedDate === date) cls += " selected";
+  for (let cell = 0; cell < totalCells; cell++) {
+    if (cell % 7 === 0) html += "<tr>";
 
-    const mini = d
-      ? `<div class="dayMini">利益 ${Number(d.profit || 0).toLocaleString()}円</div>`
-      : "";
+    if (cell < startWeekday || day > last.getDate()) {
+      html += `<td></td>`;
+    } else {
+      const key = reportFormatYmd(new Date(now.getFullYear(), now.getMonth(), day));
+      const d = sum.daily[key] || { profit: 0, items: 0, visits: 0, success: 0 };
 
-    html += `
-      <button class="${cls}" onclick="selectDate('${date}')">
-        <div class="dayNum">${day}</div>
-        ${mini}
-      </button>
-    `;
+      html += `
+        <td style="vertical-align:top; min-width:90px;">
+          <div><b>${day}</b></div>
+          ${d.profit ? `<div class="mini">利益 ${Math.round(d.profit).toLocaleString()}円</div>` : ""}
+          ${d.items ? `<div class="mini">個数 ${Math.round(d.items)}個</div>` : ""}
+          ${d.visits ? `<div class="mini">訪問 ${Math.round(d.visits)}回</div>` : ""}
+          ${(!d.profit && !d.items && !d.visits) ? `<div class="mini">-</div>` : ""}
+        </td>
+      `;
+
+      day++;
+    }
+
+    if (cell % 7 === 6) html += "</tr>";
   }
 
   html += `
-      </div>
-      <div class="legend">
-        <div class="legendItem"><span class="legendBox"></span> データなし</div>
-        <div class="legendItem"><span class="legendBox hasData"></span> 訪問あり</div>
-        <div class="legendItem"><span class="legendBox good"></span> 成功・利益あり</div>
-        <div class="legendItem"><span class="legendBox big"></span> 利益10万円以上</div>
-      </div>
-    </div>
-  `;
-  return html;
-}
-
-function selectDate(date){
-  selectedDate = date;
-  renderReport();
-}
-
-function tableForStores(rows, columns){
-  return `
-    <table>
-      <thead>
-        <tr>${columns.map(c=>`<th>${c.label}</th>`).join("")}</tr>
-      </thead>
-      <tbody>
-        ${rows.map(r=>`
-          <tr>
-            ${columns.map(c=>`<td>${c.render(r)}</td>`).join("")}
-          </tr>
-        `).join("")}
-      </tbody>
-    </table>
-  `;
-}
-
-function renderReport(){
-  stores = loadStores();
-  logs = loadLogs();
-
-  buildMonthSelect();
-  buildPrefFilter();
-
-  const monthEl = document.getElementById("monthSelect");
-  const reportArea = document.getElementById("reportArea");
-  if(!monthEl || !reportArea) return;
-
-  const month = monthEl.value;
-  const filteredStores = getFilteredStores();
-  const storeIdsSet = new Set(filteredStores.map(s => s.id));
-  const monthLogs = getMonthLogs(month, storeIdsSet);
-  const storeMap = new Map(filteredStores.map(s => [s.id, s]));
-
-  let monthProfit = 0;
-  let monthVisits = 0;
-  let monthSuccess = 0;
-  let monthItems = 0;
-
-  monthLogs.forEach(l=>{
-    if(l.type === "profit") monthProfit += Number(l.delta) || 0;
-    if(l.type === "visit" && Number(l.delta) > 0) monthVisits += Number(l.delta) || 0;
-    if(l.type === "success" && Number(l.delta) > 0) monthSuccess += Number(l.delta) || 0;
-    if(l.type === "items" && Number(l.delta) > 0) monthItems += Number(l.delta) || 0;
-  });
-
-  const monthRate = monthVisits > 0 ? (monthSuccess / monthVisits) * 100 : 0;
-
-  const weekdayMap = {
-    "月": {profit:0, visits:0, success:0},
-    "火": {profit:0, visits:0, success:0},
-    "水": {profit:0, visits:0, success:0},
-    "木": {profit:0, visits:0, success:0},
-    "金": {profit:0, visits:0, success:0},
-    "土": {profit:0, visits:0, success:0},
-    "日": {profit:0, visits:0, success:0}
-  };
-
-  const dailyMap = {};
-  monthLogs.forEach(l=>{
-    const d = String(l.date || "");
-    if(!d) return;
-
-    if(!dailyMap[d]){
-      dailyMap[d] = {profit:0, visits:0, success:0, items:0, storeIds:new Set()};
-    }
-
-    if(l.type === "profit") dailyMap[d].profit += Number(l.delta) || 0;
-    if(l.type === "visit" && Number(l.delta) > 0) dailyMap[d].visits += Number(l.delta) || 0;
-    if(l.type === "success" && Number(l.delta) > 0) dailyMap[d].success += Number(l.delta) || 0;
-    if(l.type === "items" && Number(l.delta) > 0) dailyMap[d].items += Number(l.delta) || 0;
-    dailyMap[d].storeIds.add(l.storeId);
-
-    const w = getWeekdayJa(l.date);
-    if(weekdayMap[w]){
-      if(l.type === "profit") weekdayMap[w].profit += Number(l.delta) || 0;
-      if(l.type === "visit" && Number(l.delta) > 0) weekdayMap[w].visits += Number(l.delta) || 0;
-      if(l.type === "success" && Number(l.delta) > 0) weekdayMap[w].success += Number(l.delta) || 0;
-    }
-  });
-
-  const categoryMap = {};
-  monthLogs.forEach(l=>{
-    if(l.type === "items" && Number(l.delta) > 0 && l.category){
-      const c = String(l.category).trim();
-      if(!c) return;
-      categoryMap[c] = (categoryMap[c] || 0) + (Number(l.delta) || 0);
-    }
-  });
-
-  const enrichedStores = filteredStores.map(s=>{
-    const m = getStoreAdvancedMetrics(logs, s);
-    return {
-      ...s,
-      _m: m,
-      _restock: m.restockCycle,
-      _strongWeekdays: m.strongWeekdays
-    };
-  });
-
-  const topExpected = enrichedStores.slice().sort((a,b)=>b._m.expected - a._m.expected).slice(0,10);
-
-  if(!selectedDate || !String(selectedDate).startsWith(month)){
-    const dates = Object.keys(dailyMap).sort();
-    selectedDate = dates.length ? dates[dates.length - 1] : "";
-  }
-
-  const selected = selectedDate ? dailyMap[selectedDate] : null;
-  const selectedStores = selected
-    ? Array.from(selected.storeIds).map(id => storeMap.get(id)).filter(Boolean)
-    : [];
-
-  reportArea.innerHTML = `
-    <div class="card">
-      <div class="sectionTitle">📌 ${escapeHtml(month)} サマリー</div>
-      <div class="kv">
-        <div class="pill"><b>対象店舗</b> ${filteredStores.length}件</div>
-        <div class="pill"><b>今月利益</b> ${monthProfit.toLocaleString()}円</div>
-        <div class="pill"><b>今月訪問</b> ${monthVisits}回</div>
-        <div class="pill"><b>今月成功</b> ${monthSuccess}回</div>
-        <div class="pill"><b>今月個数</b> ${monthItems}個</div>
-        <div class="pill"><b>今月成功率</b> ${monthRate.toFixed(1)}%</div>
-      </div>
-    </div>
-
-    ${renderCalendar(month, dailyMap)}
-
-    <div class="sectionTitle">📝 選択日の詳細 ${selectedDate ? `(${escapeHtml(selectedDate)} ${getWeekdayJa(selectedDate)})` : ""}</div>
-    <div class="card">
-      ${selected ? `
-        <div class="kv">
-          <div class="pill"><b>利益</b> ${selected.profit.toLocaleString()}円</div>
-          <div class="pill"><b>訪問</b> ${selected.visits}回</div>
-          <div class="pill"><b>成功</b> ${selected.success}回</div>
-          <div class="pill"><b>個数</b> ${selected.items}個</div>
-        </div>
-        ${selectedStores.length ? `
-          <table>
-            <thead><tr><th>店舗</th><th>都道府県</th></tr></thead>
-            <tbody>
-              ${selectedStores.map(s=>`
-                <tr>
-                  <td>${escapeHtml(s.name)}</td>
-                  <td>${escapeHtml(String(s.pref || "").trim() || "未設定")}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        ` : `<div class="gray">店舗データがありません。</div>`}
-      ` : `<div class="gray">この日のデータはありません。</div>`}
-    </div>
-
-    <div class="sectionTitle">📅 曜日分析</div>
-    <table>
-      <thead>
-        <tr><th>曜日</th><th>利益</th><th>訪問</th><th>成功</th><th>成功率</th></tr>
-      </thead>
-      <tbody>
-        ${["月","火","水","木","金","土","日"].map(w=>{
-          const row = weekdayMap[w];
-          const rate = row.visits > 0 ? (row.success / row.visits) * 100 : 0;
-          return `
-            <tr>
-              <td>${w}</td>
-              <td>${row.profit.toLocaleString()}円</td>
-              <td>${row.visits}回</td>
-              <td>${row.success}回</td>
-              <td>${rate.toFixed(1)}%</td>
-            </tr>
-          `;
-        }).join("")}
-      </tbody>
-    </table>
-
-    <div class="sectionTitle">🏆 期待値TOP10</div>
-    ${tableForStores(topExpected, [
-      {label:"店舗", render:r=>escapeHtml(r.name)},
-      {label:"都道府県", render:r=>escapeHtml(String(r.pref || "").trim() || "未設定")},
-      {label:"期待値", render:r=>`${Math.round(r._m.expected).toLocaleString()}円`},
-      {label:"成功率", render:r=>`${r._m.rate.toFixed(1)}%`}
-    ])}
-
-    <div class="sectionTitle">🗂 カテゴリ集計（今月個数）</div>
-    ${Object.keys(categoryMap).length ? `
-      <table>
-        <thead><tr><th>カテゴリ</th><th>個数</th></tr></thead>
-        <tbody>
-          ${Object.entries(categoryMap)
-            .sort((a,b)=>b[1]-a[1])
-            .map(([k,v])=>`
-              <tr>
-                <td>${escapeHtml(k)}</td>
-                <td>${v}</td>
-              </tr>
-            `).join("")}
         </tbody>
       </table>
-    ` : `<div class="card"><div class="gray">今月のカテゴリ個数ログはまだありません。</div></div>`}
+      ${
+        sum.source === "stores"
+          ? `<div class="mini" style="margin-top:8px;">※ 履歴ログが無いため、最終訪問日ベースの簡易カレンダーです</div>`
+          : ""
+      }
+    </div>
+  `;
+
+  area.innerHTML = html;
+}
+
+function renderTopStores() {
+  const area = document.getElementById("topStoresArea");
+  if (!area) return;
+
+  const stores = getStoresSafe();
+  const top = getTopStores(stores, 20);
+
+  if (!top.length) {
+    area.innerHTML = `<div class="gray">店舗データがありません。</div>`;
+    return;
+  }
+
+  area.innerHTML = `
+    <div class="sectionTitle">🏆 期待値 上位店舗</div>
+    <div class="store">
+      <table>
+        <thead>
+          <tr>
+            <th>順位</th>
+            <th>店舗</th>
+            <th>都道府県</th>
+            <th>期待値</th>
+            <th>成功率</th>
+            <th>利益</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${top.map((s, idx) => `
+            <tr>
+              <td>${idx + 1}</td>
+              <td>${reportEscapeHtml(s.name)}</td>
+              <td>${reportEscapeHtml(s.pref || "未設定")}</td>
+              <td>${Math.round(s.expected).toLocaleString()}円</td>
+              <td>${s.rate.toFixed(1)}%</td>
+              <td>${Math.round(s.profit).toLocaleString()}円</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
-(function init(){
-  buildMonthSelect();
-  buildPrefFilter();
-  renderReport();
-})();
+function renderCategorySummary() {
+  const area = document.getElementById("categorySummaryArea");
+  if (!area) return;
+
+  const stores = getStoresSafe();
+  const totals = {};
+
+  stores.forEach(store => {
+    const counts = store.categoryCounts || {};
+    Object.entries(counts).forEach(([cat, qty]) => {
+      const key = String(cat || "").trim();
+      if (!key) return;
+      totals[key] = (totals[key] || 0) + Number(qty || 0);
+    });
+  });
+
+  const rows = Object.entries(totals)
+    .sort((a, b) => b[1] - a[1]);
+
+  if (!rows.length) {
+    area.innerHTML = `<div class="gray">カテゴリ集計データがありません。</div>`;
+    return;
+  }
+
+  area.innerHTML = `
+    <div class="sectionTitle">📦 カテゴリ集計</div>
+    <div class="store">
+      <table>
+        <thead>
+          <tr>
+            <th>カテゴリ</th>
+            <th>個数</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(([cat, qty]) => `
+            <tr>
+              <td>${reportEscapeHtml(cat)}</td>
+              <td>${Math.round(qty)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderReportPage() {
+  renderSummary();
+  renderCalendar();
+  renderTopStores();
+  renderCategorySummary();
+}
+
+/* =========================
+   起動
+========================= */
+window.addEventListener("load", () => {
+  renderReportPage();
+});
