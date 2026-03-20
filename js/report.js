@@ -380,40 +380,37 @@ function renderCalendar() {
 
   let html = `
     <div class="sectionTitle">🗓 月カレンダー</div>
-    <div class="store" style="padding:10px;">
-      <table style="
-        width:100%;
-        table-layout:fixed;
-        border-collapse:separate;
-        border-spacing:6px;
+    <div class="store" style="padding:6px;">
+      <div style="
+        display:grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap:6px;
       ">
-        <thead>
-          <tr>
-            ${weekLabels.map(w => `
-              <th style="
-                width:14.28%;
-                height:34px;
-                font-size:13px;
-                font-weight:800;
-                text-align:center;
-                background:#f3f6fb;
-                border-radius:8px;
-              ">${w}</th>
-            `).join("")}
-          </tr>
-        </thead>
-        <tbody>
   `;
+
+  // 曜日
+  weekLabels.forEach(w => {
+    html += `
+      <div style="
+        text-align:center;
+        font-size:13px;
+        font-weight:800;
+        padding:6px 0;
+        background:#f3f6fb;
+        border-radius:8px;
+      ">${w}</div>
+    `;
+  });
 
   let day = 1;
   const totalCells = Math.ceil((startWeekday + totalDays) / 7) * 7;
 
-  for (let cell = 0; cell < totalCells; cell++) {
-    if (cell % 7 === 0) html += `<tr>`;
+  for (let i = 0; i < totalCells; i++) {
 
-    if (cell < startWeekday || day > totalDays) {
-      html += `<td style="height:88px;"></td>`;
+    if (i < startWeekday || day > totalDays) {
+      html += `<div></div>`;
     } else {
+
       const key = reportFormatYmd(new Date(now.getFullYear(), now.getMonth(), day));
       const raw = sum.daily[key] || { profit: 0 };
 
@@ -436,44 +433,35 @@ function renderCalendar() {
       const text = hasData ? `${Math.round(profit / 1000)}k` : "-";
 
       html += `
-        <td
+        <div
           onclick='openCalendarDetail(${JSON.stringify(key)}, ${JSON.stringify(raw)})'
           style="
-            height:88px;
-            padding:8px 4px;
+            aspect-ratio:1/1;
             border-radius:12px;
             background:${bg};
             color:${color};
             border:1px solid ${borderColor};
-            text-align:center;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            font-weight:800;
             cursor:pointer;
-            box-sizing:border-box;
             ${isToday ? "box-shadow:0 0 0 2px rgba(255,159,10,0.25) inset;" : ""}
           "
         >
-          <div style="
-            font-size:13px;
-            font-weight:800;
-            margin-bottom:8px;
-          ">${day}</div>
-
-          <div style="
-            font-size:14px;
-            font-weight:900;
-          ">${text}</div>
-        </td>
+          <div style="font-size:12px; margin-bottom:4px;">${day}</div>
+          <div style="font-size:14px;">${text}</div>
+        </div>
       `;
 
       day++;
     }
-
-    if (cell % 7 === 6) html += `</tr>`;
   }
 
   html += `
-        </tbody>
-      </table>
-      <div class="mini" style="margin-top:10px;">※ タップで詳細表示</div>
+      </div>
+      <div class="mini" style="margin-top:8px;">※ タップで詳細表示</div>
     </div>
   `;
 
