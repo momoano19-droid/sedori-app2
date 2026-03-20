@@ -284,18 +284,18 @@ function renderCalendar() {
   let html = `
     <div class="sectionTitle">🗓 月カレンダー</div>
     <div class="store">
-      <table style="width:100%; border-collapse:separate; border-spacing:6px; table-layout:fixed;">
+      <table style="width:100%; border-collapse:separate; border-spacing:4px; table-layout:fixed;">
         <thead>
           <tr>
             ${weekLabels.map(w => `
               <th style="
                 text-align:center;
-                padding:10px 4px;
-                font-size:16px;
+                padding:6px 2px;
+                font-size:13px;
                 font-weight:800;
                 color:#223;
                 background:#f3f6fb;
-                border-radius:10px;
+                border-radius:8px;
               ">${w}</th>
             `).join("")}
           </tr>
@@ -310,7 +310,7 @@ function renderCalendar() {
     if (cell % 7 === 0) html += `<tr>`;
 
     if (cell < startWeekday || day > totalDays) {
-      html += `<td style="height:110px;"></td>`;
+      html += `<td style="height:78px;"></td>`;
     } else {
       const key = reportFormatYmd(new Date(now.getFullYear(), now.getMonth(), day));
       const raw = sum.daily[key] || {
@@ -327,22 +327,23 @@ function renderCalendar() {
 
       html += `
         <td style="
-  vertical-align:top;
-  height:80px;
-  padding:6px 6px;
-  border-radius:10px;
+          vertical-align:top;
+          height:78px;
+          padding:6px 6px;
+          border-radius:10px;
           background:${hasData ? "#1677ff" : "#ffffff"};
           color:${hasData ? "#ffffff" : "#223"};
           border:1px solid ${hasData ? "#1677ff" : "#e5ebf3"};
+          overflow:hidden;
         ">
-          <div style="font-size:16px; font-weight:800; margin-bottom:6px;">${day}</div>
+          <div style="font-size:14px; font-weight:800; margin-bottom:4px;">${day}</div>
           ${
             profit > 0
-              ? `<div style="font-size:13px; line-height:1.5;">利益 ${profit.toLocaleString()}円</div>`
-              : `<div style="font-size:13px; line-height:1.5; opacity:${hasData ? "0.8" : "0.6"};">-</div>`
+              ? `<div style="font-size:11px; line-height:1.25;">利益 ${profit.toLocaleString()}円</div>`
+              : `<div style="font-size:11px; line-height:1.25; opacity:${hasData ? "0.8" : "0.6"};">-</div>`
           }
-          ${items > 0 ? `<div style="font-size:13px; line-height:1.5;">個数 ${items}個</div>` : ``}
-          ${visits > 0 ? `<div style="font-size:13px; line-height:1.5;">訪問 ${visits}回</div>` : ``}
+          ${items > 0 ? `<div style="font-size:11px; line-height:1.25;">個数 ${items}個</div>` : ``}
+          ${visits > 0 ? `<div style="font-size:11px; line-height:1.25;">訪問 ${visits}回</div>` : ``}
         </td>
       `;
 
