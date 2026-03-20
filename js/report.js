@@ -327,10 +327,10 @@ function renderCalendar() {
 
       html += `
         <td style="
-          vertical-align:top;
-          height:110px;
-          padding:10px 8px;
-          border-radius:12px;
+  vertical-align:top;
+  height:80px;
+  padding:6px 6px;
+  border-radius:10px;
           background:${hasData ? "#1677ff" : "#ffffff"};
           color:${hasData ? "#ffffff" : "#223"};
           border:1px solid ${hasData ? "#1677ff" : "#e5ebf3"};
