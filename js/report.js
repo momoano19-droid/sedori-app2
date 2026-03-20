@@ -26,12 +26,6 @@ function reportEscapeHtml(str) {
     .replaceAll("'", "&#39;");
 }
 
-function reportClampNonNeg(n) {
-  const x = Number(n);
-  if (isNaN(x) || x < 0) return 0;
-  return x;
-}
-
 function reportFormatYmd(dateObj) {
   const y = dateObj.getFullYear();
   const m = String(dateObj.getMonth() + 1).padStart(2, "0");
@@ -155,10 +149,10 @@ function buildFallbackDailyFromStores(stores, baseDate = new Date()) {
     const date = String(store.lastVisitDate || "").trim();
     if (!date || !days[date]) return;
 
-    days[date].profit += Number(store.profit || 0);
-    days[date].items += Number(store.items || 0);
-    days[date].visits += Number(store.visits || 0);
-    days[date].success += Number(store.buyDays || 0);
+    days[date].profit += Math.max(0, Number(store.profit || 0));
+    days[date].items += Math.max(0, Number(store.items || 0));
+    days[date].visits += Math.max(0, Number(store.visits || 0));
+    days[date].success += Math.max(0, Number(store.buyDays || 0));
   });
 
   return days;
@@ -176,10 +170,10 @@ function getMonthlySummarySmart(baseDate = new Date()) {
     let success = 0;
 
     Object.values(daily).forEach(v => {
-      profit += Number(v.profit || 0);
-      items += Number(v.items || 0);
-      visits += Number(v.visits || 0);
-      success += Number(v.success || 0);
+      profit += Math.max(0, Number(v.profit || 0));
+      items += Math.max(0, Number(v.items || 0));
+      visits += Math.max(0, Number(v.visits || 0));
+      success += Math.max(0, Number(v.success || 0));
     });
 
     return {
@@ -204,10 +198,10 @@ function getMonthlySummarySmart(baseDate = new Date()) {
   let success = 0;
 
   stores.forEach(store => {
-    profit += Number(store.profit || 0);
-    items += Number(store.items || 0);
-    visits += Number(store.visits || 0);
-    success += Number(store.buyDays || 0);
+    profit += Math.max(0, Number(store.profit || 0));
+    items += Math.max(0, Number(store.items || 0));
+    visits += Math.max(0, Number(store.visits || 0));
+    success += Math.max(0, Number(store.buyDays || 0));
   });
 
   return {
@@ -268,7 +262,7 @@ function renderSummary() {
       </div>
       ${
         sum.source === "stores"
-          ? `<div class="mini" style="margin-top:8px;">※ 履歴ログが無いため、現在の店舗集計から表示しています</div>`
+          ? `<div class="mini" style="margin-top:8px;">※ 履歴ログが無い月は、最終訪問日ベースの簡易表示です</div>`
           : ""
       }
     </div>
@@ -290,7 +284,7 @@ function renderCalendar() {
   let html = `
     <div class="sectionTitle">🗓 月カレンダー</div>
     <div class="store">
-      <table style="width:100%; border-collapse:separate; border-spacing:6px;">
+      <table style="width:100%; border-collapse:separate; border-spacing:6px; table-layout:fixed;">
         <thead>
           <tr>
             ${weekLabels.map(w => `
@@ -468,9 +462,6 @@ function renderReportPage() {
   renderCategorySummary();
 }
 
-/* =========================
-   起動
-========================= */
 window.addEventListener("load", () => {
   renderReportPage();
 });
