@@ -1,19 +1,15 @@
-const CACHE_NAME = "sedori-v16";
+const CACHE_NAME = "sedori-v17";
 
 const urlsToCache = [
   "./",
   "./index.html",
-  "./report.html",
-  "./manifest.json",
   "./css/style.css",
-  "./js/utils.js",
-  "./js/storage.js",
-  "./js/analytics.js",
-  "./js/map.js",
   "./js/app.js",
-  "./js/report.js",
+  "./manifest.json",
   "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icons/icon-512.png",
+  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
 ];
 
 self.addEventListener("install", event => {
@@ -47,7 +43,7 @@ self.addEventListener("fetch", event => {
 
       return fetch(event.request)
         .then(response => {
-          if(!response || response.status !== 200 || response.type !== "basic"){
+          if(!response || response.status !== 200){
             return response;
           }
 
