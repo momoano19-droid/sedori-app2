@@ -290,14 +290,17 @@ function renderCalendar() {
   let html = `
     <div class="sectionTitle">🗓 月カレンダー</div>
     <div class="store">
-      <div class="reportCalendarGrid reportCalendarHeader">
-        ${weekLabels.map(w => `<div class="reportCalendarWeek">${w}</div>`).join("")}
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:8px;">
+        ${weekLabels.map(w => `
+          <div style="text-align:center;font-weight:800;color:#223;padding:8px 4px;">${w}</div>
+        `).join("")}
       </div>
-      <div class="reportCalendarGrid">
+
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;">
   `;
 
   for (let i = 0; i < startWeekday; i++) {
-    html += `<div class="reportCalendarCell empty"></div>`;
+    html += `<div></div>`;
   }
 
   for (let d = 1; d <= totalDays; d++) {
@@ -316,11 +319,23 @@ function renderCalendar() {
     const hasData = profit > 0 || items > 0 || visits > 0;
 
     html += `
-      <div class="reportCalendarCell ${hasData ? "hasData" : ""}">
-        <div class="reportCalendarDate">${d}</div>
-        ${profit > 0 ? `<div class="reportCalendarLine">利益 ${profit.toLocaleString()}円</div>` : `<div class="reportCalendarDash">-</div>`}
-        ${items > 0 ? `<div class="reportCalendarLine">個数 ${items}個</div>` : ``}
-        ${visits > 0 ? `<div class="reportCalendarLine">訪問 ${visits}回</div>` : ``}
+      <div style="
+        background:${hasData ? "#1677ff" : "#fff"};
+        color:${hasData ? "#fff" : "#223"};
+        border:${hasData ? "1px solid #1677ff" : "1px solid #e5ebf3"};
+        border-radius:12px;
+        min-height:110px;
+        padding:10px 8px;
+        box-sizing:border-box;
+      ">
+        <div style="font-size:16px;font-weight:800;margin-bottom:6px;">${d}</div>
+        ${
+          profit > 0
+            ? `<div style="font-size:13px;line-height:1.5;">利益 ${profit.toLocaleString()}円</div>`
+            : `<div style="font-size:13px;line-height:1.5;opacity:0.8;">-</div>`
+        }
+        ${items > 0 ? `<div style="font-size:13px;line-height:1.5;">個数 ${items}個</div>` : ``}
+        ${visits > 0 ? `<div style="font-size:13px;line-height:1.5;">訪問 ${visits}回</div>` : ``}
       </div>
     `;
   }
@@ -328,7 +343,7 @@ function renderCalendar() {
   const remain = (startWeekday + totalDays) % 7;
   if (remain !== 0) {
     for (let i = remain; i < 7; i++) {
-      html += `<div class="reportCalendarCell empty"></div>`;
+      html += `<div></div>`;
     }
   }
 
