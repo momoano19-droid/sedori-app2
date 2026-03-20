@@ -571,20 +571,31 @@ async function geocodeAddress(pref, address, name){
   }
 }
 
-function askLatLng(currentLat, currentLng){
-  const latInput = prompt("緯度（空欄で未設定）", currentLat ?? "");
-  if(latInput === null) return null;
+function extractLatLngFromMapUrl(url){
+  const text = String(url || "").trim();
+  if(!text) return null;
 
-  const lngInput = prompt("経度（空欄で未設定）", currentLng ?? "");
-  if(lngInput === null) return null;
+  try{
+    let m = text.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    if(m){
+      return { lat: Number(m[1]), lng: Number(m[2]) };
+    }
 
-  const lat = String(latInput).trim();
-  const lng = String(lngInput).trim();
+    m = text.match(/[?&](?:q|query|destination)=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    if(m){
+      return { lat: Number(m[1]), lng: Number(m[2]) };
+    }
 
-  return {
-    lat: lat === "" ? null : (isNaN(Number(lat)) ? null : Number(lat)),
-    lng: lng === "" ? null : (isNaN(Number(lng)) ? null : Number(lng))
-  };
+    m = text.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+    if(m){
+      return { lat: Number(m[1]), lng: Number(m[2]) };
+    }
+
+    return null;
+  }catch(e){
+    console.error("URLから座標抽出失敗", e);
+    return null;
+  }
 }
 
 async function addStore(){
@@ -601,13 +612,23 @@ async function addStore(){
   let lat = null;
   let lng = null;
 
-  if(address){
+  if(mapUrl){
+    const urlLatLng = extractLatLngFromMapUrl(mapUrl);
+    if(urlLatLng){
+      lat = urlLatLng.lat;
+      lng = urlLatLng.lng;
+    }else{
+      alert("GoogleマップURLから座標を取得できませんでした。住所から取得を試します。");
+    }
+  }
+
+  if((lat === null || lng === null) && address){
     const geo = await geocodeAddress(pref, address, name);
     if(geo){
       lat = geo.lat;
       lng = geo.lng;
     }else{
-      alert("住所から座標を取得できませんでした。あとで設定から緯度・経度を手入力してください。");
+      alert("住所から座標を取得できませんでした。");
     }
   }
 
@@ -656,11 +677,19 @@ async function editStore(i){
   const mapUrl = prompt("GoogleマップURL", s.mapUrl || "");
   if(mapUrl !== null) s.mapUrl = String(mapUrl).trim();
 
-  const latlng = askLatLng(s.lat, s.lng);
-  if(latlng === null) return;
+  s.lat = null;
+  s.lng = null;
 
-  s.lat = latlng.lat;
-  s.lng = latlng.lng;
+  if(s.mapUrl){
+    const urlLatLng = extractLatLngFromMapUrl(s.mapUrl);
+    if(urlLatLng){
+      s.lat = urlLatLng.lat;
+      s.lng = urlLatLng.lng;
+      alert("GoogleマップURLから座標を取得しました。");
+    }else{
+      alert("GoogleマップURLから座標を取得できませんでした。住所から取得を試します。");
+    }
+  }
 
   if((s.lat === null || s.lng === null) && s.address){
     const geo = await geocodeAddress(s.pref, s.address, s.name);
@@ -669,7 +698,7 @@ async function editStore(i){
       s.lng = geo.lng;
       alert("住所から座標を取得しました。");
     }else{
-      alert("住所から座標を取得できませんでした。緯度・経度を手入力してください。");
+      alert("住所から座標を取得できませんでした。");
     }
   }
 
