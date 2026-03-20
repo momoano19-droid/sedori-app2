@@ -392,11 +392,11 @@ function renderCalendar() {
             ${weekLabels.map(w => `
               <th style="
                 width:14.28%;
-                height:28px;
+                height:32px;
                 text-align:center;
                 vertical-align:middle;
                 padding:0;
-                font-size:12px;
+                font-size:13px;
                 font-weight:800;
                 color:#223;
                 background:#f3f6fb;
@@ -415,7 +415,7 @@ function renderCalendar() {
     if (cell % 7 === 0) html += `<tr>`;
 
     if (cell < startWeekday || day > totalDays) {
-      html += `<td style="width:14.28%; height:64px;"></td>`;
+      html += `<td style="width:14.28%; height:74px;"></td>`;
     } else {
       const key = reportFormatYmd(new Date(now.getFullYear(), now.getMonth(), day));
       const raw = sum.daily[key] || { profit: 0, items: 0, visits: 0, success: 0 };
@@ -443,8 +443,8 @@ function renderCalendar() {
           onclick='openCalendarDetail(${JSON.stringify(key)}, ${JSON.stringify(raw)})'
           style="
             width:14.28%;
-            height:64px;
-            padding:4px 2px;
+            height:74px;
+            padding:6px 3px;
             border-radius:10px;
             background:${bg};
             color:${color};
@@ -458,15 +458,15 @@ function renderCalendar() {
           "
         >
           <div style="
-            font-size:10px;
+            font-size:12px;
             font-weight:800;
             line-height:1.1;
-            margin-bottom:4px;
+            margin-bottom:6px;
             white-space:nowrap;
           ">${day}</div>
 
           <div style="
-            font-size:11px;
+            font-size:13px;
             font-weight:800;
             line-height:1.1;
             white-space:nowrap;
