@@ -380,25 +380,22 @@ function renderCalendar() {
 
   let html = `
     <div class="sectionTitle">🗓 月カレンダー</div>
-    <div class="store" style="padding:8px;">
+    <div class="store" style="padding:10px;">
       <table style="
         width:100%;
         table-layout:fixed;
         border-collapse:separate;
-        border-spacing:4px;
+        border-spacing:6px;
       ">
         <thead>
           <tr>
             ${weekLabels.map(w => `
               <th style="
                 width:14.28%;
-                height:32px;
-                text-align:center;
-                vertical-align:middle;
-                padding:0;
+                height:34px;
                 font-size:13px;
                 font-weight:800;
-                color:#223;
+                text-align:center;
                 background:#f3f6fb;
                 border-radius:8px;
               ">${w}</th>
@@ -415,10 +412,10 @@ function renderCalendar() {
     if (cell % 7 === 0) html += `<tr>`;
 
     if (cell < startWeekday || day > totalDays) {
-      html += `<td style="width:14.28%; height:74px;"></td>`;
+      html += `<td style="height:88px;"></td>`;
     } else {
       const key = reportFormatYmd(new Date(now.getFullYear(), now.getMonth(), day));
-      const raw = sum.daily[key] || { profit: 0, items: 0, visits: 0, success: 0 };
+      const raw = sum.daily[key] || { profit: 0 };
 
       const profit = Math.max(0, Number(raw.profit || 0));
       const hasData = profit > 0;
@@ -429,8 +426,8 @@ function renderCalendar() {
         : (hasData ? "#1677ff" : "#ffffff");
 
       const color = isToday
-        ? (hasData ? "#ffffff" : "#b26b00")
-        : (hasData ? "#ffffff" : "#555");
+        ? (hasData ? "#fff" : "#b26b00")
+        : (hasData ? "#fff" : "#555");
 
       const borderColor = isToday
         ? "#ff9f0a"
@@ -442,36 +439,27 @@ function renderCalendar() {
         <td
           onclick='openCalendarDetail(${JSON.stringify(key)}, ${JSON.stringify(raw)})'
           style="
-            width:14.28%;
-            height:74px;
-            padding:6px 3px;
-            border-radius:10px;
+            height:88px;
+            padding:8px 4px;
+            border-radius:12px;
             background:${bg};
             color:${color};
             border:1px solid ${borderColor};
             text-align:center;
-            vertical-align:middle;
-            overflow:hidden;
             cursor:pointer;
             box-sizing:border-box;
             ${isToday ? "box-shadow:0 0 0 2px rgba(255,159,10,0.25) inset;" : ""}
           "
         >
           <div style="
-            font-size:12px;
+            font-size:13px;
             font-weight:800;
-            line-height:1.1;
-            margin-bottom:6px;
-            white-space:nowrap;
+            margin-bottom:8px;
           ">${day}</div>
 
           <div style="
-            font-size:13px;
-            font-weight:800;
-            line-height:1.1;
-            white-space:nowrap;
-            overflow:hidden;
-            text-overflow:ellipsis;
+            font-size:14px;
+            font-weight:900;
           ">${text}</div>
         </td>
       `;
@@ -485,7 +473,7 @@ function renderCalendar() {
   html += `
         </tbody>
       </table>
-      <div class="mini" style="margin-top:8px;">※ タップで詳細表示</div>
+      <div class="mini" style="margin-top:10px;">※ タップで詳細表示</div>
     </div>
   `;
 
