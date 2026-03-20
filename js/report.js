@@ -290,65 +290,77 @@ function renderCalendar() {
   let html = `
     <div class="sectionTitle">🗓 月カレンダー</div>
     <div class="store">
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:8px;">
-        ${weekLabels.map(w => `
-          <div style="text-align:center;font-weight:800;color:#223;padding:8px 4px;">${w}</div>
-        `).join("")}
-      </div>
-
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;">
+      <table style="width:100%; border-collapse:separate; border-spacing:6px;">
+        <thead>
+          <tr>
+            ${weekLabels.map(w => `
+              <th style="
+                text-align:center;
+                padding:10px 4px;
+                font-size:16px;
+                font-weight:800;
+                color:#223;
+                background:#f3f6fb;
+                border-radius:10px;
+              ">${w}</th>
+            `).join("")}
+          </tr>
+        </thead>
+        <tbody>
   `;
 
-  for (let i = 0; i < startWeekday; i++) {
-    html += `<div></div>`;
-  }
+  let day = 1;
+  const totalCells = Math.ceil((startWeekday + totalDays) / 7) * 7;
 
-  for (let d = 1; d <= totalDays; d++) {
-    const key = reportFormatYmd(new Date(now.getFullYear(), now.getMonth(), d));
-    const raw = sum.daily[key] || {
-      profit: 0,
-      items: 0,
-      visits: 0,
-      success: 0
-    };
+  for (let cell = 0; cell < totalCells; cell++) {
+    if (cell % 7 === 0) html += `<tr>`;
 
-    const profit = Math.max(0, Number(raw.profit || 0));
-    const items = Math.max(0, Number(raw.items || 0));
-    const visits = Math.max(0, Number(raw.visits || 0));
+    if (cell < startWeekday || day > totalDays) {
+      html += `<td style="height:110px;"></td>`;
+    } else {
+      const key = reportFormatYmd(new Date(now.getFullYear(), now.getMonth(), day));
+      const raw = sum.daily[key] || {
+        profit: 0,
+        items: 0,
+        visits: 0,
+        success: 0
+      };
 
-    const hasData = profit > 0 || items > 0 || visits > 0;
+      const profit = Math.max(0, Number(raw.profit || 0));
+      const items = Math.max(0, Number(raw.items || 0));
+      const visits = Math.max(0, Number(raw.visits || 0));
+      const hasData = profit > 0 || items > 0 || visits > 0;
 
-    html += `
-      <div style="
-        background:${hasData ? "#1677ff" : "#fff"};
-        color:${hasData ? "#fff" : "#223"};
-        border:${hasData ? "1px solid #1677ff" : "1px solid #e5ebf3"};
-        border-radius:12px;
-        min-height:110px;
-        padding:10px 8px;
-        box-sizing:border-box;
-      ">
-        <div style="font-size:16px;font-weight:800;margin-bottom:6px;">${d}</div>
-        ${
-          profit > 0
-            ? `<div style="font-size:13px;line-height:1.5;">利益 ${profit.toLocaleString()}円</div>`
-            : `<div style="font-size:13px;line-height:1.5;opacity:0.8;">-</div>`
-        }
-        ${items > 0 ? `<div style="font-size:13px;line-height:1.5;">個数 ${items}個</div>` : ``}
-        ${visits > 0 ? `<div style="font-size:13px;line-height:1.5;">訪問 ${visits}回</div>` : ``}
-      </div>
-    `;
-  }
+      html += `
+        <td style="
+          vertical-align:top;
+          height:110px;
+          padding:10px 8px;
+          border-radius:12px;
+          background:${hasData ? "#1677ff" : "#ffffff"};
+          color:${hasData ? "#ffffff" : "#223"};
+          border:1px solid ${hasData ? "#1677ff" : "#e5ebf3"};
+        ">
+          <div style="font-size:16px; font-weight:800; margin-bottom:6px;">${day}</div>
+          ${
+            profit > 0
+              ? `<div style="font-size:13px; line-height:1.5;">利益 ${profit.toLocaleString()}円</div>`
+              : `<div style="font-size:13px; line-height:1.5; opacity:${hasData ? "0.8" : "0.6"};">-</div>`
+          }
+          ${items > 0 ? `<div style="font-size:13px; line-height:1.5;">個数 ${items}個</div>` : ``}
+          ${visits > 0 ? `<div style="font-size:13px; line-height:1.5;">訪問 ${visits}回</div>` : ``}
+        </td>
+      `;
 
-  const remain = (startWeekday + totalDays) % 7;
-  if (remain !== 0) {
-    for (let i = remain; i < 7; i++) {
-      html += `<div></div>`;
+      day++;
     }
+
+    if (cell % 7 === 6) html += `</tr>`;
   }
 
   html += `
-      </div>
+        </tbody>
+      </table>
       ${
         sum.source === "stores"
           ? `<div class="mini" style="margin-top:8px;">※ 履歴ログが無い月は、最終訪問日ベースの簡易表示です</div>`
