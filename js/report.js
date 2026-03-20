@@ -281,40 +281,62 @@ function renderCalendar() {
 
   const now = new Date();
   const sum = getMonthlySummarySmart(now);
-  const { last } = reportGetMonthRange(now);
+  const { first, last } = reportGetMonthRange(now);
+
+  const startWeekday = first.getDay();
+  const totalDays = last.getDate();
+  const weekLabels = ["日", "月", "火", "水", "木", "金", "土"];
 
   let html = `
     <div class="sectionTitle">🗓 月カレンダー</div>
     <div class="store">
+      <div class="reportCalendarGrid reportCalendarHeader">
+        ${weekLabels.map(w => `<div class="reportCalendarWeek">${w}</div>`).join("")}
+      </div>
+      <div class="reportCalendarGrid">
   `;
 
-  for (let d = 1; d <= last.getDate(); d++) {
+  for (let i = 0; i < startWeekday; i++) {
+    html += `<div class="reportCalendarCell empty"></div>`;
+  }
+
+  for (let d = 1; d <= totalDays; d++) {
     const key = reportFormatYmd(new Date(now.getFullYear(), now.getMonth(), d));
-    const data = sum.daily[key] || {
+    const raw = sum.daily[key] || {
       profit: 0,
       items: 0,
       visits: 0,
       success: 0
     };
 
+    const profit = Math.max(0, Number(raw.profit || 0));
+    const items = Math.max(0, Number(raw.items || 0));
+    const visits = Math.max(0, Number(raw.visits || 0));
+
+    const hasData = profit > 0 || items > 0 || visits > 0;
+
     html += `
-      <div class="calendarItem">
-        <div class="calendarDate">${d}</div>
-        ${
-          data.profit
-            ? `<div>利益 ${Math.round(data.profit).toLocaleString()}円</div>`
-            : `<div class="mini" style="color:#fff; opacity:0.9;">-</div>`
-        }
-        ${data.items ? `<div>個数 ${Math.round(data.items)}個</div>` : ``}
-        ${data.visits ? `<div>訪問 ${Math.round(data.visits)}回</div>` : ``}
+      <div class="reportCalendarCell ${hasData ? "hasData" : ""}">
+        <div class="reportCalendarDate">${d}</div>
+        ${profit > 0 ? `<div class="reportCalendarLine">利益 ${profit.toLocaleString()}円</div>` : `<div class="reportCalendarDash">-</div>`}
+        ${items > 0 ? `<div class="reportCalendarLine">個数 ${items}個</div>` : ``}
+        ${visits > 0 ? `<div class="reportCalendarLine">訪問 ${visits}回</div>` : ``}
       </div>
     `;
   }
 
+  const remain = (startWeekday + totalDays) % 7;
+  if (remain !== 0) {
+    for (let i = remain; i < 7; i++) {
+      html += `<div class="reportCalendarCell empty"></div>`;
+    }
+  }
+
   html += `
+      </div>
       ${
         sum.source === "stores"
-          ? `<div class="mini" style="margin-top:8px;">※ 履歴ログが無いため、最終訪問日ベースの簡易カレンダーです</div>`
+          ? `<div class="mini" style="margin-top:8px;">※ 履歴ログが無い月は、最終訪問日ベースの簡易表示です</div>`
           : ""
       }
     </div>
