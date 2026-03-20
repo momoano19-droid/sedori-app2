@@ -45,6 +45,10 @@ function reportGetMonthRange(baseDate = new Date()) {
   return { first, last };
 }
 
+function reportTodayYmd() {
+  return reportFormatYmd(new Date());
+}
+
 /* =========================
    読込
 ========================= */
@@ -239,6 +243,98 @@ function getTopStores(stores, limit = 20) {
 }
 
 /* =========================
+   ポップアップ
+========================= */
+function ensureCalendarModal() {
+  if (document.getElementById("calendarDetailModal")) return;
+
+  const modal = document.createElement("div");
+  modal.id = "calendarDetailModal";
+  modal.style.cssText = `
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.45);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:99999;
+    padding:16px;
+  `;
+
+  modal.innerHTML = `
+    <div style="
+      width:min(100%, 360px);
+      background:#fff;
+      border-radius:18px;
+      padding:16px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.2);
+    ">
+      <div id="calendarDetailTitle" style="
+        font-size:18px;
+        font-weight:800;
+        margin-bottom:10px;
+        text-align:center;
+        color:#223;
+      ">日付詳細</div>
+
+      <div id="calendarDetailBody" style="
+        font-size:15px;
+        line-height:1.8;
+        color:#223;
+      "></div>
+
+      <button onclick="closeCalendarDetail()" style="
+        width:100%;
+        margin-top:14px;
+        min-height:46px;
+        border:none;
+        border-radius:12px;
+        background:#1677ff;
+        color:#fff;
+        font-size:16px;
+        font-weight:700;
+      ">閉じる</button>
+    </div>
+  `;
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) closeCalendarDetail();
+  });
+
+  document.body.appendChild(modal);
+}
+
+function openCalendarDetail(dateKey, rawData) {
+  ensureCalendarModal();
+
+  const title = document.getElementById("calendarDetailTitle");
+  const body = document.getElementById("calendarDetailBody");
+  const modal = document.getElementById("calendarDetailModal");
+
+  const profit = Math.max(0, Number(rawData?.profit || 0));
+  const items = Math.max(0, Number(rawData?.items || 0));
+  const visits = Math.max(0, Number(rawData?.visits || 0));
+  const success = Math.max(0, Number(rawData?.success || 0));
+
+  if (title) title.textContent = `${dateKey} の詳細`;
+  if (body) {
+    body.innerHTML = `
+      <div>利益：<b>${profit.toLocaleString()}円</b></div>
+      <div>個数：<b>${items}個</b></div>
+      <div>訪問：<b>${visits}回</b></div>
+      <div>成功：<b>${success}回</b></div>
+    `;
+  }
+
+  if (modal) modal.style.display = "flex";
+}
+
+function closeCalendarDetail() {
+  const modal = document.getElementById("calendarDetailModal");
+  if (modal) modal.style.display = "none";
+}
+
+/* =========================
    描画
 ========================= */
 function renderSummary() {
@@ -277,6 +373,7 @@ function renderCalendar() {
   const sum = getMonthlySummarySmart(now);
   const { first, last } = reportGetMonthRange(now);
 
+  const todayKey = reportTodayYmd();
   const startWeekday = first.getDay();
   const totalDays = last.getDate();
   const weekLabels = ["日", "月", "火", "水", "木", "金", "土"];
@@ -318,23 +415,42 @@ function renderCalendar() {
       html += `<td style="height:48px;"></td>`;
     } else {
       const key = reportFormatYmd(new Date(now.getFullYear(), now.getMonth(), day));
-      const raw = sum.daily[key] || { profit: 0 };
+      const raw = sum.daily[key] || { profit: 0, items: 0, visits: 0, success: 0 };
 
       const profit = Math.max(0, Number(raw.profit || 0));
       const hasData = profit > 0;
+      const isToday = key === todayKey;
+
+      const bg = isToday
+        ? (hasData ? "#ff9f0a" : "#fff7e6")
+        : (hasData ? "#1677ff" : "#ffffff");
+
+      const color = isToday
+        ? (hasData ? "#ffffff" : "#b26b00")
+        : (hasData ? "#ffffff" : "#999");
+
+      const borderColor = isToday
+        ? "#ff9f0a"
+        : (hasData ? "#1677ff" : "#e5ebf3");
+
       const text = hasData ? `${Math.round(profit / 1000)}k` : "-";
 
       html += `
-        <td style="
-          height:48px;
-          padding:3px;
-          border-radius:8px;
-          background:${hasData ? "#1677ff" : "#ffffff"};
-          color:${hasData ? "#ffffff" : "#999"};
-          border:1px solid ${hasData ? "#1677ff" : "#e5ebf3"};
-          text-align:center;
-          overflow:hidden;
-        ">
+        <td
+          onclick='openCalendarDetail(${JSON.stringify(key)}, ${JSON.stringify(raw)})'
+          style="
+            height:48px;
+            padding:3px;
+            border-radius:8px;
+            background:${bg};
+            color:${color};
+            border:1px solid ${borderColor};
+            text-align:center;
+            overflow:hidden;
+            cursor:pointer;
+            ${isToday ? "box-shadow:0 0 0 2px rgba(255,159,10,0.25) inset;" : ""}
+          "
+        >
           <div style="
             font-size:10px;
             font-weight:700;
@@ -362,11 +478,10 @@ function renderCalendar() {
   html += `
         </tbody>
       </table>
-      ${
-        sum.source === "stores"
-          ? `<div class="mini" style="margin-top:6px;">※ 履歴ログが無い月は簡易表示です</div>`
-          : ""
-      }
+      <div class="mini" style="margin-top:6px;">
+        ※ タップで詳細表示
+        ${sum.source === "stores" ? " / 履歴ログが無い月は簡易表示" : ""}
+      </div>
     </div>
   `;
 
@@ -463,6 +578,7 @@ function renderCategorySummary() {
 }
 
 function renderReportPage() {
+  ensureCalendarModal();
   renderSummary();
   renderCalendar();
   renderTopStores();
