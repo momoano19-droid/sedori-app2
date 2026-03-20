@@ -1,11 +1,12 @@
-const CACHE_NAME = "sedori-v41";
+const CACHE_NAME = "sedori-v42";
 
 const urlsToCache = [
   "./",
   "./index.html",
+  "./report.html",
   "./css/style.css",
   "./js/app.js",
-  "./js/report.js", // ←これ追加！！
+  "./js/report.js",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
