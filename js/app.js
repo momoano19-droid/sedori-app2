@@ -1,19 +1,46 @@
-const STORE_KEY = "sedori_stores";
-const LOG_KEY = "sedori_logs";
-const LAYOUT_KEY = "sedori_layout";
-const AUTO_BACKUP_KEY = "sedori_auto_backup";
-const QUICK_LIMIT = 12;
+const PRIMARY_STORE_KEY = "stores";
+const PRIMARY_LOG_KEY = "logs";
+const PRIMARY_LAYOUT_KEY = "layout";
+const PRIMARY_AUTO_BACKUP_KEY = "auto_backup";
+
+const STORE_KEYS = [
+  "stores",
+  "sedori_stores_v2",
+  "sedori_stores_v1",
+  "sedori_stores_v3",
+  "sedori_stores"
+];
+
+const LOG_KEYS = [
+  "logs",
+  "sedori_logs_v2",
+  "sedori_logs_v1",
+  "sedori_logs_v3",
+  "sedori_logs"
+];
+
+const LAYOUT_KEYS = [
+  "layout",
+  "sedori_layout_v2",
+  "sedori_layout_v1",
+  "sedori_layout_v3",
+  "sedori_layout"
+];
+
+const AUTO_BACKUP_KEYS = [
+  "auto_backup",
+  "sedori_auto_backup_v2",
+  "sedori_auto_backup_v1",
+  "sedori_auto_backup_v3",
+  "sedori_auto_backup"
+];
 
 let stores = loadStores();
 let logs = loadLogs();
 let layout = loadLayout();
 
-let qtyResolver = null;
-let categoryResolver = null;
-
 let nearbyMode = false;
 let nearbyStoreIds = new Set();
-
 let map = null;
 let mapMarkers = [];
 let mapInitialized = false;
@@ -30,15 +57,28 @@ window.addEventListener("load", () => {
 });
 
 /* =========================
-   保存系
+   読込 / 保存
 ========================= */
+function readFirstAvailable(keys) {
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      return JSON.parse(raw);
+    } catch (e) {
+      console.error("read error:", key, e);
+    }
+  }
+  return null;
+}
+
 function ensureId() {
   return "id_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
 }
 
 function normalizeStore(s) {
   return {
-    id: s.id || ensureId(),
+    id: String(s.id || ensureId()),
     name: String(s.name || "店舗"),
     pref: String(s.pref || "").trim(),
     address: String(s.address || "").trim(),
@@ -51,54 +91,50 @@ function normalizeStore(s) {
     lng: (s.lng !== null && s.lng !== "" && !isNaN(Number(s.lng))) ? Number(s.lng) : null,
     defaultCategory: String(s.defaultCategory || "").trim(),
     categoryCounts: (s.categoryCounts && typeof s.categoryCounts === "object") ? s.categoryCounts : {},
-    quickCategories: Array.isArray(s.quickCategories) ? s.quickCategories.filter(Boolean).slice(0, QUICK_LIMIT) : [],
+    quickCategories: Array.isArray(s.quickCategories) ? s.quickCategories.filter(Boolean) : [],
     lastVisitDate: String(s.lastVisitDate || "").trim(),
     today: !!s.today
   };
 }
 
 function loadStores() {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(normalizeStore);
-  } catch {
-    return [];
-  }
+  const parsed = readFirstAvailable(STORE_KEYS);
+  if (!Array.isArray(parsed)) return [];
+  return parsed.map(normalizeStore);
 }
 
 function saveStores(v) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(v));
+  localStorage.setItem(PRIMARY_STORE_KEY, JSON.stringify(v));
 }
 
 function loadLogs() {
-  try {
-    const raw = localStorage.getItem(LOG_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  const parsed = readFirstAvailable(LOG_KEYS);
+  if (!Array.isArray(parsed)) return [];
+  return parsed.map(x => ({
+    date: String(x.date || "").trim(),
+    storeId: String(x.storeId || "").trim(),
+    type: String(x.type || "").trim(),
+    delta: Number(x.delta || 0),
+    category: String(x.category || "").trim()
+  }));
 }
 
 function saveLogs(v) {
-  localStorage.setItem(LOG_KEY, JSON.stringify(v));
+  localStorage.setItem(PRIMARY_LOG_KEY, JSON.stringify(v));
 }
 
 function loadLayout() {
-  return localStorage.getItem(LAYOUT_KEY) || "detail";
+  const parsed = readFirstAvailable(LAYOUT_KEYS);
+  return typeof parsed === "string" ? parsed : "detail";
 }
 
 function saveLayout(v) {
-  localStorage.setItem(LAYOUT_KEY, v);
+  localStorage.setItem(PRIMARY_LAYOUT_KEY, String(v || "detail"));
 }
 
 function saveAutoBackup() {
   try {
-    localStorage.setItem(AUTO_BACKUP_KEY, JSON.stringify({
+    localStorage.setItem(PRIMARY_AUTO_BACKUP_KEY, JSON.stringify({
       savedAt: new Date().toISOString(),
       stores,
       logs,
@@ -110,15 +146,24 @@ function saveAutoBackup() {
 }
 
 function getAutoBackup() {
-  try {
-    const raw = localStorage.getItem(AUTO_BACKUP_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || !Array.isArray(parsed.stores) || !Array.isArray(parsed.logs)) return null;
-    return parsed;
-  } catch {
-    return null;
+  for (const key of AUTO_BACKUP_KEYS) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (!parsed) continue;
+
+      return {
+        savedAt: parsed.savedAt || "",
+        stores: Array.isArray(parsed.stores) ? parsed.stores : [],
+        logs: Array.isArray(parsed.logs) ? parsed.logs : [],
+        layout: parsed.layout || "detail"
+      };
+    } catch (e) {
+      console.error("backup read error:", key, e);
+    }
   }
+  return null;
 }
 
 function saveAll() {
@@ -178,7 +223,6 @@ function matchesQuery(s, q) {
     cats,
     quicks
   ].join(" ").toLowerCase();
-
   return text.includes(String(q).toLowerCase());
 }
 
@@ -202,7 +246,6 @@ function getMetrics(s) {
   const avgProfit = success > 0 ? profit / success : 0;
   const avgItems = success > 0 ? items / success : 0;
   const expected = visits > 0 ? profit / visits : 0;
-  const restockCycle = success > 1 ? visits / success : 0;
 
   return {
     visits,
@@ -212,10 +255,37 @@ function getMetrics(s) {
     rate,
     avgProfit,
     avgItems,
-    expected,
-    restockCycle,
-    strongWeekdays: []
+    expected
   };
+}
+
+/* =========================
+   データ0件案内
+========================= */
+function showEmptyDataGuide() {
+  const list = document.getElementById("storeList");
+  if (!list) return;
+  if (Array.isArray(stores) && stores.length > 0) return;
+
+  list.innerHTML = `
+    <div class="store" style="border:2px solid #ffd59a; background:#fffaf0;">
+      <div class="storeTitle">データが見つかりません</div>
+
+      <div class="mini" style="font-size:14px; line-height:1.7; color:#444; margin-top:8px;">
+        iPhoneでは、Safariとホーム画面アプリで保存領域が分かれることがあります。<br>
+        Safariで使っていたデータは、自動では引き継がれない場合があります。
+      </div>
+
+      <div class="row2" style="margin-top:12px;">
+        <button onclick="document.getElementById('backupFile').click()">📥 バックアップ読込</button>
+        <button class="secondary" onclick="restoreAutoBackup()">♻ 自動バックアップ復元</button>
+      </div>
+
+      <div class="mini" style="margin-top:10px;">
+        ※ backup.json / sedori-backup-xxxx.json を読み込むと復元できます
+      </div>
+    </div>
+  `;
 }
 
 /* =========================
@@ -252,7 +322,7 @@ function importBackup(event) {
     try {
       const parsed = JSON.parse(String(e.target?.result || ""));
       if (!Array.isArray(parsed.stores) || !Array.isArray(parsed.logs)) {
-        throw new Error("invalid");
+        throw new Error("invalid backup");
       }
 
       if (!confirm("現在のデータをバックアップで上書きします。よろしいですか？")) {
@@ -283,14 +353,14 @@ function importBackup(event) {
 function restoreAutoBackup() {
   const data = getAutoBackup();
   if (!data) {
-    alert("復元できる自動バックアップがありません。");
+    alert("このアプリ内に復元できる自動バックアップがありません。");
     return;
   }
 
   if (!confirm("自動バックアップで現在のデータを上書きします。よろしいですか？")) return;
 
-  stores = data.stores.map(normalizeStore);
-  logs = data.logs;
+  stores = Array.isArray(data.stores) ? data.stores.map(normalizeStore) : [];
+  logs = Array.isArray(data.logs) ? data.logs : [];
   layout = data.layout || "detail";
   nearbyMode = false;
   nearbyStoreIds = new Set();
@@ -318,19 +388,13 @@ function extractLatLngFromMapUrl(url) {
   if (!text) return null;
 
   let m = text.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
-  if (m) {
-    return { lat: Number(m[1]), lng: Number(m[2]) };
-  }
+  if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
 
   m = text.match(/[?&](?:q|query|destination)=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
-  if (m) {
-    return { lat: Number(m[1]), lng: Number(m[2]) };
-  }
+  if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
 
   m = text.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
-  if (m) {
-    return { lat: Number(m[1]), lng: Number(m[2]) };
-  }
+  if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
 
   return null;
 }
@@ -341,10 +405,7 @@ async function geocodeAddress(pref, address, name) {
 
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, {
-      headers: { "Accept": "application/json" }
-    });
-
+    const res = await fetch(url, { headers: { "Accept": "application/json" } });
     if (!res.ok) return null;
 
     const data = await res.json();
@@ -352,7 +413,6 @@ async function geocodeAddress(pref, address, name) {
 
     const lat = Number(data[0].lat);
     const lng = Number(data[0].lon);
-
     if (isNaN(lat) || isNaN(lng)) return null;
 
     return { lat, lng };
@@ -387,18 +447,16 @@ function openMapSearchFromAddress() {
   const address = document.getElementById("address")?.value?.trim() || "";
   const pref = document.getElementById("prefName")?.value?.trim() || "";
   const name = document.getElementById("storeName")?.value?.trim() || "";
-
   const q = [pref, address, name].filter(Boolean).join(" ");
   if (!q) {
     alert("住所か店舗名を入れてください。");
     return;
   }
-
   window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`, "_blank");
 }
 
 /* =========================
-   店舗 CRUD
+   店舗CRUD
 ========================= */
 async function addStore() {
   const name = document.getElementById("storeName")?.value?.trim() || "";
@@ -474,7 +532,6 @@ async function editStore(i) {
 function deleteStore(i) {
   const s = stores[i];
   if (!s) return;
-
   if (!confirm(`「${s.name}」を削除しますか？`)) return;
 
   stores.splice(i, 1);
@@ -512,42 +569,7 @@ async function refreshStoreCoordinates(i) {
 }
 
 /* =========================
-   カテゴリ
-========================= */
-function normalizeCategoryCounts(s) {
-  if (!s.categoryCounts || typeof s.categoryCounts !== "object") {
-    s.categoryCounts = {};
-  }
-}
-
-function getCategoryCandidates(s) {
-  const quicks = Array.isArray(s.quickCategories) ? s.quickCategories : [];
-  const existing = Object.keys(s.categoryCounts || {});
-  return [...new Set([
-    ...(s.defaultCategory ? [s.defaultCategory] : []),
-    ...quicks,
-    ...existing
-  ].filter(Boolean))];
-}
-
-function refreshQuickCategories(s) {
-  normalizeCategoryCounts(s);
-
-  const positiveCats = Object.entries(s.categoryCounts)
-    .filter(([, qty]) => Number(qty) > 0)
-    .map(([cat]) => cat);
-
-  const currentQuick = Array.isArray(s.quickCategories) ? s.quickCategories : [];
-
-  s.quickCategories = [...new Set([
-    ...(s.defaultCategory ? [s.defaultCategory] : []),
-    ...positiveCats,
-    ...currentQuick
-  ])].filter(Boolean).slice(0, QUICK_LIMIT);
-}
-
-/* =========================
-   訪問 / 個数 / 利益
+   数値更新
 ========================= */
 function visit(i) {
   const s = stores[i];
@@ -573,11 +595,11 @@ function visitMinus(i) {
   render();
 }
 
-async function itemsPlus(i) {
+function itemsPlus(i) {
   const s = stores[i];
   if (!s) return;
 
-  const n = await askItemQtyModal("追加する仕入れ個数を選んでください");
+  const n = clampNonNeg(parseInt(prompt("追加する個数", "1"), 10));
   if (!n) return;
 
   s.items += n;
@@ -588,138 +610,26 @@ async function itemsPlus(i) {
   addLog(s.id, "success", 1);
   addLog(s.id, "items", n);
 
-  let categories = getCategoryCandidates(s);
-  if (!categories.length && s.defaultCategory) {
-    categories = [s.defaultCategory];
-  }
+  const cat = prompt("カテゴリ名（空なら未分類）", s.defaultCategory || "未分類");
+  const useCat = String(cat || "未分類").trim() || "未分類";
+  s.defaultCategory = useCat;
+  s.categoryCounts[useCat] = (s.categoryCounts[useCat] || 0) + n;
+  addLog(s.id, "category", n, useCat);
 
-  let remain = n;
-  const picked = {};
-
-  while (remain > 0) {
-    const cat = await askCategoryModal(`カテゴリを選んでください（残り ${remain} 個）`, categories);
-    if (!cat) break;
-
-    const cleanCat = String(cat).trim();
-    if (!cleanCat) break;
-
-    const qty = await askItemQtyModal(`「${cleanCat}」に入れる個数を選んでください（残り ${remain} 個）`);
-    if (!qty) break;
-
-    if (qty > remain) {
-      alert("残り個数を超えています。");
-      continue;
-    }
-
-    picked[cleanCat] = (picked[cleanCat] || 0) + qty;
-    remain -= qty;
-
-    if (!Array.isArray(s.quickCategories)) s.quickCategories = [];
-    s.quickCategories = [...new Set([cleanCat, ...s.quickCategories])].slice(0, QUICK_LIMIT);
-
-    if (!categories.includes(cleanCat)) {
-      categories.unshift(cleanCat);
-    }
-  }
-
-  if (remain > 0) {
-    const fallback = (s.defaultCategory || categories[0] || "未分類").trim() || "未分類";
-    picked[fallback] = (picked[fallback] || 0) + remain;
-
-    if (!Array.isArray(s.quickCategories)) s.quickCategories = [];
-    s.quickCategories = [...new Set([fallback, ...s.quickCategories])].slice(0, QUICK_LIMIT);
-  }
-
-  normalizeCategoryCounts(s);
-  Object.entries(picked).forEach(([cat, qty]) => {
-    s.categoryCounts[cat] = (s.categoryCounts[cat] || 0) + qty;
-    addLog(s.id, "category", qty, cat);
-  });
-
-  const usedCats = Object.keys(picked);
-  if (usedCats.length === 1) {
-    s.defaultCategory = usedCats[0];
-  }
-
-  refreshQuickCategories(s);
   saveAll();
   render();
 }
 
-async function itemsMinus(i) {
+function itemsMinus(i) {
   const s = stores[i];
   if (!s) return;
 
-  if (Number(s.items || 0) <= 0) {
-    alert("個数がありません。");
-    return;
-  }
+  const n = clampNonNeg(parseInt(prompt("減らす個数", "1"), 10));
+  if (!n) return;
 
-  normalizeCategoryCounts(s);
+  s.items = clampNonNeg(s.items - n);
+  addLog(s.id, "items", -n);
 
-  const active = Object.entries(s.categoryCounts)
-    .filter(([, qty]) => Number(qty) > 0)
-    .map(([cat, qty]) => ({ cat, qty: Number(qty) }));
-
-  let remain = await askItemQtyModal(`減らす個数を選んでください（現在 ${s.items} 個）`);
-  if (!remain) return;
-
-  if (remain > s.items) {
-    alert("現在の個数より多くは減らせません。");
-    return;
-  }
-
-  if (!active.length) {
-    s.items = clampNonNeg(s.items - remain);
-    addLog(s.id, "items", -remain);
-    saveAll();
-    render();
-    return;
-  }
-
-  while (remain > 0) {
-    const current = Object.entries(s.categoryCounts)
-      .filter(([, qty]) => Number(qty) > 0)
-      .map(([cat, qty]) => ({ cat, qty: Number(qty) }));
-
-    if (!current.length) break;
-
-    const cat = await askCategoryModal(
-      `減らすカテゴリを選んでください（残り ${remain} 個）`,
-      current.map(x => `${x.cat}（${x.qty}）`)
-    );
-    if (!cat) break;
-
-    const cleanCat = cat.replace(/（\d+）$/, "").trim();
-    const maxQty = Number(s.categoryCounts[cleanCat] || 0);
-
-    if (maxQty <= 0) {
-      alert("カテゴリが見つかりません。");
-      continue;
-    }
-
-    const qty = await askItemQtyModal(`「${cleanCat}」を何個減らしますか？（最大 ${Math.min(maxQty, remain)} 個）`);
-    if (!qty) break;
-
-    if (qty > remain || qty > maxQty) {
-      alert("個数が不正です。");
-      continue;
-    }
-
-    s.categoryCounts[cleanCat] = clampNonNeg((s.categoryCounts[cleanCat] || 0) - qty);
-    s.items = clampNonNeg(s.items - qty);
-
-    addLog(s.id, "items", -qty);
-    addLog(s.id, "category", -qty, cleanCat);
-
-    remain -= qty;
-  }
-
-  Object.keys(s.categoryCounts).forEach(cat => {
-    if (Number(s.categoryCounts[cat]) <= 0) delete s.categoryCounts[cat];
-  });
-
-  refreshQuickCategories(s);
   saveAll();
   render();
 }
@@ -728,7 +638,7 @@ function profitPlus(i) {
   const s = stores[i];
   if (!s) return;
 
-  const d = clampNonNeg(parseInt(prompt("追加する利益（円）は？", "1000"), 10));
+  const d = clampNonNeg(parseInt(prompt("追加する利益（円）", "1000"), 10));
   if (!d) return;
 
   s.profit += d;
@@ -742,7 +652,7 @@ function profitMinus(i) {
   const s = stores[i];
   if (!s) return;
 
-  const d = clampNonNeg(parseInt(prompt("利益減算（円）は？", "1000"), 10));
+  const d = clampNonNeg(parseInt(prompt("減らす利益（円）", "1000"), 10));
   if (!d) return;
 
   s.profit = clampNonNeg(s.profit - d);
@@ -759,24 +669,6 @@ function toggleToday(i, checked) {
   stores[i].today = !!checked;
   saveAll();
   buildTodayRoute(false);
-}
-
-function todayBulkOn() {
-  const pref = document.getElementById("todayPrefSelect")?.value || "__ALL__";
-  stores.forEach(s => {
-    if (pref === "__ALL__" || s.pref === pref) s.today = true;
-  });
-  saveAll();
-  render();
-}
-
-function todayBulkOff() {
-  const pref = document.getElementById("todayPrefSelect")?.value || "__ALL__";
-  stores.forEach(s => {
-    if (pref === "__ALL__" || s.pref === pref) s.today = false;
-  });
-  saveAll();
-  render();
 }
 
 function buildTodayRoute(showAlert = false) {
@@ -888,13 +780,15 @@ function showNearbyStores() {
   );
 }
 
-function autoDetectNearbyStores(silent = true) {
+function autoDetectNearbyStores() {
   if (!navigator.geolocation) return;
 
   navigator.geolocation.getCurrentPosition(
     pos => {
-      window.lastPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      if (!silent) render();
+      window.lastPos = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude
+      };
     },
     () => {},
     { enableHighAccuracy: true, timeout: 10000 }
@@ -906,6 +800,7 @@ function autoDetectNearbyStores(silent = true) {
 ========================= */
 function initMap() {
   if (typeof L === "undefined") return;
+
   const el = document.getElementById("map");
   if (!el) return;
 
@@ -917,44 +812,6 @@ function initMap() {
   }).addTo(map);
 
   mapInitialized = true;
-}
-
-function toggleMapPanel() {
-  const wrap = document.getElementById("mapWrap");
-  if (!wrap) return;
-
-  wrap.classList.toggle("show");
-
-  if (wrap.classList.contains("show") && map) {
-    setTimeout(() => {
-      map.invalidateSize();
-      renderMapMarkers();
-    }, 150);
-  }
-}
-
-function moveMapToCurrentLocation() {
-  if (!navigator.geolocation) {
-    alert("この端末では位置情報が使えません。");
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      window.lastPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-
-      const wrap = document.getElementById("mapWrap");
-      if (wrap && !wrap.classList.contains("show")) wrap.classList.add("show");
-
-      if (map) {
-        map.setView([window.lastPos.lat, window.lastPos.lng], 15);
-      }
-
-      renderMapMarkers();
-    },
-    () => alert("現在地を取得できませんでした。"),
-    { enableHighAccuracy: true, timeout: 10000 }
-  );
 }
 
 function clearMapMarkers() {
@@ -986,16 +843,12 @@ function renderMapMarkers() {
 
   const q = document.getElementById("q")?.value?.trim() || "";
   const prefFilter = document.getElementById("prefFilter")?.value || "__ALL__";
-  const minExpected = clampNonNeg(parseFloat(document.getElementById("minExpected")?.value || "0"));
-  const minRate = clampNonNeg(parseFloat(document.getElementById("minRate")?.value || "0"));
 
   let list = stores
     .map(s => ({ ...s, _m: getMetrics(s) }))
     .filter(s => typeof s.lat === "number" && typeof s.lng === "number")
     .filter(s => matchesQuery(s, q))
-    .filter(s => prefFilter === "__ALL__" || s.pref === prefFilter)
-    .filter(s => s._m.expected >= minExpected)
-    .filter(s => s._m.rate >= minRate);
+    .filter(s => prefFilter === "__ALL__" || s.pref === prefFilter);
 
   if (nearbyMode) {
     list = list.filter(s => nearbyStoreIds.has(s.id));
@@ -1029,181 +882,11 @@ function renderMapMarkers() {
 }
 
 /* =========================
-   モーダル: 個数
-========================= */
-function openQtyModal(title = "個数を選択") {
-  const modal = document.getElementById("qtyModal");
-  const titleEl = document.getElementById("qtyModalTitle");
-  const manualArea = document.getElementById("qtyManualArea");
-  const manualInput = document.getElementById("qtyManualInput");
-
-  if (titleEl) titleEl.textContent = title;
-  if (manualArea) manualArea.classList.remove("show");
-  if (manualInput) manualInput.value = "";
-
-  if (modal) {
-    modal.classList.add("show");
-    modal.setAttribute("aria-hidden", "false");
-  }
-}
-
-function closeQtyModal() {
-  const modal = document.getElementById("qtyModal");
-  if (modal) {
-    modal.classList.remove("show");
-    modal.setAttribute("aria-hidden", "true");
-  }
-
-  if (typeof qtyResolver === "function") {
-    const r = qtyResolver;
-    qtyResolver = null;
-    r(0);
-  }
-}
-
-function resolveQtyModal(value) {
-  const modal = document.getElementById("qtyModal");
-  if (modal) {
-    modal.classList.remove("show");
-    modal.setAttribute("aria-hidden", "true");
-  }
-
-  if (typeof qtyResolver === "function") {
-    const r = qtyResolver;
-    qtyResolver = null;
-    r(Number(value) || 0);
-  }
-}
-
-function selectQtyQuick(n) {
-  resolveQtyModal(n);
-}
-
-function toggleQtyManual() {
-  const area = document.getElementById("qtyManualArea");
-  const input = document.getElementById("qtyManualInput");
-  if (area) area.classList.add("show");
-  if (input) input.focus();
-}
-
-function confirmQtyManual() {
-  const n = clampNonNeg(parseInt(document.getElementById("qtyManualInput")?.value || "0", 10));
-  if (!n) {
-    alert("個数を入力してください。");
-    return;
-  }
-  resolveQtyModal(n);
-}
-
-function askItemQtyModal(title) {
-  return new Promise(resolve => {
-    qtyResolver = resolve;
-    openQtyModal(title);
-  });
-}
-
-/* =========================
-   モーダル: カテゴリ
-========================= */
-function openCategoryModal(title = "カテゴリを選択", categories = []) {
-  const modal = document.getElementById("categoryModal");
-  const titleEl = document.getElementById("categoryModalTitle");
-  const listEl = document.getElementById("categoryList");
-  const manualArea = document.getElementById("categoryManualArea");
-  const manualInput = document.getElementById("categoryManualInput");
-
-  if (titleEl) titleEl.textContent = title;
-  if (listEl) listEl.innerHTML = "";
-  if (manualArea) manualArea.classList.remove("show");
-  if (manualInput) manualInput.value = "";
-
-  categories.forEach(cat => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "categoryChoiceBtn";
-    btn.textContent = cat;
-    btn.onclick = () => resolveCategoryModal(cat);
-    if (listEl) listEl.appendChild(btn);
-  });
-
-  if (modal) {
-    modal.classList.add("show");
-    modal.setAttribute("aria-hidden", "false");
-  }
-}
-
-function closeCategoryModal() {
-  const modal = document.getElementById("categoryModal");
-  if (modal) {
-    modal.classList.remove("show");
-    modal.setAttribute("aria-hidden", "true");
-  }
-
-  if (typeof categoryResolver === "function") {
-    const r = categoryResolver;
-    categoryResolver = null;
-    r("");
-  }
-}
-
-function resolveCategoryModal(value) {
-  const modal = document.getElementById("categoryModal");
-  if (modal) {
-    modal.classList.remove("show");
-    modal.setAttribute("aria-hidden", "true");
-  }
-
-  if (typeof categoryResolver === "function") {
-    const r = categoryResolver;
-    categoryResolver = null;
-    r(String(value || "").trim());
-  }
-}
-
-function toggleCategoryManual() {
-  const area = document.getElementById("categoryManualArea");
-  const input = document.getElementById("categoryManualInput");
-  if (area) area.classList.add("show");
-  if (input) input.focus();
-}
-
-function confirmCategoryManual() {
-  const value = String(document.getElementById("categoryManualInput")?.value || "").trim();
-  if (!value) {
-    alert("カテゴリ名を入力してください。");
-    return;
-  }
-  resolveCategoryModal(value);
-}
-
-function askCategoryModal(title, categories) {
-  return new Promise(resolve => {
-    categoryResolver = resolve;
-    openCategoryModal(title, categories);
-  });
-}
-
-/* =========================
    表示
 ========================= */
 function buildPrefFilter() {
   const prefs = [...new Set(stores.map(s => s.pref).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ja"));
   const sel = document.getElementById("prefFilter");
-  if (!sel) return;
-
-  const current = sel.value || "__ALL__";
-  sel.innerHTML =
-    `<option value="__ALL__">全都道府県</option>` +
-    prefs.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("");
-
-  if (["__ALL__", ...prefs].includes(current)) {
-    sel.value = current;
-  }
-}
-
-function buildTodayPrefSelect() {
-  const prefs = [...new Set(stores.map(s => s.pref).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ja"));
-  const sel = document.getElementById("todayPrefSelect");
   if (!sel) return;
 
   const current = sel.value || "__ALL__";
@@ -1222,7 +905,6 @@ function renderStoreCard(s, idx) {
     ? distanceKm(window.lastPos.lat, window.lastPos.lng, s.lat, s.lng)
     : null;
 
-  const nearBadge = dist !== null ? `<span class="badge near">📍 ${dist.toFixed(1)}km</span>` : "";
   const categorySummary = Object.entries(s.categoryCounts || {})
     .filter(([, qty]) => Number(qty) > 0)
     .map(([cat, qty]) => `${cat}:${qty}`)
@@ -1232,32 +914,26 @@ function renderStoreCard(s, idx) {
     <div class="store">
       <div class="storeTitle">${escapeHtml(s.name)}</div>
 
-      <div>
-        <span class="badge">${escapeHtml(s.pref || "未設定")}</span>
-        ${s.address ? `<span class="badge addr">📍 住所あり</span>` : ""}
-        ${(typeof s.lat === "number" && typeof s.lng === "number")
-          ? `<span class="badge map">MAP表示可</span>`
-          : `<span class="badge noCoord">座標なし</span>`}
-        ${s.defaultCategory ? `<span class="badge">カテゴリ:${escapeHtml(s.defaultCategory)}</span>` : ""}
-        ${s.lastVisitDate ? `<span class="badge">最終訪問:${escapeHtml(s.lastVisitDate)}</span>` : ""}
-        ${s.today ? `<span class="badge">今日行く</span>` : ""}
-        ${nearBadge}
+      <div class="kv">
+        <span class="pill">${escapeHtml(s.pref || "未設定")}</span>
+        ${s.today ? `<span class="pill">今日行く</span>` : ""}
+        ${typeof dist === "number" ? `<span class="pill">距離 ${dist.toFixed(1)}km</span>` : ""}
+        ${s.defaultCategory ? `<span class="pill">カテゴリ ${escapeHtml(s.defaultCategory)}</span>` : ""}
       </div>
 
-      ${s.address ? `<div class="mini" style="margin-top:6px;">住所：${escapeHtml(s.address)}</div>` : ""}
+      ${s.address ? `<div class="mini" style="margin-top:8px;">住所：${escapeHtml(s.address)}</div>` : ""}
       ${categorySummary ? `<div class="mini" style="margin-top:6px;">個数内訳：${escapeHtml(categorySummary)}</div>` : ""}
+
+      <div class="meta" style="margin-top:8px;">
+        訪問：${m.visits}回 / 成功：${m.success}回 / 個数：${m.items}個<br>
+        利益：${m.profit.toLocaleString()}円 / 成功率：${m.rate.toFixed(1)}%<br>
+        平均利益：${Math.round(m.avgProfit).toLocaleString()}円 / 平均個数：${m.avgItems.toFixed(1)}個<br>
+        <b>期待値：${Math.round(m.expected).toLocaleString()}円</b>
+      </div>
 
       <div class="checkline">
         <input type="checkbox" id="today_${idx}" ${s.today ? "checked" : ""} onchange="toggleToday(${idx}, this.checked)">
         <label for="today_${idx}">今日行く</label>
-      </div>
-
-      <div class="meta">
-        訪問：${m.visits}回 / 成功：${m.success}回 / 個数：${m.items}個<br>
-        利益：${m.profit.toLocaleString()}円 / 成功率：${m.rate.toFixed(1)}%<br>
-        平均利益：${Math.round(m.avgProfit).toLocaleString()}円 / 平均個数：${m.avgItems.toFixed(1)}個<br>
-        <b>期待値：${Math.round(m.expected).toLocaleString()}円</b><br>
-        距離：${dist !== null ? dist.toFixed(1) + "km" : "—"}
       </div>
 
       <div class="actionGrid">
@@ -1284,47 +960,33 @@ function renderStoreCard(s, idx) {
 
 function render() {
   buildPrefFilter();
-  buildTodayPrefSelect();
 
   const q = document.getElementById("q")?.value?.trim() || "";
   const prefFilter = document.getElementById("prefFilter")?.value || "__ALL__";
-  const minExpected = clampNonNeg(parseFloat(document.getElementById("minExpected")?.value || "0"));
-  const minRate = clampNonNeg(parseFloat(document.getElementById("minRate")?.value || "0"));
-  const sortType = document.getElementById("sortType")?.value || "expected";
 
   let list = stores.map((s, idx) => {
     const m = getMetrics(s);
     let dist = null;
-    let score = -Infinity;
 
     if (window.lastPos && typeof s.lat === "number" && typeof s.lng === "number") {
       dist = distanceKm(window.lastPos.lat, window.lastPos.lng, s.lat, s.lng);
-      score = m.expected / (dist + 0.2);
     }
 
-    return { ...s, _idx: idx, _m: m, _dist: dist, _score: score };
+    return { ...s, _idx: idx, _m: m, _dist: dist };
   });
 
   list = list
     .filter(s => matchesQuery(s, q))
-    .filter(s => prefFilter === "__ALL__" || s.pref === prefFilter)
-    .filter(s => s._m.expected >= minExpected)
-    .filter(s => s._m.rate >= minRate);
+    .filter(s => prefFilter === "__ALL__" || s.pref === prefFilter);
 
   if (nearbyMode) {
     list = list.filter(s => nearbyStoreIds.has(s.id));
   }
 
   list.sort((a, b) => {
-    if (sortType === "route") {
-      const ad = typeof a._dist === "number" ? a._dist : Infinity;
-      const bd = typeof b._dist === "number" ? b._dist : Infinity;
-      if (ad !== bd) return ad - bd;
-      return b._m.expected - a._m.expected;
-    }
-    if (sortType === "rate") return b._m.rate - a._m.rate;
-    if (sortType === "avgProfit") return b._m.avgProfit - a._m.avgProfit;
-    if (sortType === "visits") return b._m.visits - a._m.visits;
+    const ad = typeof a._dist === "number" ? a._dist : Infinity;
+    const bd = typeof b._dist === "number" ? b._dist : Infinity;
+    if (nearbyMode && ad !== bd) return ad - bd;
     return b._m.expected - a._m.expected;
   });
 
@@ -1337,4 +999,8 @@ function render() {
 
   renderMapMarkers();
   buildTodayRoute(false);
+
+  if (!stores.length) {
+    showEmptyDataGuide();
+  }
 }
