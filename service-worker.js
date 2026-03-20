@@ -1,4 +1,4 @@
-const CACHE_NAME = "sedori-v17";
+const CACHE_NAME = "sedori-v18";
 
 const urlsToCache = [
   "./",
@@ -24,7 +24,7 @@ self.addEventListener("activate", event => {
     caches.keys().then(keys =>
       Promise.all(
         keys.map(key => {
-          if(key !== CACHE_NAME){
+          if (key !== CACHE_NAME) {
             return caches.delete(key);
           }
         })
@@ -35,15 +35,15 @@ self.addEventListener("activate", event => {
 });
 
 self.addEventListener("fetch", event => {
-  if(event.request.method !== "GET") return;
+  if (event.request.method !== "GET") return;
 
   event.respondWith(
     caches.match(event.request).then(cached => {
-      if(cached) return cached;
+      if (cached) return cached;
 
       return fetch(event.request)
         .then(response => {
-          if(!response || response.status !== 200){
+          if (!response || response.status !== 200) {
             return response;
           }
 
@@ -54,9 +54,7 @@ self.addEventListener("fetch", event => {
 
           return response;
         })
-        .catch(() => {
-          return caches.match("./index.html");
-        });
+        .catch(() => caches.match("./index.html"))
     })
   );
 });
