@@ -1,7 +1,7 @@
-const STORE_KEY = "stores";
-const LOG_KEY = "logs";
-const LAYOUT_KEY = "layout";
-const AUTO_BACKUP_KEY = "auto_backup";
+const STORE_KEY = "sedori_stores";
+const LOG_KEY = "sedori_logs";
+const LAYOUT_KEY = "sedori_layout";
+const AUTO_BACKUP_KEY = "sedori_auto_backup";
 const QUICK_LIMIT = 12;
 
 let stores = loadStores();
