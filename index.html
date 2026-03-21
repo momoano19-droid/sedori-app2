@@ -12,12 +12,13 @@
   <meta name="apple-mobile-web-app-title" content="店舗管理">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
-  <link rel="stylesheet" href="./css/style.css?v=ui1">
+  <link rel="stylesheet" href="./css/style.css?v=ui3">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
   <div class="page">
 
+    <!-- 1段目 -->
     <div class="topCard">
       <div class="topButtons">
         <button class="heroBtn" onclick="location.href='report.html'">📊 分析画面へ</button>
@@ -25,22 +26,42 @@
       </div>
     </div>
 
+    <!-- 2段目：バックアップ -->
+    <div class="card">
+      <div class="topButtons">
+        <button class="heroBtn" onclick="exportBackup()">📦 手動バックアップ</button>
+        <button class="ghostBtn" onclick="restoreAutoBackup()">♻ 自動バックアップ</button>
+      </div>
+
+      <div class="row2 mt12">
+        <button class="ghostBtn" onclick="document.getElementById('backupFile').click()">📥 バックアップ読込</button>
+        <button class="ghostBtn" onclick="showAutoBackupInfo()">🕒 自動バックアップ確認</button>
+      </div>
+
+      <input id="backupFile" type="file" accept=".json,application/json" style="display:none" onchange="importBackup(event)">
+
+      <div class="helpText">
+        手動バックアップはJSONを書き出します。自動バックアップは更新のたびに保存されます。
+      </div>
+    </div>
+
+    <!-- 店舗追加 -->
     <div class="card">
       <div class="addGrid">
         <input id="storeName" placeholder="店舗名を入力">
         <input id="prefName" placeholder="都道府県（例：茨城）">
         <input id="address" class="span2" placeholder="住所（これだけでもOK）">
-        <input id="mapUrl" placeholder="Googleマップ共有リンク">
-        <button class="ghostBtn" onclick="openMapSearchFromAddress()">地図検索</button>
+        <input id="mapUrl" class="span2" placeholder="Googleマップ共有リンク / 短縮URL / place URL など">
       </div>
 
       <button class="primaryWide" onclick="addStore()">店舗追加</button>
 
       <div class="helpText">
-        Googleマップで店舗を開いて「共有 → リンクをコピー」すると座標が安定しやすいです。
+        Googleマップの共有リンク、短縮URL、place URL、@緯度経度入りURLなどを読み取れるようにしています。
       </div>
     </div>
 
+    <!-- 検索・絞り込み -->
     <div class="card">
       <div class="searchGrid">
         <input id="q" placeholder="🔎 店舗検索（店舗名など）" oninput="render()">
@@ -72,6 +93,7 @@
       </div>
     </div>
 
+    <!-- レイアウト切替 -->
     <div class="card">
       <div class="layoutButtons">
         <button class="ghostBtn" onclick="setLayoutMode('detail')">詳細</button>
@@ -88,7 +110,7 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="./js/app.js?v=ui1"></script>
+  <script src="./js/app.js?v=ui3"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
