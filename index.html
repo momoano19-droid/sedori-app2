@@ -109,13 +109,16 @@
 
     <!-- 今日ルート -->
     <div class="card">
-      <div class="topButtons">
-        <button class="primaryBtn" onclick="buildTodayRoute()">🛣 今日ルート作成</button>
-        <button class="ghostBtn" onclick="clearTodayChecks()">☑ 今日行くを解除</button>
-      </div>
-      <div class="helpText">
-        店舗カードの「今日行く」にチェックした店舗を使ってルートを作成します。
-      </div>
+  <div class="topButtons">
+    <button class="primaryBtn" onclick="buildTodayRoute()">🛣 今日ルート作成</button>
+    <button class="ghostBtn" onclick="clearTodayChecks()">☑ 今日行くを解除</button>
+  </div>
+  <div class="helpText">
+    店舗カードの「今日行く」にチェックした店舗を使ってルートを作成します。
+  </div>
+
+  <div id="todayRouteList" class="helpText" style="margin-top:10px;"></div>
+</div>
     </div>
 
     <!-- 地図 -->
