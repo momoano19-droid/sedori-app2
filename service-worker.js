@@ -1,12 +1,12 @@
-const CACHE_NAME = "sedori-v48";
+const CACHE_NAME = "sedori-v52";
 
 const urlsToCache = [
   "./",
-  "./index.html",
-  "./report.html",
-  "./css/style.css",
-  "./js/app.js",
-  "./js/report.js",
+  "./index.html?v=ui3",
+  "./report.html?v=reset1",
+  "./css/style.css?v=ui3",
+  "./js/app.js?v=ui3",
+  "./js/report.js?v=reset1",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
@@ -39,6 +39,8 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
 
+  const reqUrl = new URL(event.request.url);
+
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
@@ -49,14 +51,23 @@ self.addEventListener("fetch", event => {
             return response;
           }
 
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseToCache);
-          });
+          if (
+            reqUrl.origin === self.location.origin ||
+            reqUrl.href.includes("unpkg.com/leaflet@1.9.4")
+          ) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseToCache);
+            });
+          }
 
           return response;
         })
-        .catch(() => caches.match("./index.html"))
+        .catch(() => {
+          if (event.request.mode === "navigate") {
+            return caches.match("./index.html?v=ui3");
+          }
+        });
     })
   );
 });
