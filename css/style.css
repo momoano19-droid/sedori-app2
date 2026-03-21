@@ -254,3 +254,29 @@ button:active{
     font-size:18px;
   }
 }
+
+/* 今日行くチェック修正 */
+.item input[type="checkbox"]{
+  appearance: auto !important;
+  -webkit-appearance: checkbox !important;
+  width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  display: inline-block !important;
+  vertical-align: middle;
+  flex: 0 0 auto;
+}
+
+.item label{
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 16px !important;
+  cursor: pointer;
+}
