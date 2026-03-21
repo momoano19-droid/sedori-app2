@@ -209,3 +209,16 @@ button:active{
     height:240px;
   }
 }
+.item textarea,
+.item .memoBox,
+.item .noteBox,
+.item .categoryBox,
+.item .whiteBox,
+.item .emptyBox{
+  display:none !important;
+}
+
+.item input[value=""],
+.item textarea:empty{
+  display:none !important;
+}
