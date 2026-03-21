@@ -1,127 +1,100 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>店舗管理 | せどりGPS管理PRO</title>
-<link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#007aff">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="せどりGPS">
-<link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="css/style.css" />
+
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#3976f6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="店舗管理">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+
+  <link rel="stylesheet" href="./css/style.css?v=ui1">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
-  <h1>📱 店舗管理</h1>
-  <div class="sub">現場で使う画面です。店舗追加・一覧・近くの店舗・地図・今日ルートをここで操作します。</div>
+  <div class="page">
 
-  <div class="toolbar">
-    <div class="row2">
-      <button onclick="location.href='report.html'">📊 分析画面へ</button>
-      <button class="secondary" onclick="render()">再表示</button>
-    </div>
-  </div>
-
-<div class="toolbar">
-  <div class="row2">
-    <button class="secondary" onclick="exportBackup()">📦 バックアップ書き出し</button>
-    <button class="secondary" onclick="document.getElementById('backupFileInput').click()">📥 バックアップ読込</button>
-  </div>
-  <input
-    id="backupFileInput"
-    type="file"
-    accept=".json,application/json"
-    style="display:none"
-    onchange="importBackup(event)"
-  />
-  <div class="gray">
-    ※ 店舗データ・ログデータをJSONで保存/復元します
-  </div>
-</div>
-
-<div class="toolbar">
-  <div class="row2">
-    <button class="secondary" onclick="restoreAutoBackup()">♻ 自動バックアップ復元</button>
-    <button class="secondary" onclick="showAutoBackupInfo()">🕒 自動バックアップ確認</button>
-  </div>
-  <div class="gray">
-    ※ データ更新時に最新状態を自動保存します
-  </div>
-</div>
-
-  <div class="toolbar">
-    <div class="row2">
-      <input id="storeName" placeholder="店舗名" />
-      <input id="prefName" placeholder="都道府県" />
-    </div>
-    <input id="address" placeholder="住所" />
-    <div class="row2">
-      <input id="mapUrl" placeholder="Googleマップ共有リンク" />
-      <button class="secondary" onclick="openMapSearchFromAddress()">地図検索</button>
-    </div>
-    <button onclick="addStore()">店舗追加</button>
-  </div>
-
-  <div class="toolbar">
-    <div class="row2">
-      <input id="q" placeholder="検索（店舗名/都道府県/住所/カテゴリ）" oninput="render()" />
-      <select id="prefFilter" onchange="render()"></select>
-    </div>
-    <div class="row2">
-      <input id="minExpected" placeholder="期待値 下限" oninput="render()" />
-      <input id="minRate" placeholder="成功率 下限%" oninput="render()" />
-    </div>
-    <div class="row2">
-      <select id="sortType" onchange="render()">
-        <option value="expected">期待値順</option>
-        <option value="rate">成功率順</option>
-        <option value="avgProfit">平均利益順</option>
-        <option value="visits">訪問回数順</option>
-        <option value="route">ルート効率順</option>
-      </select>
-      <button onclick="optimizeRoute()">🚗 現在地で効率更新</button>
-    </div>
-    <div class="row2">
-      <button onclick="showNearbyStores()">📍近くの店舗（3km）</button>
-      <button class="secondary" onclick="clearNearbyMode(); render();">通常表示</button>
-    </div>
-    <div class="row2">
-      <button class="secondary" onclick="toggleMapPanel()">🗺 店舗MAP</button>
-      <button class="secondary" onclick="moveMapToCurrentLocation()">📍 現在地へ移動</button>
-    </div>
-
-    <div id="mapWrap" class="mapWrap">
-      <div id="map"></div>
-      <div class="mapLegend">
-        <div class="legendItem"><span class="legendDot red"></span>期待値 10000円以上</div>
-        <div class="legendItem"><span class="legendDot orange"></span>期待値 3000〜9999円</div>
-        <div class="legendItem"><span class="legendDot yellow"></span>期待値 1000〜2999円</div>
-        <div class="legendItem"><span class="legendDot blue"></span>期待値 999円以下</div>
+    <div class="topCard">
+      <div class="topButtons">
+        <button class="heroBtn" onclick="location.href='report.html'">📊 分析画面へ</button>
+        <button class="ghostBtn" onclick="render()">再表示</button>
       </div>
     </div>
-  </div>
 
-  <div class="toolbar">
-    <div class="row2">
-      <button onclick="buildTodayRoute()">🗓 今日ルート作成</button>
-      <select id="todayPrefSelect"></select>
-    </div>
-    <div class="row2">
-      <button class="secondary" onclick="todayBulkOn()">この都道府県ON</button>
-      <button class="secondary" onclick="todayBulkOff()">この都道府県OFF</button>
-    </div>
-    <div id="todayPlanArea"></div>
-  </div>
+    <div class="card">
+      <div class="addGrid">
+        <input id="storeName" placeholder="店舗名を入力">
+        <input id="prefName" placeholder="都道府県（例：茨城）">
+        <input id="address" class="span2" placeholder="住所（これだけでもOK）">
+        <input id="mapUrl" placeholder="Googleマップ共有リンク">
+        <button class="ghostBtn" onclick="openMapSearchFromAddress()">地図検索</button>
+      </div>
 
-  <div id="storeList"></div>
+      <button class="primaryWide" onclick="addStore()">店舗追加</button>
+
+      <div class="helpText">
+        Googleマップで店舗を開いて「共有 → リンクをコピー」すると座標が安定しやすいです。
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="searchGrid">
+        <input id="q" placeholder="🔎 店舗検索（店舗名など）" oninput="render()">
+        <select id="prefFilter" onchange="render()">
+          <option value="__ALL__">全て（都道府県ごと）</option>
+        </select>
+
+        <input id="minExpected" placeholder="期待値 下限（例：2000）" oninput="render()">
+        <input id="minRate" placeholder="成功率 下限%（例：20）" oninput="render()">
+
+        <select id="sortType" onchange="render()">
+          <option value="expected">期待値順</option>
+          <option value="rate">成功率順</option>
+          <option value="avgProfit">平均利益順</option>
+          <option value="visits">訪問回数順</option>
+          <option value="route">距離順</option>
+        </select>
+
+        <button class="primaryBtn" onclick="showNearbyStores()">🚗 現在地で効率更新</button>
+
+        <button class="primaryBtn" onclick="showNearbyStores()">📍 近くの店舗（3km）</button>
+        <button class="ghostBtn" onclick="clearNearbyMode(); render()">通常表示に戻す</button>
+
+        <button class="ghostBtn" onclick="refreshAllCoordinates()">📡 座標なし店舗を一括再取得</button>
+        <button class="ghostBtn" onclick="showNoCoordsOnly()">📍 座標なし店舗を見る</button>
+
+        <button class="ghostBtn" onclick="document.getElementById('mapWrap').scrollIntoView({behavior:'smooth'})">🗺️ 店舗MAP</button>
+        <button class="ghostBtn" onclick="moveToCurrentLocation()">📍 現在地へ移動</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="layoutButtons">
+        <button class="ghostBtn" onclick="setLayoutMode('detail')">詳細</button>
+        <button class="primaryBtn" onclick="setLayoutMode('compact')">コンパクト</button>
+      </div>
+    </div>
+
+    <div id="mapWrap" class="card mapWrap">
+      <div class="sectionTitle">店舗MAP</div>
+      <div id="map"></div>
+    </div>
+
+    <div id="storeList"></div>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/storage.js"></script>
-  <script src="js/analytics.js"></script>
-  <script src="js/map.js"></script>
-  <script src="js/app.js"></script>
+  <script src="./js/app.js?v=ui1"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js").catch(console.error);
+      });
+    }
+  </script>
 </body>
 </html>
