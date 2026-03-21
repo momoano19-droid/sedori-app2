@@ -38,7 +38,13 @@
         <button class="ghostBtn" onclick="showAutoBackupInfo()">🕒 自動バックアップ確認</button>
       </div>
 
-      <input id="backupFile" type="file" accept=".json,application/json" style="display:none" onchange="importBackup(event)">
+      <input
+        id="backupFile"
+        type="file"
+        accept=".json,application/json"
+        style="display:none"
+        onchange="importBackup(event)"
+      >
 
       <div class="helpText">
         手動バックアップはJSONを書き出します。自動バックアップは更新のたびに保存されます。
@@ -101,11 +107,13 @@
       </div>
     </div>
 
+    <!-- 地図 -->
     <div id="mapWrap" class="card mapWrap">
       <div class="sectionTitle">店舗MAP</div>
       <div id="map"></div>
     </div>
 
+    <!-- 店舗カード一覧 -->
     <div id="storeList"></div>
   </div>
 
