@@ -1230,10 +1230,11 @@ function render() {
     : `<div class="mini">${nearbyMode ? "近くの店舗は見つかりませんでした。" : "該当する店舗がありません。"}</div>`;
 
   renderMapMarkers();
+renderTodayRouteList();
 
-  if (!stores.length) {
-    showEmptyDataGuide();
-  }
+if (!stores.length) {
+  showEmptyDataGuide();
+}
 }
 
 function renderTodayRouteList() {
