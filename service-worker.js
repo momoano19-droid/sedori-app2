@@ -1,12 +1,11 @@
-const CACHE_NAME = "sedori-v61";
+const CACHE_NAME = "sedori-v62";
 
 const urlsToCache = [
   "./",
-  "./index.html?v=ui3",
-  "./report.html?v=reset1",
-  "./css/style.css?v=ui3",
-  "./js/app.js?v=ui3",
-  "./js/report.js?v=reset1",
+  "./index.html",
+  "./report.html",
+  "./css/style.css?v=ui6",
+  "./js/app.js?v=ui6",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
@@ -42,32 +41,30 @@ self.addEventListener("fetch", event => {
   const reqUrl = new URL(event.request.url);
 
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-
-      return fetch(event.request)
-        .then(response => {
-          if (!response || response.status !== 200) {
-            return response;
-          }
-
-          if (
+    fetch(event.request)
+      .then(response => {
+        if (
+          response &&
+          response.status === 200 &&
+          (
             reqUrl.origin === self.location.origin ||
             reqUrl.href.includes("unpkg.com/leaflet@1.9.4")
-          ) {
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-
-          return response;
-        })
-        .catch(() => {
+          )
+        ) {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request).then(cached => {
+          if (cached) return cached;
           if (event.request.mode === "navigate") {
-            return caches.match("./index.html?v=ui3");
+            return caches.match("./index.html");
           }
         });
-    })
+      })
   );
 });
