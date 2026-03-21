@@ -901,9 +901,14 @@ function buildPrefFilter() {
 
 function renderStoreCard(s, idx) {
   const m = getMetrics(s);
-  const dist = (window.lastPos && typeof s.lat === "number" && typeof s.lng === "number")
-    ? distanceKm(window.lastPos.lat, window.lastPos.lng, s.lat, s.lng)
-    : null;
+
+  let dist = null;
+  if (window.lastPos && typeof s.lat === "number" && typeof s.lng === "number") {
+    dist = distanceKm(window.lastPos.lat, window.lastPos.lng, s.lat, s.lng);
+  }
+
+  // 補充頻度（訪問間隔）
+  const freq = m.visits > 0 ? (30 / m.visits).toFixed(1) : "-";
 
   const categorySummary = Object.entries(s.categoryCounts || {})
     .filter(([, qty]) => Number(qty) > 0)
@@ -912,30 +917,83 @@ function renderStoreCard(s, idx) {
 
   return `
     <div class="store">
+
+      <!-- タイトル -->
       <div class="storeTitle">${escapeHtml(s.name)}</div>
 
-      <div class="kv">
+      <!-- バッジ -->
+      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
+
         <span class="pill">${escapeHtml(s.pref || "未設定")}</span>
-        ${s.today ? `<span class="pill">今日行く</span>` : ""}
-        ${typeof dist === "number" ? `<span class="pill">距離 ${dist.toFixed(1)}km</span>` : ""}
-        ${s.defaultCategory ? `<span class="pill">カテゴリ ${escapeHtml(s.defaultCategory)}</span>` : ""}
+
+        ${typeof dist === "number" ? `
+          <span class="pill" style="background:#e6f4ff; color:#1677ff;">
+            📍 ${dist.toFixed(1)}km
+          </span>
+        ` : ""}
+
+        ${s.mapUrl ? `
+          <span class="pill" style="background:#e6fffb; color:#13c2c2;">
+            🗺 MAPあり
+          </span>
+        ` : ""}
+
+        ${s.today ? `
+          <span class="pill" style="background:#fff1f0; color:#ff4d4f;">
+            今日行く
+          </span>
+        ` : ""}
+
+        ${s.defaultCategory ? `
+          <span class="pill" style="background:#f9f0ff; color:#722ed1;">
+            ${escapeHtml(s.defaultCategory)}
+          </span>
+        ` : ""}
       </div>
 
-      ${s.address ? `<div class="mini" style="margin-top:8px;">住所：${escapeHtml(s.address)}</div>` : ""}
-      ${categorySummary ? `<div class="mini" style="margin-top:6px;">個数内訳：${escapeHtml(categorySummary)}</div>` : ""}
+      <!-- 住所 -->
+      ${s.address ? `
+        <div class="mini" style="margin-top:8px;">
+          📍 ${escapeHtml(s.address)}
+        </div>
+      ` : ""}
 
-      <div class="meta" style="margin-top:8px;">
-        訪問：${m.visits}回 / 成功：${m.success}回 / 個数：${m.items}個<br>
-        利益：${m.profit.toLocaleString()}円 / 成功率：${m.rate.toFixed(1)}%<br>
-        平均利益：${Math.round(m.avgProfit).toLocaleString()}円 / 平均個数：${m.avgItems.toFixed(1)}個<br>
-        <b>期待値：${Math.round(m.expected).toLocaleString()}円</b>
+      <!-- メイン情報 -->
+      <div style="
+        margin-top:10px;
+        padding:10px;
+        border-radius:10px;
+        background:#f7f9fc;
+      ">
+        <div style="font-size:16px; font-weight:800; color:#1677ff;">
+          期待値：${Math.round(m.expected).toLocaleString()}円
+        </div>
+
+        <div class="mini" style="margin-top:6px; line-height:1.6;">
+          利益：${m.profit.toLocaleString()}円 / 成功率：${m.rate.toFixed(1)}%<br>
+          平均利益：${Math.round(m.avgProfit).toLocaleString()}円 / 平均個数：${m.avgItems.toFixed(1)}個<br>
+          補充頻度：約 ${freq} 日に1回
+        </div>
       </div>
 
+      <!-- サブ情報 -->
+      <div class="mini" style="margin-top:8px;">
+        訪問：${m.visits}回 / 成功：${m.success}回 / 個数：${m.items}個
+      </div>
+
+      ${categorySummary ? `
+        <div class="mini" style="margin-top:6px;">
+          📦 ${escapeHtml(categorySummary)}
+        </div>
+      ` : ""}
+
+      <!-- チェック -->
       <div class="checkline">
         <input type="checkbox" id="today_${idx}" ${s.today ? "checked" : ""} onchange="toggleToday(${idx}, this.checked)">
         <label for="today_${idx}">今日行く</label>
       </div>
 
+      <!-- 操作 -->
       <div class="actionGrid">
         <button class="actionBtn visit" onclick="visit(${idx})">訪問<br><small>＋</small></button>
         <button class="actionBtn visitMinus" onclick="visitMinus(${idx})">訪問<br><small>−</small></button>
@@ -954,6 +1012,7 @@ function renderStoreCard(s, idx) {
         <button class="secondary" onclick="navigateToStore(${idx})">ナビ</button>
         <button class="secondary" onclick="refreshStoreCoordinates(${idx})">座標再取得</button>
       </div>
+
     </div>
   `;
 }
