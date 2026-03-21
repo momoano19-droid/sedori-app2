@@ -1235,3 +1235,24 @@ function render() {
     showEmptyDataGuide();
   }
 }
+
+function renderTodayRouteList() {
+  const el = document.getElementById("todayRouteList");
+  if (!el) return;
+
+  const checkedStores = stores.filter(s => s.today);
+
+  if (!checkedStores.length) {
+    el.innerHTML = "チェックした店舗はまだありません。";
+    return;
+  }
+
+  const names = checkedStores.map((s, i) => {
+    return `${i + 1}. ${escapeHtml(s.name)}`;
+  });
+
+  el.innerHTML = `
+    <div style="font-weight:700; margin-bottom:6px;">今日行く店舗</div>
+    <div style="line-height:1.8;">${names.join("<br>")}</div>
+  `;
+}
