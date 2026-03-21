@@ -165,22 +165,12 @@ button:active{
 }
 
 .mt8{ margin-top:8px; }
-.mt10{ margin-top:10px; }
+.mt12{ margin-top:12px; }
 
 .row2{
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:12px;
-}
-
-.compact2{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
-}
-
-.compact2 button{
-  width:100%;
 }
 
 @media (max-width: 640px){
@@ -199,8 +189,7 @@ button:active{
   .layoutButtons,
   .addGrid,
   .searchGrid,
-  .row2,
-  .compact2{
+  .row2{
     grid-template-columns:1fr 1fr;
     gap:12px;
   }
