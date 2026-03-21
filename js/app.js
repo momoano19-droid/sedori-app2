@@ -288,6 +288,57 @@ function makeButtonStyle(bg, color = "#fff") {
   return `style="background:${bg};color:${color};"`;
 }
 
+function getCategoryHistory() {
+  const freq = {};
+
+  stores.forEach(s => {
+    Object.entries(s.categoryCounts || {}).forEach(([cat, qty]) => {
+      if (!cat) return;
+      freq[cat] = (freq[cat] || 0) + Number(qty || 0);
+    });
+  });
+
+  logs.forEach(l => {
+    if (l.category) {
+      freq[l.category] = (freq[l.category] || 0) + Math.max(1, Math.abs(Number(l.delta || 0)));
+    }
+  });
+
+  return Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .map(([cat]) => cat)
+    .slice(0, 12);
+}
+
+function resolveCategorySelectionInput(input, qty, history, defaultCategory) {
+  const raw = String(input || "").trim();
+  if (!raw) {
+    const fallback = defaultCategory || "未分類";
+    return { [fallback]: qty };
+  }
+
+  if (/^\d+$/.test(raw)) {
+    const idx = Number(raw) - 1;
+    if (history[idx]) {
+      return { [history[idx]]: qty };
+    }
+  }
+
+  if (!raw.includes(":") && !raw.includes(",")) {
+    return { [raw]: qty };
+  }
+
+  const parsed = parseCategoryInput(raw);
+  const total = sumCategoryCounts(parsed);
+
+  if (total !== qty) {
+    alert(`カテゴリ個数の合計(${total})と追加個数(${qty})が一致しません。`);
+    return null;
+  }
+
+  return parsed;
+}
+
 /* =========================
    バックアップ
 ========================= */
@@ -692,6 +743,17 @@ function itemsPlus(i) {
   const n = clampNonNeg(parseInt(prompt("追加する個数", "1"), 10));
   if (!n) return;
 
+  const history = getCategoryHistory();
+  const historyText = history.length
+    ? `\n\nカテゴリ履歴:\n${history.map((c, idx) => `${idx + 1}: ${c}`).join("\n")}\n\n番号入力で選択、新規は文字入力、複数は 例: 楽器:2, 家電:1`
+    : `\n\nカテゴリ名を入力してください。複数は 例: 楽器:2, 家電:1`;
+
+  const catInput = prompt(`カテゴリを入力してください（追加個数: ${n}）${historyText}`, s.defaultCategory || "");
+  if (catInput === null) return;
+
+  const catMap = resolveCategorySelectionInput(catInput, n, history, s.defaultCategory);
+  if (!catMap) return;
+
   s.items += n;
   s.buyDays += 1;
   if (s.buyDays > s.visits) s.visits = s.buyDays;
@@ -700,11 +762,13 @@ function itemsPlus(i) {
   addLog(s.id, "success", 1);
   addLog(s.id, "items", n);
 
-  const cat = prompt("カテゴリ名（空なら未分類）", s.defaultCategory || "未分類");
-  const useCat = String(cat || "未分類").trim() || "未分類";
-  s.defaultCategory = useCat;
-  s.categoryCounts[useCat] = (s.categoryCounts[useCat] || 0) + n;
-  addLog(s.id, "category", n, useCat);
+  Object.entries(catMap).forEach(([cat, qty]) => {
+    s.categoryCounts[cat] = (s.categoryCounts[cat] || 0) + qty;
+    addLog(s.id, "category", qty, cat);
+  });
+
+  const firstCat = Object.keys(catMap)[0];
+  if (firstCat) s.defaultCategory = firstCat;
 
   saveAll();
   render();
@@ -750,6 +814,63 @@ function profitMinus(i) {
 
   saveAll();
   render();
+}
+
+/* =========================
+   今日行く / ルート
+========================= */
+function toggleToday(i, checked) {
+  const s = stores[i];
+  if (!s) return;
+  s.today = !!checked;
+  saveAll();
+  render();
+}
+
+function clearTodayChecks() {
+  stores.forEach(s => {
+    s.today = false;
+  });
+  saveAll();
+  render();
+}
+
+function buildTodayRoute() {
+  const targets = stores.filter(s => s.today);
+
+  if (!targets.length) {
+    alert("「今日行く」にチェックした店舗がありません。");
+    return;
+  }
+
+  const usable = targets.filter(s => hasCoords(s) || s.address);
+  if (!usable.length) {
+    alert("ルートに使える住所または座標がある店舗がありません。");
+    return;
+  }
+
+  let sorted = [...usable];
+
+  if (window.lastPos) {
+    sorted.sort((a, b) => {
+      const ad = hasCoords(a) ? distanceKm(window.lastPos.lat, window.lastPos.lng, a.lat, a.lng) : Infinity;
+      const bd = hasCoords(b) ? distanceKm(window.lastPos.lat, window.lastPos.lng, b.lat, b.lng) : Infinity;
+      return ad - bd;
+    });
+  }
+
+  const makeDest = s => {
+    if (hasCoords(s)) return `${s.lat},${s.lng}`;
+    return s.address;
+  };
+
+  const origin = "Current Location";
+  const destination = makeDest(sorted[sorted.length - 1]);
+  const waypoints = sorted.slice(0, -1).map(makeDest).slice(0, 8);
+
+  const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving${waypoints.length ? `&waypoints=${encodeURIComponent(waypoints.join("|"))}` : ""}`;
+
+  window.open(url, "_blank");
 }
 
 /* =========================
