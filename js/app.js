@@ -320,9 +320,7 @@ function importBackup(event) {
   reader.onload = e => {
     try {
       const parsed = JSON.parse(String(e.target?.result || ""));
-      if (!Array.isArray(parsed.stores)) {
-        throw new Error("invalid backup");
-      }
+      if (!Array.isArray(parsed.stores)) throw new Error("invalid backup");
 
       if (!confirm("現在のデータをバックアップで上書きします。よろしいですか？")) {
         event.target.value = "";
@@ -984,14 +982,13 @@ function renderStoreCard(s, idx) {
       ${!compact ? `
         ${s.address ? `<div class="mini mt8">📍 ${escapeHtml(s.address)}</div>` : ``}
 
-        <div class="card mt8" style="padding:10px;">
-          <div style="font-size:16px;font-weight:800;color:#1677ff;">
-            期待値：${Math.round(m.expected).toLocaleString()}円
-          </div>
-          <div class="mini mt8" style="line-height:1.6;">
-            利益：${m.profit.toLocaleString()}円 / 成功率：${m.rate.toFixed(1)}%<br>
-            平均利益：${Math.round(m.avgProfit).toLocaleString()}円 / 平均個数：${m.avgItems.toFixed(1)}個
-          </div>
+        <div class="mini mt8">
+          期待値：${Math.round(m.expected).toLocaleString()}円
+        </div>
+
+        <div class="mini mt8" style="line-height:1.6;">
+          利益：${m.profit.toLocaleString()}円 / 成功率：${m.rate.toFixed(1)}%<br>
+          平均利益：${Math.round(m.avgProfit).toLocaleString()}円 / 平均個数：${m.avgItems.toFixed(1)}個
         </div>
 
         <div class="mini mt8">
