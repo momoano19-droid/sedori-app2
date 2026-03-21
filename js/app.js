@@ -324,12 +324,34 @@ function showAutoBackupInfo() {
     alert("自動バックアップはありません。");
     return;
   }
+
   alert(`保存日時: ${data.savedAt || "不明"}\n店舗数: ${data.stores.length}件\nログ数: ${data.logs.length}件`);
 }
 
 /* =========================
    座標取得
 ========================= */
+async function expandShortUrlIfNeeded(url) {
+  try {
+    const text = String(url || "").trim();
+    if (!text) return text;
+
+    const lower = text.toLowerCase();
+    if (
+      lower.includes("maps.app.goo.gl") ||
+      lower.includes("goo.gl/maps") ||
+      lower.includes("g.co/kgs")
+    ) {
+      const res = await fetch(text, { redirect: "follow", mode: "cors" });
+      return res.url || text;
+    }
+
+    return text;
+  } catch {
+    return url;
+  }
+}
+
 function extractLatLngFromMapUrl(url) {
   const text = String(url || "").trim();
   if (!text) return null;
@@ -337,10 +359,22 @@ function extractLatLngFromMapUrl(url) {
   let m = text.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
   if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
 
+  m = text.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+  if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+
   m = text.match(/[?&](?:q|query|destination)=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
   if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
 
-  m = text.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+  m = text.match(/[?&]ll=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+
+  m = text.match(/[?&]sll=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+
+  m = text.match(/\/search\/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+
+  m = text.match(/\/place\/.*?\/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
   if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
 
   return null;
@@ -370,11 +404,12 @@ async function geocodeAddress(pref, address, name) {
 
 async function resolveStoreLatLng(pref, address, name, mapUrl, showFailMessage = true) {
   if (mapUrl) {
-    const fromUrl = extractLatLngFromMapUrl(mapUrl);
+    const expanded = await expandShortUrlIfNeeded(mapUrl);
+    const fromUrl = extractLatLngFromMapUrl(expanded);
     if (fromUrl) return fromUrl;
 
     if (showFailMessage) {
-      alert("GoogleマップURLから座標を取得できませんでした。住所から取得を試します。");
+      alert("共有URLから座標を取得できませんでした。住所から取得を試します。");
     }
   }
 
@@ -626,37 +661,6 @@ function toggleToday(i, checked) {
   stores[i].today = !!checked;
   saveAll();
   render();
-}
-
-function buildTodayRoute(showAlert = false) {
-  const selected = stores
-    .map((s, idx) => {
-      let dist = null;
-      if (window.lastPos && typeof s.lat === "number" && typeof s.lng === "number") {
-        dist = distanceKm(window.lastPos.lat, window.lastPos.lng, s.lat, s.lng);
-      }
-      return { ...s, _idx: idx, _dist: dist };
-    })
-    .filter(s => s.today);
-
-  if (!selected.length) {
-    alert("「今日行く」にチェックした店舗がありません。");
-    return;
-  }
-
-  selected.sort((a, b) => {
-    const ad = typeof a._dist === "number" ? a._dist : Infinity;
-    const bd = typeof b._dist === "number" ? b._dist : Infinity;
-    return ad - bd;
-  });
-
-  const lines = selected.map((s, idx) =>
-    `${idx + 1}. ${s.name}${typeof s._dist === "number" ? `（${s._dist.toFixed(1)}km）` : ""}`
-  );
-
-  if (showAlert) {
-    alert(lines.join("\n"));
-  }
 }
 
 /* =========================
