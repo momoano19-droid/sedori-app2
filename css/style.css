@@ -173,6 +173,47 @@ button:active{
   gap:12px;
 }
 
+/* 白枠対策 */
+.item textarea,
+.item .memoBox,
+.item .noteBox,
+.item .categoryBox,
+.item .whiteBox,
+.item .emptyBox,
+.item .blankBox,
+.item .ghostBox,
+.item .unusedBox{
+  display:none !important;
+}
+
+.item input:empty,
+.item textarea:empty{
+  display:none !important;
+}
+
+/* 店舗カード内の余計な白い入れ子枠を消す */
+.item .card{
+  background:transparent !important;
+  box-shadow:none !important;
+  padding:0 !important;
+  margin:8px 0 0 0 !important;
+  border-radius:0 !important;
+}
+
+/* チェックまわり */
+.item label{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+}
+
+.item input[type="checkbox"]{
+  width:18px;
+  height:18px;
+  min-height:auto;
+}
+
+/* モバイル最適化 */
 @media (max-width: 640px){
   .page{
     padding:12px;
@@ -208,17 +249,8 @@ button:active{
   .mapWrap #map{
     height:240px;
   }
-}
-.item textarea,
-.item .memoBox,
-.item .noteBox,
-.item .categoryBox,
-.item .whiteBox,
-.item .emptyBox{
-  display:none !important;
-}
 
-.item input[value=""],
-.item textarea:empty{
-  display:none !important;
+  .name{
+    font-size:18px;
+  }
 }
