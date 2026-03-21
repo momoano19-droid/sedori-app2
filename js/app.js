@@ -280,6 +280,14 @@ function sumCategoryCounts(categoryCounts) {
   return Object.values(categoryCounts || {}).reduce((a, b) => a + Number(b || 0), 0);
 }
 
+function hasCoords(s) {
+  return typeof s.lat === "number" && typeof s.lng === "number";
+}
+
+function makeButtonStyle(bg, color = "#fff") {
+  return `style="background:${bg};color:${color};"`;
+}
+
 /* =========================
    バックアップ
 ========================= */
@@ -611,7 +619,7 @@ function navigateToStore(i) {
   const s = stores[i];
   if (!s) return;
 
-  if (typeof s.lat === "number" && typeof s.lng === "number") {
+  if (hasCoords(s)) {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${s.lat},${s.lng}`)}&travelmode=driving`, "_blank");
     return;
   }
@@ -637,7 +645,7 @@ async function refreshStoreCoordinates(i) {
 }
 
 async function refreshAllCoordinates() {
-  const targets = stores.filter(s => !(typeof s.lat === "number" && typeof s.lng === "number"));
+  const targets = stores.filter(s => !hasCoords(s));
   if (!targets.length) {
     alert("座標なし店舗はありません。");
     return;
@@ -771,7 +779,7 @@ function showNearbyStores() {
       const distances = [];
 
       stores.forEach(s => {
-        if (typeof s.lat !== "number" || typeof s.lng !== "number") return;
+        if (!hasCoords(s)) return;
         const dist = distanceKm(lat, lng, s.lat, s.lng);
         distances.push({ id: s.id, dist });
         if (dist <= 3) nearbyStoreIds.add(s.id);
@@ -887,7 +895,7 @@ function renderMapMarkers() {
 
   let list = stores
     .map(s => ({ ...s, _m: getMetrics(s) }))
-    .filter(s => typeof s.lat === "number" && typeof s.lng === "number")
+    .filter(s => hasCoords(s))
     .filter(s => matchesQuery(s, q))
     .filter(s => prefFilter === "__ALL__" || s.pref === prefFilter)
     .filter(s => s._m.expected >= minExpected)
@@ -950,7 +958,7 @@ function renderStoreCard(s, idx) {
   const m = getMetrics(s);
 
   let dist = null;
-  if (window.lastPos && typeof s.lat === "number" && typeof s.lng === "number") {
+  if (window.lastPos && hasCoords(s)) {
     dist = distanceKm(window.lastPos.lat, window.lastPos.lng, s.lat, s.lng);
   }
 
@@ -969,6 +977,7 @@ function renderStoreCard(s, idx) {
         <span class="badge">${escapeHtml(s.pref || "未設定")}</span>
         ${typeof dist === "number" ? `<span class="badge near">📍 ${dist.toFixed(1)}km</span>` : ``}
         ${s.mapUrl ? `<span class="badge map">🗺 MAPあり</span>` : ``}
+        ${hasCoords(s) ? `<span class="badge" style="background:#eef8ff;color:#2563eb;">📡 座標あり</span>` : ``}
         ${m.freq > 0 ? `<span class="badge freq">補充頻度 ${formatRestockDays(m.freq)}</span>` : ``}
       </div>
 
@@ -1004,28 +1013,28 @@ function renderStoreCard(s, idx) {
       </div>
 
       <div class="row2 mt8">
-        <button onclick="visit(${idx})">訪問＋</button>
-        <button class="ghostBtn" onclick="visitMinus(${idx})">訪問−</button>
+        <button ${makeButtonStyle("#dff7e8", "#129b52")} onclick="visit(${idx})">訪問＋</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="visitMinus(${idx})">訪問−</button>
       </div>
 
       <div class="row2 mt8">
-        <button onclick="itemsPlus(${idx})">個数＋</button>
-        <button class="ghostBtn" onclick="itemsMinus(${idx})">個数−</button>
+        <button ${makeButtonStyle("#e7f0ff", "#2563eb")} onclick="itemsPlus(${idx})">個数＋</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="itemsMinus(${idx})">個数−</button>
       </div>
 
       <div class="row2 mt8">
-        <button onclick="profitPlus(${idx})">利益＋</button>
-        <button class="ghostBtn" onclick="profitMinus(${idx})">利益−</button>
+        <button ${makeButtonStyle("#fff0e1", "#ea580c")} onclick="profitPlus(${idx})">利益＋</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="profitMinus(${idx})">利益−</button>
       </div>
 
       <div class="row2 mt8">
-        <button class="ghostBtn" onclick="navigateToStore(${idx})">ナビ</button>
-        <button class="ghostBtn" onclick="refreshStoreCoordinates(${idx})">座標再取得</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="navigateToStore(${idx})">ナビ</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="refreshStoreCoordinates(${idx})">座標再取得</button>
       </div>
 
       <div class="row2 mt8">
-        <button class="ghostBtn" onclick="editStore(${idx})">設定</button>
-        <button class="ghostBtn" onclick="deleteStore(${idx})">削除</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="editStore(${idx})">設定</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="deleteStore(${idx})">削除</button>
       </div>
     </div>
   `;
@@ -1045,7 +1054,7 @@ function showEmptyDataGuide() {
       </div>
       <div class="row2 mt8">
         <button onclick="document.getElementById('backupFile').click()">📥 バックアップ読込</button>
-        <button class="ghostBtn" onclick="restoreAutoBackup()">♻ 自動バックアップ復元</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="restoreAutoBackup()">♻ 自動バックアップ復元</button>
       </div>
     </div>
   `;
@@ -1063,7 +1072,7 @@ function render() {
   let list = stores.map((s, idx) => {
     const m = getMetrics(s);
     let dist = null;
-    if (window.lastPos && typeof s.lat === "number" && typeof s.lng === "number") {
+    if (window.lastPos && hasCoords(s)) {
       dist = distanceKm(window.lastPos.lat, window.lastPos.lng, s.lat, s.lng);
     }
     return { ...s, _idx: idx, _m: m, _dist: dist };
@@ -1080,7 +1089,7 @@ function render() {
   }
 
   if (noCoordsOnlyMode) {
-    list = list.filter(s => !(typeof s.lat === "number" && typeof s.lng === "number"));
+    list = list.filter(s => !hasCoords(s));
   }
 
   list.sort((a, b) => {
