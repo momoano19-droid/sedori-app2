@@ -4,91 +4,81 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>店舗管理 | せどりGPS管理PRO</title>
-
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#007aff">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="店舗管理">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="./css/style.css?v=reset1">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
+  <div class="page">
+    <h1>📱 店舗管理</h1>
+    <div class="sub">店舗追加・一覧・近くの店舗・今日ルートを管理します。</div>
 
-  <h1>📱 店舗管理</h1>
-  <div class="sub">
-    店舗追加・一覧・近くの店舗・今日ルートを管理します。
-  </div>
-
-  <div class="toolbar">
-    <div class="row2">
-      <button onclick="location.href='report.html'">📊 分析画面</button>
-      <button class="secondary" onclick="render()">再表示</button>
+    <div class="card toolbar">
+      <div class="row2 compact2">
+        <button onclick="location.href='report.html'">📊 分析画面</button>
+        <button class="secondary" onclick="render()">再表示</button>
+      </div>
     </div>
-  </div>
 
-  <div class="card">
-    <div class="sectionTitle">バックアップ</div>
-    <div class="row2">
-      <button onclick="exportBackup()">📦 バックアップ書き出し</button>
-      <button class="secondary" onclick="document.getElementById('backupFile').click()">📥 バックアップ読込</button>
+    <div class="card">
+      <div class="sectionTitle">バックアップ</div>
+      <div class="row2 compact2">
+        <button onclick="exportBackup()">📦 バックアップ書き出し</button>
+        <button class="secondary" onclick="document.getElementById('backupFile').click()">📥 バックアップ読込</button>
+      </div>
+      <div class="row2 compact2 mt8">
+        <button class="secondary" onclick="restoreAutoBackup()">♻ 自動バックアップ復元</button>
+        <button class="secondary" onclick="showAutoBackupInfo()">🕒 自動バックアップ確認</button>
+      </div>
+      <input id="backupFile" type="file" accept=".json,application/json" style="display:none" onchange="importBackup(event)">
+      <div class="mini mt8">※ 店舗データ・ログデータをJSONで保存/復元します</div>
     </div>
-    <div class="row2">
-      <button class="secondary" onclick="restoreAutoBackup()">♻ 自動バックアップ復元</button>
-      <button class="secondary" onclick="showAutoBackupInfo()">🕒 自動バックアップ確認</button>
+
+    <div class="card">
+      <div class="sectionTitle">店舗追加</div>
+      <input id="storeName" placeholder="店舗名">
+      <input id="prefName" placeholder="都道府県">
+      <input id="address" placeholder="住所">
+      <input id="mapUrl" placeholder="GoogleマップURL">
+      <div class="row2 compact2">
+        <button onclick="addStore()">登録</button>
+        <button class="secondary" onclick="openMapSearchFromAddress()">地図検索</button>
+      </div>
     </div>
-    <input id="backupFile" type="file" accept=".json,application/json" style="display:none" onchange="importBackup(event)">
-    <div class="mini" style="margin-top:8px;">
-      ※ 店舗データ・ログデータをJSONで保存/復元します
+
+    <div class="card">
+      <input id="q" placeholder="検索" oninput="render()">
+      <select id="prefFilter" onchange="render()"></select>
+      <div class="row2 compact2 mt8">
+        <button onclick="showNearbyStores()">📍近くの店舗</button>
+        <button class="secondary" onclick="clearNearbyMode(); render()">通常表示</button>
+      </div>
     </div>
-  </div>
 
-  <div class="card">
-    <div class="sectionTitle">店舗追加</div>
-
-    <input id="storeName" placeholder="店舗名">
-    <input id="prefName" placeholder="都道府県">
-    <input id="address" placeholder="住所">
-    <input id="mapUrl" placeholder="GoogleマップURL">
-
-    <div class="row2">
-      <button onclick="addStore()">登録</button>
-      <button class="secondary" onclick="openMapSearchFromAddress()">地図検索</button>
+    <div class="card">
+      <div class="sectionTitle">今日ルート</div>
+      <button onclick="buildTodayRoute(true)">🗓 今日ルート作成</button>
+      <div id="todayPlanArea" class="mt10"></div>
     </div>
-  </div>
 
-  <div class="card">
-    <input id="q" placeholder="検索" oninput="render()">
-    <select id="prefFilter" onchange="render()"></select>
-
-    <div class="row2">
-      <button onclick="showNearbyStores()">📍近くの店舗</button>
-      <button class="secondary" onclick="clearNearbyMode(); render()">通常表示</button>
+    <div id="mapWrap" class="card mapWrap">
+      <div class="sectionTitle">店舗MAP</div>
+      <div id="map"></div>
     </div>
-  </div>
 
-  <div class="card">
-    <div class="sectionTitle">今日ルート</div>
-    <button onclick="buildTodayRoute(true)">🗓 今日ルート作成</button>
-    <div id="todayPlanArea" style="margin-top:10px;"></div>
+    <div id="storeList"></div>
   </div>
-
-  <div id="mapWrap" class="mapWrap">
-    <div id="map"></div>
-  </div>
-
-  <div id="storeList"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="js/app.js?v=47"></script>
-
+  <script src="./js/app.js?v=reset1"></script>
   <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./service-worker.js").catch(console.error);
-      });
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(console.error));
     }
   </script>
 </body>
