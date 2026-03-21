@@ -237,6 +237,49 @@ function getMetrics(s) {
   };
 }
 
+function formatRestockDays(v) {
+  const n = Number(v || 0);
+  if (!n) return "0日";
+  if (Number.isInteger(n)) return `${n}日`;
+  return `${n.toFixed(1).replace(/\.0$/, "")}日`;
+}
+
+function parseCategoryInput(text) {
+  const result = {};
+  const raw = String(text || "").trim();
+  if (!raw) return result;
+
+  raw.split(",").forEach(part => {
+    const item = part.trim();
+    if (!item) return;
+
+    const pair = item.split(":");
+    const name = String(pair[0] || "").trim();
+    const qty = clampNonNeg(parseInt(pair[1] || "0", 10));
+
+    if (!name || !qty) return;
+    result[name] = (result[name] || 0) + qty;
+  });
+
+  return result;
+}
+
+function applyCategoryDelta(store, deltaMap, sign) {
+  Object.entries(deltaMap).forEach(([cat, qty]) => {
+    const current = Number(store.categoryCounts[cat] || 0);
+    const next = sign > 0 ? current + qty : Math.max(0, current - qty);
+    if (next <= 0) {
+      delete store.categoryCounts[cat];
+    } else {
+      store.categoryCounts[cat] = next;
+    }
+  });
+}
+
+function sumCategoryCounts(categoryCounts) {
+  return Object.values(categoryCounts || {}).reduce((a, b) => a + Number(b || 0), 0);
+}
+
 /* =========================
    バックアップ
 ========================= */
@@ -425,18 +468,6 @@ async function resolveStoreLatLng(pref, address, name, mapUrl, showFailMessage =
   return { lat: null, lng: null };
 }
 
-function openMapSearchFromAddress() {
-  const address = document.getElementById("address")?.value?.trim() || "";
-  const pref = document.getElementById("prefName")?.value?.trim() || "";
-  const name = document.getElementById("storeName")?.value?.trim() || "";
-  const q = [pref, address, name].filter(Boolean).join(" ");
-  if (!q) {
-    alert("住所か店舗名を入れてください。");
-    return;
-  }
-  window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`, "_blank");
-}
-
 /* =========================
    店舗CRUD
 ========================= */
@@ -484,22 +515,83 @@ async function editStore(i) {
   const s = stores[i];
   if (!s) return;
 
-  const name = prompt("店舗名", s.name || "");
-  if (name === null) return;
-  s.name = String(name).trim() || s.name;
+  const menu = prompt(
+`設定メニュー
+1: 基本情報編集
+2: カテゴリを追加
+3: カテゴリを減らす
+4: 成功を増やす
+5: 成功を減らす
+6: デフォルトカテゴリ変更
 
-  const pref = prompt("都道府県", s.pref || "");
-  if (pref !== null) s.pref = String(pref).trim();
+番号を入力してください`,
+    "1"
+  );
 
-  const address = prompt("住所", s.address || "");
-  if (address !== null) s.address = String(address).trim();
+  if (menu === null) return;
 
-  const mapUrl = prompt("GoogleマップURL", s.mapUrl || "");
-  if (mapUrl !== null) s.mapUrl = String(mapUrl).trim();
+  if (menu === "1") {
+    const name = prompt("店舗名", s.name || "");
+    if (name === null) return;
+    s.name = String(name).trim() || s.name;
 
-  const pos = await resolveStoreLatLng(s.pref, s.address, s.name, s.mapUrl, true);
-  s.lat = pos.lat;
-  s.lng = pos.lng;
+    const pref = prompt("都道府県", s.pref || "");
+    if (pref !== null) s.pref = String(pref).trim();
+
+    const address = prompt("住所", s.address || "");
+    if (address !== null) s.address = String(address).trim();
+
+    const mapUrl = prompt("GoogleマップURL", s.mapUrl || "");
+    if (mapUrl !== null) s.mapUrl = String(mapUrl).trim();
+
+    const pos = await resolveStoreLatLng(s.pref, s.address, s.name, s.mapUrl, true);
+    s.lat = pos.lat;
+    s.lng = pos.lng;
+  }
+
+  if (menu === "2") {
+    const text = prompt("追加するカテゴリを入力\n例: 楽器:2, 家電:1", "");
+    if (text !== null) {
+      const deltaMap = parseCategoryInput(text);
+      applyCategoryDelta(s, deltaMap, 1);
+      s.items = sumCategoryCounts(s.categoryCounts);
+      Object.entries(deltaMap).forEach(([cat, qty]) => addLog(s.id, "category", qty, cat));
+    }
+  }
+
+  if (menu === "3") {
+    const text = prompt("減らすカテゴリを入力\n例: 楽器:1, 家電:1", "");
+    if (text !== null) {
+      const deltaMap = parseCategoryInput(text);
+      applyCategoryDelta(s, deltaMap, -1);
+      s.items = sumCategoryCounts(s.categoryCounts);
+      Object.entries(deltaMap).forEach(([cat, qty]) => addLog(s.id, "category", -qty, cat));
+    }
+  }
+
+  if (menu === "4") {
+    const n = clampNonNeg(parseInt(prompt("増やす成功回数", "1"), 10));
+    if (n) {
+      s.buyDays += n;
+      if (s.buyDays > s.visits) s.visits = s.buyDays;
+      addLog(s.id, "success", n);
+    }
+  }
+
+  if (menu === "5") {
+    const n = clampNonNeg(parseInt(prompt("減らす成功回数", "1"), 10));
+    if (n) {
+      s.buyDays = Math.max(0, s.buyDays - n);
+      addLog(s.id, "success", -n);
+    }
+  }
+
+  if (menu === "6") {
+    const cat = prompt("デフォルトカテゴリ", s.defaultCategory || "");
+    if (cat !== null) {
+      s.defaultCategory = String(cat).trim();
+    }
+  }
 
   saveAll();
   render();
@@ -650,15 +742,6 @@ function profitMinus(i) {
   s.profit = clampNonNeg(s.profit - d);
   addLog(s.id, "profit", -d);
 
-  saveAll();
-  render();
-}
-
-/* =========================
-   今日ルート
-========================= */
-function toggleToday(i, checked) {
-  stores[i].today = !!checked;
   saveAll();
   render();
 }
@@ -886,16 +969,11 @@ function renderStoreCard(s, idx) {
         <span class="badge">${escapeHtml(s.pref || "未設定")}</span>
         ${typeof dist === "number" ? `<span class="badge near">📍 ${dist.toFixed(1)}km</span>` : ``}
         ${s.mapUrl ? `<span class="badge map">🗺 MAPあり</span>` : ``}
-        ${m.freq > 0 ? `<span class="badge freq">補充頻度 ${m.freq.toFixed(1)}日</span>` : ``}
+        ${m.freq > 0 ? `<span class="badge freq">補充頻度 ${formatRestockDays(m.freq)}</span>` : ``}
       </div>
 
       ${!compact ? `
         ${s.address ? `<div class="mini mt8">📍 ${escapeHtml(s.address)}</div>` : ``}
-        <div class="mini mt8">
-          ${typeof s.lat === "number" && typeof s.lng === "number"
-            ? `座標: ${s.lat.toFixed(6)}, ${s.lng.toFixed(6)}`
-            : `座標: 未取得`}
-        </div>
 
         <div class="card mt8" style="padding:10px;">
           <div style="font-size:16px;font-weight:800;color:#1677ff;">
