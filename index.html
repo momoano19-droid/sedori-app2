@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="店舗管理">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
-  <link rel="stylesheet" href="./css/style.css?v=ui3">
+  <link rel="stylesheet" href="./css/style.css?v=ui6">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
@@ -107,6 +107,17 @@
       </div>
     </div>
 
+    <!-- 今日ルート -->
+    <div class="card">
+      <div class="topButtons">
+        <button class="primaryBtn" onclick="buildTodayRoute()">🛣 今日ルート作成</button>
+        <button class="ghostBtn" onclick="clearTodayChecks()">☑ 今日行くを解除</button>
+      </div>
+      <div class="helpText">
+        店舗カードの「今日行く」にチェックした店舗を使ってルートを作成します。
+      </div>
+    </div>
+
     <!-- 地図 -->
     <div id="mapWrap" class="card mapWrap">
       <div class="sectionTitle">店舗MAP</div>
@@ -118,7 +129,7 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
- <script src="./js/app.js?v=ui5"></script>
+  <script src="./js/app.js?v=ui6"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
