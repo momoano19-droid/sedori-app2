@@ -131,6 +131,119 @@
       line-height:1.2;
     }
 
+    .summarySubTitle{
+      margin-top:14px;
+      margin-bottom:10px;
+      font-size:15px;
+      font-weight:900;
+      color:#1d2240;
+    }
+
+    .chartWrap{
+      background:#fafbfe;
+      border-radius:18px;
+      padding:12px;
+      border:1px solid #eef1f7;
+    }
+
+    .chartCanvasBox{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:220px;
+    }
+
+    #categoryPieChart{
+      display:block;
+      width:100%;
+      max-width:290px;
+      height:auto;
+    }
+
+    .chartLegend{
+      margin-top:10px;
+      display:grid;
+      grid-template-columns:1fr;
+      gap:6px;
+    }
+
+    .legendItem{
+      display:grid;
+      grid-template-columns:12px 1fr auto;
+      gap:8px;
+      align-items:center;
+      font-size:11px;
+      color:#374151;
+    }
+
+    .legendColor{
+      width:12px;
+      height:12px;
+      border-radius:4px;
+    }
+
+    .legendName{
+      min-width:0;
+      word-break:break-word;
+      font-weight:700;
+      line-height:1.35;
+    }
+
+    .legendQty{
+      white-space:nowrap;
+      font-weight:900;
+      color:#4b74ea;
+      font-size:11px;
+    }
+
+    .miniTable{
+      background:#fafbfe;
+      border-radius:12px;
+      overflow:hidden;
+      border:1px solid #eef1f7;
+    }
+
+    .miniTableHead,
+    .miniTableRow{
+      display:grid;
+      grid-template-columns:1fr 58px;
+    }
+
+    .miniTableHead{
+      background:#eef1f7;
+      font-weight:900;
+      color:#1f2340;
+      font-size:11px;
+    }
+
+    .miniTableRow{
+      background:#fff;
+      font-size:11px;
+    }
+
+    .miniTableRow + .miniTableRow{
+      border-top:1px solid #eef1f7;
+    }
+
+    .miniCell{
+      padding:7px 9px;
+    }
+
+    .miniCell.name{
+      font-weight:700;
+      color:#1f2340;
+      word-break:break-word;
+      line-height:1.3;
+    }
+
+    .miniCell.qty{
+      text-align:right;
+      font-weight:900;
+      color:#4b74ea;
+      white-space:nowrap;
+      font-size:11px;
+    }
+
     .calendarGrid{
       width:100%;
       display:grid;
@@ -424,6 +537,25 @@
       .sheetTitle{ font-size:24px; }
       .detailTitle{ font-size:18px; }
       .detailText{ font-size:15px; }
+      .chartLegend{
+        grid-template-columns:1fr 1fr;
+      }
+      .miniTableHead,
+      .miniTableRow{
+        grid-template-columns:1fr 64px;
+      }
+      .miniTableHead{
+        font-size:12px;
+      }
+      .miniTableRow{
+        font-size:12px;
+      }
+      .miniCell{
+        padding:8px 10px;
+      }
+      .miniCell.qty{
+        font-size:12px;
+      }
     }
   </style>
 </head>
@@ -477,6 +609,6 @@
     </div>
   </div>
 
-  <script src="./js/report.js?v=detail4"></script>
+  <script src="./js/report.js?v=pie3"></script>
 </body>
 </html>
