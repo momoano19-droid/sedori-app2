@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>分析画面 | せどりGPS管理PRO</title>
 
   <link rel="manifest" href="./manifest.json">
@@ -14,106 +14,139 @@
 
   <style>
     *{ box-sizing:border-box; }
-    html,body{ margin:0; padding:0; }
+    html,body{
+      margin:0;
+      padding:0;
+      width:100%;
+      overflow-x:hidden;
+    }
     body{
       background:#f3f4f6;
       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
       color:#1f2340;
     }
+
     .page{
+      width:100%;
       max-width:760px;
       margin:0 auto;
-      padding:14px;
+      padding:12px;
+      overflow-x:hidden;
     }
+
     .titleWrap{
       padding:6px 2px 2px;
       margin-bottom:10px;
     }
+
     .pageTitle{
-      font-size:28px;
+      font-size:26px;
       font-weight:900;
       margin:0 0 6px;
       color:#1d2240;
+      line-height:1.25;
     }
+
     .sub{
       font-size:14px;
       line-height:1.7;
       color:#6b7280;
       margin:0;
     }
+
     .card{
+      width:100%;
       background:#fff;
       border-radius:24px;
-      padding:18px;
-      margin-bottom:18px;
-      box-shadow:0 6px 20px rgba(15,23,42,0.06);
+      padding:16px;
+      margin-bottom:16px;
+      box-shadow:0 6px 20px rgba(15,23,42,.06);
+      overflow:hidden;
     }
+
     .topButtons{
       display:grid;
       grid-template-columns:1fr 1fr;
-      gap:14px;
+      gap:12px;
     }
+
     button{
-      min-height:58px;
+      width:100%;
+      min-height:56px;
       border:none;
       border-radius:20px;
-      font-size:17px;
+      font-size:16px;
       font-weight:800;
       cursor:pointer;
     }
+
     .primaryBtn{
       background:#4b74ea;
       color:#fff;
     }
+
     .ghostBtn{
       background:#eef1f7;
       color:#1f2340;
     }
+
     .sectionTitle{
-      font-size:26px;
+      font-size:22px;
       font-weight:900;
       margin:0 0 14px;
       color:#1d2240;
+      line-height:1.3;
     }
+
     .chipRow{
       display:flex;
       flex-wrap:wrap;
       gap:10px;
     }
+
     .chip{
       display:inline-flex;
       align-items:center;
-      min-height:46px;
-      padding:0 18px;
+      min-height:42px;
+      padding:0 14px;
       border-radius:999px;
       background:#eef1f7;
       color:#333a52;
-      font-size:16px;
+      font-size:15px;
       font-weight:700;
+      line-height:1.2;
     }
+
     .calendarGrid{
+      width:100%;
       display:grid;
-      grid-template-columns:repeat(7,1fr);
-      gap:10px;
+      grid-template-columns:repeat(7, minmax(0, 1fr));
+      gap:6px;
       margin-top:10px;
     }
+
     .dow{
-      height:56px;
+      width:100%;
+      aspect-ratio:1 / 0.9;
+      min-height:44px;
       display:flex;
       align-items:center;
       justify-content:center;
       background:#eef1f7;
-      border-radius:16px;
-      font-size:18px;
+      border-radius:14px;
+      font-size:14px;
       font-weight:800;
       color:#222;
+      overflow:hidden;
     }
+
     .dayCell{
-      min-height:96px;
-      border-radius:20px;
+      width:100%;
+      aspect-ratio:1 / 1.45;
+      border-radius:18px;
       border:2px solid #d9e0ee;
       background:#fff;
-      padding:8px 6px;
+      padding:6px 2px;
       display:flex;
       flex-direction:column;
       align-items:center;
@@ -121,84 +154,112 @@
       cursor:pointer;
       font-weight:800;
       color:#444;
+      overflow:hidden;
     }
+
     .dayCell.empty{
       visibility:hidden;
     }
+
     .dayCell.hasData{
       background:#4b74ea;
       border-color:#4b74ea;
       color:#fff;
     }
+
     .dayCell.today{
       background:#fff7ea;
       border-color:#f0a93a;
       color:#a56a12;
       box-shadow:0 0 0 3px rgba(240,169,58,.15) inset;
     }
+
     .dayNum{
-      font-size:22px;
+      font-size:13px;
       line-height:1.1;
       margin-top:2px;
+      font-weight:900;
+      text-align:center;
     }
+
     .dayValue{
-      font-size:20px;
-      line-height:1.2;
-      margin-top:8px;
+      margin-top:6px;
+      font-size:10px;
+      line-height:1.18;
+      text-align:center;
+      white-space:normal;
+      word-break:break-word;
+      overflow-wrap:anywhere;
+      padding:0 1px;
+      width:100%;
     }
+
     .help{
       font-size:14px;
       line-height:1.7;
       color:#6b7280;
       margin-top:10px;
     }
+
     .list{
       display:flex;
       flex-direction:column;
       gap:10px;
     }
+
     .rankItem{
       display:grid;
-      grid-template-columns:52px 1fr auto;
-      gap:12px;
-      align-items:center;
+      grid-template-columns:40px 1fr;
+      gap:10px;
+      align-items:start;
       background:#fafbfe;
       border-radius:18px;
-      padding:14px;
+      padding:12px;
     }
+
     .rankNo{
-      width:52px;
-      height:52px;
+      width:40px;
+      height:40px;
       border-radius:14px;
       background:#eef1f7;
       display:flex;
       align-items:center;
       justify-content:center;
       font-weight:900;
-      font-size:20px;
+      font-size:16px;
       color:#333;
+      flex-shrink:0;
     }
+
     .rankName{
-      font-size:18px;
+      font-size:16px;
       font-weight:800;
       color:#1f2340;
+      line-height:1.35;
     }
+
     .rankSub{
       font-size:13px;
       color:#6b7280;
       margin-top:4px;
+      line-height:1.5;
     }
+
     .rankValue{
-      font-size:22px;
+      margin-top:6px;
+      font-size:15px;
       font-weight:900;
       color:#4b74ea;
-      white-space:nowrap;
+      white-space:normal;
+      word-break:break-word;
     }
+
     .catList{
       display:flex;
       flex-direction:column;
       gap:10px;
     }
+
     .catItem{
       display:grid;
       grid-template-columns:1fr auto;
@@ -206,17 +267,24 @@
       align-items:center;
       background:#fafbfe;
       border-radius:18px;
-      padding:14px 16px;
+      padding:12px 14px;
     }
+
     .catName{
-      font-size:18px;
+      font-size:15px;
       font-weight:800;
+      line-height:1.4;
+      min-width:0;
+      word-break:break-word;
     }
+
     .catQty{
-      font-size:20px;
+      font-size:16px;
       font-weight:900;
       color:#4b74ea;
+      white-space:nowrap;
     }
+
     .modal{
       position:fixed;
       inset:0;
@@ -224,21 +292,24 @@
       display:none;
       align-items:flex-end;
       justify-content:center;
-      padding:14px;
+      padding:12px;
       z-index:1000;
     }
+
     .modal.show{
       display:flex;
     }
+
     .sheet{
       width:min(760px,100%);
       background:#fff;
       border-radius:28px 28px 18px 18px;
-      padding:18px;
+      padding:14px;
       max-height:78vh;
       overflow:auto;
       box-shadow:0 12px 30px rgba(0,0,0,.15);
     }
+
     .sheetHead{
       display:flex;
       align-items:center;
@@ -246,60 +317,99 @@
       gap:10px;
       margin-bottom:14px;
     }
+
     .sheetTitle{
-      font-size:24px;
+      font-size:20px;
       font-weight:900;
       color:#1d2240;
       margin:0;
+      line-height:1.3;
     }
+
     .closeBtn{
-      width:48px;
-      height:48px;
-      min-height:48px;
+      width:46px;
+      height:46px;
+      min-height:46px;
       border-radius:16px;
       background:#eef1f7;
       color:#1f2340;
       font-size:22px;
       font-weight:900;
+      flex-shrink:0;
     }
+
     .detailBlock{
       background:#fafbfe;
       border-radius:20px;
       padding:14px 16px;
       margin-bottom:12px;
     }
+
     .detailTitle{
-      font-size:18px;
+      font-size:16px;
       font-weight:900;
       margin:0 0 8px;
       color:#1f2340;
+      line-height:1.4;
     }
+
     .detailText{
-      font-size:15px;
+      font-size:14px;
       line-height:1.8;
       color:#4b5563;
+      word-break:break-word;
     }
+
     .emptyText{
       font-size:15px;
       color:#6b7280;
       line-height:1.8;
     }
 
-    @media (max-width:640px){
-      .page{ padding:12px; }
-      .card{ border-radius:22px; padding:16px; margin-bottom:16px; }
-      .pageTitle{ font-size:24px; }
-      .sectionTitle{ font-size:22px; }
-      .topButtons{ gap:12px; }
-      button{ min-height:56px; font-size:15px; }
-      .dayCell{ min-height:88px; border-radius:18px; }
-      .dayNum{ font-size:18px; }
-      .dayValue{ font-size:16px; }
-      .chip{ min-height:42px; padding:0 14px; font-size:14px; }
-      .rankItem{ grid-template-columns:44px 1fr auto; padding:12px; }
-      .rankNo{ width:44px; height:44px; font-size:18px; }
-      .rankName{ font-size:16px; }
-      .rankValue{ font-size:18px; }
+    @media (min-width:641px){
+      .page{ padding:14px; }
+      .pageTitle{ font-size:28px; }
+      .sectionTitle{ font-size:26px; }
+      .calendarGrid{ gap:10px; }
+      .dow{
+        min-height:56px;
+        font-size:18px;
+        border-radius:16px;
+      }
+      .dayCell{
+        border-radius:20px;
+        padding:8px 4px;
+      }
+      .dayNum{
+        font-size:22px;
+      }
+      .dayValue{
+        font-size:13px;
+        line-height:1.24;
+        margin-top:8px;
+      }
+      .rankItem{
+        grid-template-columns:52px 1fr auto;
+        align-items:center;
+        padding:14px;
+      }
+      .rankNo{
+        width:52px;
+        height:52px;
+        font-size:20px;
+      }
+      .rankValue{
+        margin-top:0;
+        white-space:nowrap;
+        font-size:22px;
+        margin-left:8px;
+      }
+      .catName{ font-size:18px; }
+      .catQty{ font-size:20px; }
+      .sheet{ padding:18px; }
+      .sheetTitle{ font-size:24px; }
+      .detailTitle{ font-size:18px; }
+      .detailText{ font-size:15px; }
     }
   </style>
 </head>
@@ -346,6 +456,6 @@
     </div>
   </div>
 
-  <script src="./js/report.js?v=detail1"></script>
+  <script src="./js/report.js?v=detail3"></script>
 </body>
 </html>
