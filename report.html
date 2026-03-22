@@ -150,18 +150,18 @@
       display:flex;
       align-items:center;
       justify-content:center;
-      min-height:220px;
+      min-height:260px;
     }
 
     #categoryPieChart{
       display:block;
       width:100%;
-      max-width:290px;
+      max-width:320px;
       height:auto;
     }
 
     .chartLegend{
-      margin-top:10px;
+      margin-top:12px;
       display:grid;
       grid-template-columns:1fr;
       gap:6px;
@@ -169,17 +169,19 @@
 
     .legendItem{
       display:grid;
-      grid-template-columns:12px 1fr auto;
+      grid-template-columns:12px 1fr auto auto;
       gap:8px;
       align-items:center;
-      font-size:11px;
+      font-size:12px;
       color:#374151;
+      min-width:0;
+      padding:4px 0;
     }
 
     .legendColor{
       width:12px;
       height:12px;
-      border-radius:4px;
+      border-radius:999px;
     }
 
     .legendName{
@@ -192,7 +194,14 @@
     .legendQty{
       white-space:nowrap;
       font-weight:900;
-      color:#4b74ea;
+      color:#3f63d8;
+      font-size:12px;
+    }
+
+    .legendRate{
+      white-space:nowrap;
+      font-weight:800;
+      color:#6b7280;
       font-size:11px;
     }
 
@@ -206,7 +215,8 @@
     .miniTableHead,
     .miniTableRow{
       display:grid;
-      grid-template-columns:1fr 58px;
+      grid-template-columns:1fr 52px 52px;
+      align-items:center;
     }
 
     .miniTableHead{
@@ -226,22 +236,32 @@
     }
 
     .miniCell{
-      padding:7px 9px;
+      padding:7px 8px;
     }
 
     .miniCell.name{
       font-weight:700;
       color:#1f2340;
       word-break:break-word;
-      line-height:1.3;
+      line-height:1.28;
+    }
+
+    .miniCell.qty,
+    .miniCell.rate{
+      text-align:right;
+      white-space:nowrap;
     }
 
     .miniCell.qty{
-      text-align:right;
       font-weight:900;
-      color:#4b74ea;
-      white-space:nowrap;
+      color:#3f63d8;
       font-size:11px;
+    }
+
+    .miniCell.rate{
+      font-weight:800;
+      color:#6b7280;
+      font-size:10px;
     }
 
     .calendarGrid{
@@ -269,11 +289,11 @@
 
     .dayCell{
       width:100%;
-      aspect-ratio:1 / 1.45;
+      aspect-ratio:1 / 1.52;
       border-radius:18px;
       border:2px solid #d9e0ee;
       background:#fff;
-      padding:6px 2px;
+      padding:6px 2px 5px;
       display:flex;
       flex-direction:column;
       align-items:center;
@@ -294,11 +314,28 @@
       color:#fff;
     }
 
+    .dayCell.visitOnly{
+      background:#e9f2ff;
+      border-color:#9cc0ff;
+      color:#2450a6;
+    }
+
     .dayCell.today{
+      box-shadow:0 0 0 3px rgba(240,169,58,.15) inset;
+    }
+
+    .dayCell.today:not(.hasData):not(.visitOnly){
       background:#fff7ea;
       border-color:#f0a93a;
       color:#a56a12;
-      box-shadow:0 0 0 3px rgba(240,169,58,.15) inset;
+    }
+
+    .dayCell.visitOnly.today{
+      border-color:#f0a93a;
+    }
+
+    .dayCell.hasData.today{
+      border-color:#f0a93a;
     }
 
     .dayNum{
@@ -312,13 +349,25 @@
     .dayValue{
       margin-top:6px;
       font-size:10px;
-      line-height:1.18;
+      line-height:1.16;
       text-align:center;
       white-space:normal;
       word-break:break-word;
       overflow-wrap:anywhere;
       padding:0 1px;
       width:100%;
+      font-weight:900;
+    }
+
+    .dayMeta{
+      margin-top:auto;
+      font-size:8.5px;
+      line-height:1.15;
+      text-align:center;
+      opacity:.92;
+      width:100%;
+      padding:0 1px;
+      word-break:break-word;
     }
 
     .help{
@@ -505,15 +554,18 @@
       }
       .dayCell{
         border-radius:20px;
-        padding:8px 4px;
+        padding:8px 4px 6px;
       }
       .dayNum{
         font-size:22px;
       }
       .dayValue{
         font-size:13px;
-        line-height:1.24;
+        line-height:1.22;
         margin-top:8px;
+      }
+      .dayMeta{
+        font-size:10px;
       }
       .rankItem{
         grid-template-columns:52px 1fr auto;
@@ -542,7 +594,7 @@
       }
       .miniTableHead,
       .miniTableRow{
-        grid-template-columns:1fr 64px;
+        grid-template-columns:1fr 60px 60px;
       }
       .miniTableHead{
         font-size:12px;
@@ -555,6 +607,9 @@
       }
       .miniCell.qty{
         font-size:12px;
+      }
+      .miniCell.rate{
+        font-size:11px;
       }
     }
   </style>
@@ -609,30 +664,6 @@
     </div>
   </div>
 
-  <script src="./js/report.js?v=pie3"></script>
+  <script src="./js/report.js?v=cal1"></script>
 </body>
 </html>
-<!-- 変更点は表の列追加＆少しコンパクト化 -->
-<!-- 他はそのままなので丸ごと上書きOK -->
-
-<style>
-.miniTableHead,
-.miniTableRow{
-  display:grid;
-  grid-template-columns:1fr 50px 50px;
-}
-
-.miniCell{
-  padding:6px 6px;
-  font-size:10px;
-}
-
-.miniCell.qty{
-  text-align:right;
-}
-
-.miniCell.rate{
-  text-align:right;
-  color:#6b7280;
-}
-</style>
