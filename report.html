@@ -64,19 +64,33 @@
       overflow:hidden;
     }
 
-    .topButtons{
+    .topButtons,
+    .monthRow{
       display:grid;
       grid-template-columns:1fr 1fr;
       gap:12px;
     }
 
-    button{
+    button,
+    select{
       width:100%;
       min-height:56px;
       border:none;
       border-radius:20px;
       font-size:16px;
       font-weight:800;
+      outline:none;
+    }
+
+    select{
+      background:#eef1f7;
+      color:#1f2340;
+      padding:0 16px;
+      appearance:none;
+      border:1px solid #e5e7eb;
+    }
+
+    button{
       cursor:pointer;
     }
 
@@ -427,6 +441,13 @@
       </div>
     </div>
 
+    <div class="card">
+      <div class="monthRow">
+        <select id="monthPicker" onchange="changeReportMonth(this.value)"></select>
+        <button class="ghostBtn" onclick="goCurrentMonth()">今月に戻る</button>
+      </div>
+    </div>
+
     <div class="card" id="monthSummaryCard"></div>
 
     <div class="card">
@@ -456,6 +477,6 @@
     </div>
   </div>
 
-  <script src="./js/report.js?v=detail3"></script>
+  <script src="./js/report.js?v=detail4"></script>
 </body>
 </html>
