@@ -250,7 +250,7 @@ function getChartColors() {
   ];
 }
 
-function drawCategoryPieChart(canvasId, categories) {
+function drawCategoryPieChart(canvasId, categories, monthLabel = "") {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
 
@@ -290,41 +290,50 @@ function drawCategoryPieChart(canvasId, categories) {
     const angle = total > 0 ? (value / total) * Math.PI * 2 : 0;
 
     ctx.beginPath();
-    ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, r, start, start + angle);
-    ctx.closePath();
-    ctx.fillStyle = colors[idx % colors.length];
-    ctx.fill();
+    ctx.strokeStyle = colors[idx % colors.length];
+    ctx.lineWidth = Math.max(18, r * 0.34);
+    ctx.lineCap = "butt";
+    ctx.stroke();
 
     start += angle;
   });
 
   ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2);
+  ctx.arc(cx, cy, r * 0.56, 0, Math.PI * 2);
   ctx.fillStyle = "#ffffff";
   ctx.fill();
 
+  ctx.fillStyle = "#6b7280";
+  ctx.font = "bold 11px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(monthLabel || "月間", cx, cy - 20);
+
   ctx.fillStyle = "#1f2340";
   ctx.font = "bold 12px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("カテゴリ", cx, cy - 6);
+  ctx.fillText("カテゴリ", cx, cy - 2);
 
   ctx.fillStyle = "#4b74ea";
-  ctx.font = "bold 16px sans-serif";
-  ctx.fillText(`${total}個`, cx, cy + 17);
+  ctx.font = "bold 18px sans-serif";
+  ctx.fillText(`${total}個`, cx, cy + 22);
 }
 
 function buildCategoryLegendHtml(categories) {
   const parts = getPieChartParts(categories);
   const colors = getChartColors();
+  const total = parts.reduce((sum, [, qty]) => sum + Number(qty || 0), 0);
 
-  return parts.map(([name, qty], idx) => `
-    <div class="legendItem">
-      <div class="legendColor" style="background:${colors[idx % colors.length]};"></div>
-      <div class="legendName">${escapeHtml(name)}</div>
-      <div class="legendQty">${qty}個</div>
-    </div>
-  `).join("");
+  return parts.map(([name, qty], idx) => {
+    const rate = total > 0 ? ((Number(qty || 0) / total) * 100).toFixed(1) : "0.0";
+    return `
+      <div class="legendItem">
+        <div class="legendColor" style="background:${colors[idx % colors.length]};"></div>
+        <div class="legendName">${escapeHtml(name)}</div>
+        <div class="legendQty">${qty}個</div>
+        <div class="legendRate">${rate}%</div>
+      </div>
+    `;
+  }).join("");
 }
 
 function buildMiniCategoryTableHtml(categories) {
@@ -387,7 +396,7 @@ function renderMonthSummary(summary) {
     ${buildMiniCategoryTableHtml(summary.categories)}
   `;
 
-  drawCategoryPieChart("categoryPieChart", summary.categories);
+  drawCategoryPieChart("categoryPieChart", summary.categories, summary.ym);
 }
 
 function renderCalendar(targetMonth, dailyStats) {
@@ -736,5 +745,5 @@ window.addEventListener("resize", () => {
   const logs = loadLogs();
   const targetMonth = selectedMonth || currentMonthStr();
   const summary = buildMonthSummary(stores, logs, targetMonth);
-  drawCategoryPieChart("categoryPieChart", summary.categories || []);
+  drawCategoryPieChart("categoryPieChart", summary.categories || [], summary.ym || "");
 });
