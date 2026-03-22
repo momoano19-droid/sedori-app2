@@ -14,6 +14,8 @@ const LOG_KEYS = [
   "sedori_logs"
 ];
 
+let selectedMonth = null;
+
 function readFirstAvailable(keys) {
   for (const key of keys) {
     try {
@@ -74,22 +76,55 @@ function getStoreMap(stores) {
   return map;
 }
 
+function getAvailableMonths(logs) {
+  const months = [...new Set(logs.map(l => ym(l.date)).filter(Boolean))].sort().reverse();
+  if (!months.length) return [currentMonthStr()];
+  if (!months.includes(currentMonthStr())) months.unshift(currentMonthStr());
+  return [...new Set(months)];
+}
+
+function renderMonthPicker(logs) {
+  const el = document.getElementById("monthPicker");
+  if (!el) return;
+
+  const months = getAvailableMonths(logs);
+  if (!selectedMonth) selectedMonth = months[0] || currentMonthStr();
+
+  el.innerHTML = months.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
+  el.value = selectedMonth;
+}
+
+function changeReportMonth(month) {
+  selectedMonth = month;
+  bootReport();
+}
+
+function goCurrentMonth() {
+  selectedMonth = currentMonthStr();
+  bootReport();
+}
+
 function buildDailyStats(logs, targetMonth) {
   const daily = {};
 
   logs.forEach(log => {
     if (!log.date || ym(log.date) !== targetMonth) return;
+
     if (!daily[log.date]) {
       daily[log.date] = {
         profit: 0,
         visits: 0,
         success: 0,
         items: 0,
-        categories: {}
+        categories: {},
+        storeIds: new Set()
       };
     }
 
     const d = daily[log.date];
+    const storeId = String(log.storeId || "");
+    if (storeId) d.storeIds.add(storeId);
+
     if (log.type === "profit") d.profit += Number(log.delta || 0);
     if (log.type === "visit") d.visits += Number(log.delta || 0);
     if (log.type === "success") d.success += Number(log.delta || 0);
@@ -239,7 +274,7 @@ function renderTopStores(list) {
   if (!el) return;
 
   if (!list.length) {
-    el.innerHTML = `<div class="emptyText">今月データがありません。</div>`;
+    el.innerHTML = `<div class="emptyText">この月のデータがありません。</div>`;
     return;
   }
 
@@ -259,14 +294,25 @@ function renderTopStores(list) {
   `;
 }
 
-function buildCategorySummary(logs, targetMonth) {
+function buildCategorySummary(stores, logs, targetMonth) {
   const map = {};
 
   logs.forEach(log => {
     if (ym(log.date) !== targetMonth) return;
-    if (log.type !== "category" || !log.category) return;
-    map[log.category] = (map[log.category] || 0) + Number(log.delta || 0);
+
+    if (log.type === "category" && log.category) {
+      map[log.category] = (map[log.category] || 0) + Number(log.delta || 0);
+    }
   });
+
+  if (!Object.keys(map).length) {
+    stores.forEach(store => {
+      Object.entries(store.categoryCounts || {}).forEach(([name, qty]) => {
+        if (!name) return;
+        map[name] = (map[name] || 0) + Number(qty || 0);
+      });
+    });
+  }
 
   return Object.entries(map)
     .filter(([, qty]) => qty > 0)
@@ -278,7 +324,7 @@ function renderCategorySummary(list) {
   if (!el) return;
 
   if (!list.length) {
-    el.innerHTML = `<div class="emptyText">今月のカテゴリデータはありません。</div>`;
+    el.innerHTML = `<div class="emptyText">カテゴリデータがありません。</div>`;
     return;
   }
 
@@ -333,9 +379,37 @@ function groupLogsByStore(logs) {
   return map;
 }
 
+function buildDetailSummary(logs) {
+  let profit = 0;
+  let visits = 0;
+  let success = 0;
+  let items = 0;
+  const storeIds = new Set();
+
+  logs.forEach(log => {
+    if (log.storeId) storeIds.add(String(log.storeId));
+    if (log.type === "profit") profit += Number(log.delta || 0);
+    if (log.type === "visit") visits += Number(log.delta || 0);
+    if (log.type === "success") success += Number(log.delta || 0);
+    if (log.type === "items") items += Number(log.delta || 0);
+  });
+
+  const rate = visits > 0 ? (success / visits) * 100 : 0;
+
+  return {
+    storeCount: storeIds.size,
+    profit,
+    visits,
+    success,
+    items,
+    rate
+  };
+}
+
 function showMonthDetail(targetMonth) {
   const logs = getMonthLogs(targetMonth);
   const grouped = groupLogsByStore(logs);
+  const summary = buildDetailSummary(logs);
 
   const body = document.getElementById("detailBody");
   const title = document.getElementById("detailTitle");
@@ -343,13 +417,26 @@ function showMonthDetail(targetMonth) {
   title.textContent = `${targetMonth} 詳細`;
 
   const names = Object.keys(grouped);
+  let html = `
+    <div class="detailBlock">
+      <div class="detailTitle">月サマリー</div>
+      <div class="detailText">
+        対象店舗：${summary.storeCount}件<br>
+        利益：${yen(summary.profit)}<br>
+        訪問：${summary.visits}回 / 成功：${summary.success}回 / 個数：${summary.items}個<br>
+        成功率：${summary.rate.toFixed(1)}%
+      </div>
+    </div>
+  `;
+
   if (!names.length) {
-    body.innerHTML = `<div class="emptyText">この月のデータはありません。</div>`;
+    html += `<div class="emptyText">この月のデータはありません。</div>`;
+    body.innerHTML = html;
     showDetailModal();
     return;
   }
 
-  body.innerHTML = names.map(name => {
+  html += names.map(name => {
     const x = grouped[name];
     const cats = Object.entries(x.categories)
       .filter(([, qty]) => qty > 0)
@@ -371,12 +458,14 @@ function showMonthDetail(targetMonth) {
     `;
   }).join("");
 
+  body.innerHTML = html;
   showDetailModal();
 }
 
 function showDayDetail(dayStr) {
   const logs = getDayLogs(dayStr);
   const grouped = groupLogsByStore(logs);
+  const summary = buildDetailSummary(logs);
 
   const body = document.getElementById("detailBody");
   const title = document.getElementById("detailTitle");
@@ -384,13 +473,26 @@ function showDayDetail(dayStr) {
   title.textContent = `${dayStr} 詳細`;
 
   const names = Object.keys(grouped);
+  let html = `
+    <div class="detailBlock">
+      <div class="detailTitle">日サマリー</div>
+      <div class="detailText">
+        回った店舗数：${summary.storeCount}件<br>
+        利益：${yen(summary.profit)}<br>
+        訪問：${summary.visits}回 / 成功：${summary.success}回 / 個数：${summary.items}個<br>
+        成功率：${summary.rate.toFixed(1)}%
+      </div>
+    </div>
+  `;
+
   if (!names.length) {
-    body.innerHTML = `<div class="emptyText">この日のデータはありません。</div>`;
+    html += `<div class="emptyText">この日のデータはありません。</div>`;
+    body.innerHTML = html;
     showDetailModal();
     return;
   }
 
-  body.innerHTML = names.map(name => {
+  html += names.map(name => {
     const x = grouped[name];
     const cats = Object.entries(x.categories)
       .filter(([, qty]) => qty > 0)
@@ -412,6 +514,7 @@ function showDayDetail(dayStr) {
     `;
   }).join("");
 
+  body.innerHTML = html;
   showDetailModal();
 }
 
@@ -430,12 +533,14 @@ function closeDetailModal(e) {
 function bootReport() {
   const stores = loadStores();
   const logs = loadLogs();
-  const targetMonth = currentMonthStr();
 
+  renderMonthPicker(logs);
+
+  const targetMonth = selectedMonth || currentMonthStr();
   const summary = buildMonthSummary(stores, logs, targetMonth);
   const daily = buildDailyStats(logs, targetMonth);
   const topStores = buildTopStores(stores, logs, targetMonth);
-  const categories = buildCategorySummary(logs, targetMonth);
+  const categories = buildCategorySummary(stores, logs, targetMonth);
 
   renderMonthSummary(summary);
   renderCalendar(targetMonth, daily);
