@@ -90,7 +90,6 @@ function buildDailyStats(logs, targetMonth) {
     }
 
     const d = daily[log.date];
-
     if (log.type === "profit") d.profit += Number(log.delta || 0);
     if (log.type === "visit") d.visits += Number(log.delta || 0);
     if (log.type === "success") d.success += Number(log.delta || 0);
@@ -162,6 +161,7 @@ function renderCalendar(targetMonth, dailyStats) {
   const today = todayStr();
 
   let html = `<div class="calendarGrid">`;
+
   dowNames.forEach(d => {
     html += `<div class="dow">${d}</div>`;
   });
@@ -180,12 +180,12 @@ function renderCalendar(targetMonth, dailyStats) {
     if (hasData) cls += " hasData";
     if (isToday) cls += " today";
 
-    const value = hasData ? `${Math.round(info.profit / 1000)}k` : "-";
+    const value = hasData ? yen(info.profit) : "-";
 
     html += `
       <div class="${cls}" onclick="showDayDetail('${ds}')">
         <div class="dayNum">${day}</div>
-        <div class="dayValue">${value}</div>
+        <div class="dayValue">${escapeHtml(value)}</div>
       </div>
     `;
   }
@@ -251,8 +251,8 @@ function renderTopStores(list) {
           <div>
             <div class="rankName">${escapeHtml(item.name)}</div>
             <div class="rankSub">${escapeHtml(item.pref)} / 利益 ${yen(item.profit)} / 訪問 ${item.visits}回</div>
+            <div class="rankValue">期待値 ${Math.round(item.expected).toLocaleString()}円</div>
           </div>
-          <div class="rankValue">${Math.round(item.expected).toLocaleString()}円</div>
         </div>
       `).join("")}
     </div>
@@ -310,6 +310,7 @@ function groupLogsByStore(logs) {
   logs.forEach(log => {
     const id = String(log.storeId || "");
     const name = storeMap[id]?.name || "不明な店舗";
+
     if (!map[name]) {
       map[name] = {
         profit: 0,
