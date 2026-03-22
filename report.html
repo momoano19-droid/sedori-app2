@@ -268,7 +268,7 @@
       width:100%;
       display:grid;
       grid-template-columns:repeat(7, minmax(0, 1fr));
-      gap:6px;
+      gap:8px;
       margin-top:10px;
     }
 
@@ -289,11 +289,11 @@
 
     .dayCell{
       width:100%;
-      aspect-ratio:1 / 1.52;
+      aspect-ratio:1 / 1.28;
       border-radius:18px;
       border:2px solid #d9e0ee;
       background:#fff;
-      padding:6px 2px 5px;
+      padding:8px 3px;
       display:flex;
       flex-direction:column;
       align-items:center;
@@ -302,6 +302,11 @@
       font-weight:800;
       color:#444;
       overflow:hidden;
+      transition:transform .08s ease, box-shadow .08s ease;
+    }
+
+    .dayCell:active{
+      transform:scale(.97);
     }
 
     .dayCell.empty{
@@ -315,8 +320,8 @@
     }
 
     .dayCell.visitOnly{
-      background:#e9f2ff;
-      border-color:#9cc0ff;
+      background:#eaf3ff;
+      border-color:#9ec5ff;
       color:#2450a6;
     }
 
@@ -339,7 +344,7 @@
     }
 
     .dayNum{
-      font-size:13px;
+      font-size:14px;
       line-height:1.1;
       margin-top:2px;
       font-weight:900;
@@ -347,27 +352,16 @@
     }
 
     .dayValue{
-      margin-top:6px;
-      font-size:10px;
-      line-height:1.16;
+      margin-top:10px;
+      font-size:11px;
+      line-height:1.15;
       text-align:center;
       white-space:normal;
       word-break:break-word;
       overflow-wrap:anywhere;
-      padding:0 1px;
+      padding:0 2px;
       width:100%;
       font-weight:900;
-    }
-
-    .dayMeta{
-      margin-top:auto;
-      font-size:8.5px;
-      line-height:1.15;
-      text-align:center;
-      opacity:.92;
-      width:100%;
-      padding:0 1px;
-      word-break:break-word;
     }
 
     .help{
@@ -547,67 +541,80 @@
       .pageTitle{ font-size:28px; }
       .sectionTitle{ font-size:26px; }
       .calendarGrid{ gap:10px; }
+
       .dow{
         min-height:56px;
         font-size:18px;
         border-radius:16px;
       }
+
       .dayCell{
         border-radius:20px;
-        padding:8px 4px 6px;
+        padding:10px 4px;
       }
+
       .dayNum{
         font-size:22px;
       }
+
       .dayValue{
-        font-size:13px;
-        line-height:1.22;
-        margin-top:8px;
+        font-size:14px;
+        line-height:1.2;
+        margin-top:12px;
       }
-      .dayMeta{
-        font-size:10px;
-      }
+
       .rankItem{
         grid-template-columns:52px 1fr auto;
         align-items:center;
         padding:14px;
       }
+
       .rankNo{
         width:52px;
         height:52px;
         font-size:20px;
       }
+
       .rankValue{
         margin-top:0;
         white-space:nowrap;
         font-size:22px;
         margin-left:8px;
       }
+
       .catName{ font-size:18px; }
       .catQty{ font-size:20px; }
+
       .sheet{ padding:18px; }
       .sheetTitle{ font-size:24px; }
       .detailTitle{ font-size:18px; }
       .detailText{ font-size:15px; }
+
       .chartLegend{
         grid-template-columns:1fr 1fr;
       }
+
       .miniTableHead,
       .miniTableRow{
         grid-template-columns:1fr 60px 60px;
       }
+
       .miniTableHead{
         font-size:12px;
       }
+
       .miniTableRow{
         font-size:12px;
       }
+
       .miniCell{
         padding:8px 10px;
       }
+
       .miniCell.qty{
         font-size:12px;
       }
+
       .miniCell.rate{
         font-size:11px;
       }
@@ -664,6 +671,6 @@
     </div>
   </div>
 
-  <script src="./js/report.js?v=cal1"></script>
+  <script src="./js/report.js?v=cal2"></script>
 </body>
 </html>
