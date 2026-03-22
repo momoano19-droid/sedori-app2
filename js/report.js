@@ -162,6 +162,19 @@ function buildMonthSummary(stores, logs, targetMonth) {
 
   const rate = visits > 0 ? (success / visits) * 100 : 0;
 
+  const categoryMap = {};
+  monthLogs.forEach(log => {
+    if (log.type === "category" && log.category) {
+      const name = String(log.category).trim();
+      if (!name) return;
+      categoryMap[name] = (categoryMap[name] || 0) + Number(log.delta || 0);
+    }
+  });
+
+  const categories = Object.entries(categoryMap)
+    .filter(([, qty]) => qty > 0)
+    .sort((a, b) => b[1] - a[1]);
+
   return {
     ym: targetMonth,
     registeredStoreCount: stores.length,
@@ -170,7 +183,8 @@ function buildMonthSummary(stores, logs, targetMonth) {
     visits,
     success,
     items,
-    rate
+    rate,
+    categories
   };
 }
 
@@ -178,8 +192,51 @@ function renderMonthSummary(summary) {
   const el = document.getElementById("monthSummaryCard");
   if (!el) return;
 
+  const categoryTable = (summary.categories && summary.categories.length)
+    ? `
+      <div style="margin-top:14px;">
+        <div style="font-size:15px;font-weight:900;color:#1d2240;margin-bottom:10px;">
+          月間カテゴリ集計
+        </div>
+
+        <div style="background:#fafbfe;border-radius:18px;overflow:hidden;border:1px solid #eef1f7;">
+          <div style="display:grid;grid-template-columns:1fr 88px;background:#eef1f7;font-weight:900;color:#1f2340;">
+            <div style="padding:12px 14px;">カテゴリ</div>
+            <div style="padding:12px 14px;text-align:right;">個数</div>
+          </div>
+
+          ${summary.categories.map(([name, qty], idx) => `
+            <div style="
+              display:grid;
+              grid-template-columns:1fr 88px;
+              background:#fff;
+              ${idx !== summary.categories.length - 1 ? "border-bottom:1px solid #eef1f7;" : ""}
+            ">
+              <div style="padding:12px 14px;font-weight:700;color:#1f2340;word-break:break-word;">
+                ${escapeHtml(name)}
+              </div>
+              <div style="padding:12px 14px;text-align:right;font-weight:900;color:#4b74ea;">
+                ${qty}個
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `
+    : `
+      <div style="margin-top:14px;">
+        <div style="font-size:15px;font-weight:900;color:#1d2240;margin-bottom:10px;">
+          月間カテゴリ集計
+        </div>
+        <div style="background:#fafbfe;border-radius:18px;padding:14px;color:#6b7280;">
+          カテゴリデータなし
+        </div>
+      </div>
+    `;
+
   el.innerHTML = `
     <h2 class="sectionTitle" style="margin-bottom:16px;">📌 ${escapeHtml(summary.ym)} サマリー</h2>
+
     <div class="chipRow" onclick="showMonthDetail('${escapeHtml(summary.ym)}')" style="cursor:pointer;">
       <div class="chip">現在登録店舗 ${summary.registeredStoreCount}件</div>
       <div class="chip">対象店舗 ${summary.activeStoreCount}件</div>
@@ -189,6 +246,8 @@ function renderMonthSummary(summary) {
       <div class="chip">今月個数 ${summary.items}個</div>
       <div class="chip">今月成功率 ${summary.rate.toFixed(1)}%</div>
     </div>
+
+    ${categoryTable}
   `;
 }
 
@@ -343,8 +402,6 @@ function buildCategorySummary(stores, logs, targetMonth) {
   names.forEach(name => {
     const monthQty = Number(monthMap[name] || 0);
     const currentQty = Number(currentStoreMap[name] || 0);
-
-    // 月データがあるカテゴリは月データ優先、ないものは現在データで補完
     merged[name] = monthQty > 0 ? monthQty : currentQty;
   });
 
