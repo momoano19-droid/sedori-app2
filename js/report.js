@@ -52,6 +52,10 @@ function yen(n) {
   return `${Number(n || 0).toLocaleString()}円`;
 }
 
+function shortMoney(n) {
+  return Number(n || 0).toLocaleString();
+}
+
 function ym(dateStr) {
   return String(dateStr || "").slice(0, 7);
 }
@@ -437,20 +441,41 @@ function renderCalendar(targetMonth, dailyStats) {
 
   for (let day = 1; day <= lastDate; day++) {
     const ds = `${targetMonth}-${String(day).padStart(2, "0")}`;
-    const info = dailyStats[ds];
-    const hasData = !!info && (info.profit || info.visits || info.success || info.items);
+    const info = dailyStats[ds] || {
+      profit: 0,
+      visits: 0,
+      success: 0,
+      items: 0
+    };
+
+    const hasProfit = Number(info.profit || 0) > 0;
+    const hasVisitOnly = !hasProfit && (
+      Number(info.visits || 0) > 0 ||
+      Number(info.success || 0) > 0 ||
+      Number(info.items || 0) > 0
+    );
     const isToday = ds === today;
 
     let cls = "dayCell";
-    if (hasData) cls += " hasData";
+    if (hasProfit) cls += " hasData";
+    else if (hasVisitOnly) cls += " visitOnly";
     if (isToday) cls += " today";
 
-    const value = hasData ? yen(info.profit) : "-";
+    const valueText = hasProfit
+      ? shortMoney(info.profit)
+      : hasVisitOnly
+        ? "0"
+        : "-";
+
+    const metaText = hasProfit || hasVisitOnly
+      ? `訪${Number(info.visits || 0)} / 個${Number(info.items || 0)}`
+      : "";
 
     html += `
       <div class="${cls}" onclick="showDayDetail('${ds}')">
         <div class="dayNum">${day}</div>
-        <div class="dayValue">${escapeHtml(value)}</div>
+        <div class="dayValue">${escapeHtml(valueText)}</div>
+        <div class="dayMeta">${escapeHtml(metaText)}</div>
       </div>
     `;
   }
