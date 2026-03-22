@@ -135,7 +135,9 @@ function buildDailyStats(logs, targetMonth) {
 
     if (log.type === "category" && log.category) {
       const cat = String(log.category).trim();
-      if (cat) d.categories[cat] = (d.categories[cat] || 0) + Number(log.delta || 0);
+      if (cat) {
+        d.categories[cat] = (d.categories[cat] || 0) + Number(log.delta || 0);
+      }
     }
   });
 
@@ -170,6 +172,7 @@ function buildCategorySummary(stores, logs, targetMonth) {
 
     const fallback = String(store.defaultCategory || "").trim();
     const items = Number(store.items || 0);
+
     if (!hasAny && fallback && items > 0) {
       storeCurrentMap[fallback] = (storeCurrentMap[fallback] || 0) + items;
     }
@@ -233,20 +236,22 @@ function getPieChartParts(categories) {
   const restSum = rest.reduce((sum, [, qty]) => sum + Number(qty || 0), 0);
 
   const parts = [...top];
-  if (restSum > 0) parts.push(["その他", restSum]);
+  if (restSum > 0) {
+    parts.push(["その他", restSum]);
+  }
   return parts;
 }
 
 function getChartColors() {
   return [
-    "#4b74ea",
-    "#6fcf97",
-    "#f2c94c",
-    "#eb5757",
-    "#9b51e0",
-    "#56ccf2",
-    "#f2994a",
-    "#95a1b2"
+    "#356AE6",
+    "#16A34A",
+    "#F59E0B",
+    "#DC2626",
+    "#0EA5E9",
+    "#8B5CF6",
+    "#D97706",
+    "#64748B"
   ];
 }
 
@@ -259,12 +264,13 @@ function drawCategoryPieChart(canvasId, categories, monthLabel = "") {
 
   const ratio = window.devicePixelRatio || 1;
   const cssSize = Math.min(290, canvas.parentElement.clientWidth || 290);
+
   canvas.width = cssSize * ratio;
   canvas.height = cssSize * ratio;
   canvas.style.width = `${cssSize}px`;
   canvas.style.height = `${cssSize}px`;
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   ctx.clearRect(0, 0, cssSize, cssSize);
 
   if (!categories.length) {
@@ -311,9 +317,9 @@ function drawCategoryPieChart(canvasId, categories, monthLabel = "") {
 
   ctx.fillStyle = "#1f2340";
   ctx.font = "bold 12px sans-serif";
-  ctx.fillText("カテゴリ", cx, cy - 2);
+  ctx.fillText("合計", cx, cy - 2);
 
-  ctx.fillStyle = "#4b74ea";
+  ctx.fillStyle = "#356AE6";
   ctx.font = "bold 18px sans-serif";
   ctx.fillText(`${total}個`, cx, cy + 22);
 }
@@ -337,12 +343,16 @@ function buildCategoryLegendHtml(categories) {
 }
 
 function buildMiniCategoryTableHtml(categories) {
-  if (!categories.length) {
+  const top = categories.slice(0, 10);
+  const total = top.reduce((sum, [, qty]) => sum + Number(qty || 0), 0);
+
+  if (!top.length) {
     return `
       <div class="miniTable">
         <div class="miniTableRow">
           <div class="miniCell name" style="color:#6b7280;">カテゴリデータなし</div>
           <div class="miniCell qty">-</div>
+          <div class="miniCell rate">-</div>
         </div>
       </div>
     `;
@@ -353,13 +363,18 @@ function buildMiniCategoryTableHtml(categories) {
       <div class="miniTableHead">
         <div class="miniCell">カテゴリ</div>
         <div class="miniCell qty">個数</div>
+        <div class="miniCell rate">割合</div>
       </div>
-      ${categories.map(([name, qty]) => `
-        <div class="miniTableRow">
-          <div class="miniCell name">${escapeHtml(name)}</div>
-          <div class="miniCell qty">${qty}個</div>
-        </div>
-      `).join("")}
+      ${top.map(([name, qty]) => {
+        const rate = total > 0 ? ((Number(qty || 0) / total) * 100).toFixed(1) : "0.0";
+        return `
+          <div class="miniTableRow">
+            <div class="miniCell name">${escapeHtml(name)}</div>
+            <div class="miniCell qty">${qty}個</div>
+            <div class="miniCell rate">${rate}%</div>
+          </div>
+        `;
+      }).join("")}
     </div>
   `;
 }
@@ -563,7 +578,9 @@ function groupLogsByStore(logs) {
     if (log.type === "items") map[name].items += Number(log.delta || 0);
     if (log.type === "category" && log.category) {
       const cat = String(log.category).trim();
-      if (cat) map[name].categories[cat] = (map[name].categories[cat] || 0) + Number(log.delta || 0);
+      if (cat) {
+        map[name].categories[cat] = (map[name].categories[cat] || 0) + Number(log.delta || 0);
+      }
     }
   });
 
