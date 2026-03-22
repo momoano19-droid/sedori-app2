@@ -134,11 +134,69 @@ function buildDailyStats(logs, targetMonth) {
     if (log.type === "items") d.items += Number(log.delta || 0);
 
     if (log.type === "category" && log.category) {
-      d.categories[log.category] = (d.categories[log.category] || 0) + Number(log.delta || 0);
+      const cat = String(log.category).trim();
+      if (cat) d.categories[cat] = (d.categories[cat] || 0) + Number(log.delta || 0);
     }
   });
 
   return daily;
+}
+
+function buildCategorySummary(stores, logs, targetMonth) {
+  const monthMap = {};
+  const storeCurrentMap = {};
+
+  // 1) まず月ログからカテゴリを集計
+  logs.forEach(log => {
+    if (ym(log.date) !== targetMonth) return;
+    if (log.type !== "category") return;
+
+    const name = String(log.category || "").trim();
+    if (!name) return;
+
+    monthMap[name] = (monthMap[name] || 0) + Number(log.delta || 0);
+  });
+
+  // 2) 次に現在の店舗データからカテゴリを補完
+  stores.forEach(store => {
+    const cc = store.categoryCounts || {};
+    let hasAny = false;
+
+    Object.entries(cc).forEach(([name, qty]) => {
+      const key = String(name || "").trim();
+      const n = Number(qty || 0);
+      if (!key || n <= 0) return;
+      hasAny = true;
+      storeCurrentMap[key] = (storeCurrentMap[key] || 0) + n;
+    });
+
+    // 複数カテゴリがないが defaultCategory と items がある場合の補完
+    const fallback = String(store.defaultCategory || "").trim();
+    const items = Number(store.items || 0);
+    if (!hasAny && fallback && items > 0) {
+      storeCurrentMap[fallback] = (storeCurrentMap[fallback] || 0) + items;
+    }
+  });
+
+  // 3) 月ログ優先、月ログがないカテゴリは現在値で補完
+  const merged = {};
+  const names = new Set([
+    ...Object.keys(monthMap),
+    ...Object.keys(storeCurrentMap)
+  ]);
+
+  names.forEach(name => {
+    const monthQty = Number(monthMap[name] || 0);
+    const currentQty = Number(storeCurrentMap[name] || 0);
+
+    // 月ログにカテゴリがあればそれを優先
+    // なければ現在のカテゴリ数を出す
+    merged[name] = monthQty > 0 ? monthQty : currentQty;
+  });
+
+  return Object.entries(merged)
+    .filter(([, qty]) => Number(qty) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]));
 }
 
 function buildMonthSummary(stores, logs, targetMonth) {
@@ -161,19 +219,7 @@ function buildMonthSummary(stores, logs, targetMonth) {
   );
 
   const rate = visits > 0 ? (success / visits) * 100 : 0;
-
-  const categoryMap = {};
-  monthLogs.forEach(log => {
-    if (log.type === "category" && log.category) {
-      const name = String(log.category).trim();
-      if (!name) return;
-      categoryMap[name] = (categoryMap[name] || 0) + Number(log.delta || 0);
-    }
-  });
-
-  const categories = Object.entries(categoryMap)
-    .filter(([, qty]) => qty > 0)
-    .sort((a, b) => b[1] - a[1]);
+  const categories = buildCategorySummary(stores, logs, targetMonth);
 
   return {
     ym: targetMonth,
@@ -361,55 +407,6 @@ function renderTopStores(list) {
   `;
 }
 
-function buildCategorySummary(stores, logs, targetMonth) {
-  const monthMap = {};
-  const currentStoreMap = {};
-
-  logs.forEach(log => {
-    if (ym(log.date) !== targetMonth) return;
-    if (log.type !== "category" || !log.category) return;
-
-    const name = String(log.category).trim();
-    if (!name) return;
-
-    monthMap[name] = (monthMap[name] || 0) + Number(log.delta || 0);
-  });
-
-  stores.forEach(store => {
-    const cc = store.categoryCounts || {};
-    Object.entries(cc).forEach(([name, qty]) => {
-      const key = String(name).trim();
-      if (!key) return;
-      currentStoreMap[key] = (currentStoreMap[key] || 0) + Number(qty || 0);
-    });
-
-    const fallback = String(store.defaultCategory || "").trim();
-    if (
-      fallback &&
-      (!store.categoryCounts || !Object.keys(store.categoryCounts).length) &&
-      Number(store.items || 0) > 0
-    ) {
-      currentStoreMap[fallback] = (currentStoreMap[fallback] || 0) + Number(store.items || 0);
-    }
-  });
-
-  const merged = {};
-  const names = new Set([
-    ...Object.keys(currentStoreMap),
-    ...Object.keys(monthMap)
-  ]);
-
-  names.forEach(name => {
-    const monthQty = Number(monthMap[name] || 0);
-    const currentQty = Number(currentStoreMap[name] || 0);
-    merged[name] = monthQty > 0 ? monthQty : currentQty;
-  });
-
-  return Object.entries(merged)
-    .filter(([, qty]) => qty > 0)
-    .sort((a, b) => b[1] - a[1]);
-}
-
 function renderCategorySummary(list) {
   const el = document.getElementById("categoryWrap");
   if (!el) return;
@@ -463,7 +460,8 @@ function groupLogsByStore(logs) {
     if (log.type === "success") map[name].success += Number(log.delta || 0);
     if (log.type === "items") map[name].items += Number(log.delta || 0);
     if (log.type === "category" && log.category) {
-      map[name].categories[log.category] = (map[name].categories[log.category] || 0) + Number(log.delta || 0);
+      const cat = String(log.category).trim();
+      if (cat) map[name].categories[cat] = (map[name].categories[cat] || 0) + Number(log.delta || 0);
     }
   });
 
