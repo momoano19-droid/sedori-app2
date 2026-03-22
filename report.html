@@ -1,40 +1,351 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>分析画面 | せどりGPS管理PRO</title>
-  <link rel="stylesheet" href="css/style.css" />
+
   <link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#007aff">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="せどりGPS">
-<link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <meta name="theme-color" content="#3976f6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="分析画面">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+
+  <style>
+    *{ box-sizing:border-box; }
+    html,body{ margin:0; padding:0; }
+    body{
+      background:#f3f4f6;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      color:#1f2340;
+    }
+    .page{
+      max-width:760px;
+      margin:0 auto;
+      padding:14px;
+    }
+    .titleWrap{
+      padding:6px 2px 2px;
+      margin-bottom:10px;
+    }
+    .pageTitle{
+      font-size:28px;
+      font-weight:900;
+      margin:0 0 6px;
+      color:#1d2240;
+    }
+    .sub{
+      font-size:14px;
+      line-height:1.7;
+      color:#6b7280;
+      margin:0;
+    }
+    .card{
+      background:#fff;
+      border-radius:24px;
+      padding:18px;
+      margin-bottom:18px;
+      box-shadow:0 6px 20px rgba(15,23,42,0.06);
+    }
+    .topButtons{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
+    }
+    button{
+      min-height:58px;
+      border:none;
+      border-radius:20px;
+      font-size:17px;
+      font-weight:800;
+      cursor:pointer;
+    }
+    .primaryBtn{
+      background:#4b74ea;
+      color:#fff;
+    }
+    .ghostBtn{
+      background:#eef1f7;
+      color:#1f2340;
+    }
+    .sectionTitle{
+      font-size:26px;
+      font-weight:900;
+      margin:0 0 14px;
+      color:#1d2240;
+    }
+    .chipRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      min-height:46px;
+      padding:0 18px;
+      border-radius:999px;
+      background:#eef1f7;
+      color:#333a52;
+      font-size:16px;
+      font-weight:700;
+    }
+    .calendarGrid{
+      display:grid;
+      grid-template-columns:repeat(7,1fr);
+      gap:10px;
+      margin-top:10px;
+    }
+    .dow{
+      height:56px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:#eef1f7;
+      border-radius:16px;
+      font-size:18px;
+      font-weight:800;
+      color:#222;
+    }
+    .dayCell{
+      min-height:96px;
+      border-radius:20px;
+      border:2px solid #d9e0ee;
+      background:#fff;
+      padding:8px 6px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:flex-start;
+      cursor:pointer;
+      font-weight:800;
+      color:#444;
+    }
+    .dayCell.empty{
+      visibility:hidden;
+    }
+    .dayCell.hasData{
+      background:#4b74ea;
+      border-color:#4b74ea;
+      color:#fff;
+    }
+    .dayCell.today{
+      background:#fff7ea;
+      border-color:#f0a93a;
+      color:#a56a12;
+      box-shadow:0 0 0 3px rgba(240,169,58,.15) inset;
+    }
+    .dayNum{
+      font-size:22px;
+      line-height:1.1;
+      margin-top:2px;
+    }
+    .dayValue{
+      font-size:20px;
+      line-height:1.2;
+      margin-top:8px;
+    }
+    .help{
+      font-size:14px;
+      line-height:1.7;
+      color:#6b7280;
+      margin-top:10px;
+    }
+    .list{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .rankItem{
+      display:grid;
+      grid-template-columns:52px 1fr auto;
+      gap:12px;
+      align-items:center;
+      background:#fafbfe;
+      border-radius:18px;
+      padding:14px;
+    }
+    .rankNo{
+      width:52px;
+      height:52px;
+      border-radius:14px;
+      background:#eef1f7;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:900;
+      font-size:20px;
+      color:#333;
+    }
+    .rankName{
+      font-size:18px;
+      font-weight:800;
+      color:#1f2340;
+    }
+    .rankSub{
+      font-size:13px;
+      color:#6b7280;
+      margin-top:4px;
+    }
+    .rankValue{
+      font-size:22px;
+      font-weight:900;
+      color:#4b74ea;
+      white-space:nowrap;
+    }
+    .catList{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .catItem{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:12px;
+      align-items:center;
+      background:#fafbfe;
+      border-radius:18px;
+      padding:14px 16px;
+    }
+    .catName{
+      font-size:18px;
+      font-weight:800;
+    }
+    .catQty{
+      font-size:20px;
+      font-weight:900;
+      color:#4b74ea;
+    }
+    .modal{
+      position:fixed;
+      inset:0;
+      background:rgba(15,23,42,.35);
+      display:none;
+      align-items:flex-end;
+      justify-content:center;
+      padding:14px;
+      z-index:1000;
+    }
+    .modal.show{
+      display:flex;
+    }
+    .sheet{
+      width:min(760px,100%);
+      background:#fff;
+      border-radius:28px 28px 18px 18px;
+      padding:18px;
+      max-height:78vh;
+      overflow:auto;
+      box-shadow:0 12px 30px rgba(0,0,0,.15);
+    }
+    .sheetHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:14px;
+    }
+    .sheetTitle{
+      font-size:24px;
+      font-weight:900;
+      color:#1d2240;
+      margin:0;
+    }
+    .closeBtn{
+      width:48px;
+      height:48px;
+      min-height:48px;
+      border-radius:16px;
+      background:#eef1f7;
+      color:#1f2340;
+      font-size:22px;
+      font-weight:900;
+    }
+    .detailBlock{
+      background:#fafbfe;
+      border-radius:20px;
+      padding:14px 16px;
+      margin-bottom:12px;
+    }
+    .detailTitle{
+      font-size:18px;
+      font-weight:900;
+      margin:0 0 8px;
+      color:#1f2340;
+    }
+    .detailText{
+      font-size:15px;
+      line-height:1.8;
+      color:#4b5563;
+    }
+    .emptyText{
+      font-size:15px;
+      color:#6b7280;
+      line-height:1.8;
+    }
+
+    @media (max-width:640px){
+      .page{ padding:12px; }
+      .card{ border-radius:22px; padding:16px; margin-bottom:16px; }
+      .pageTitle{ font-size:24px; }
+      .sectionTitle{ font-size:22px; }
+      .topButtons{ gap:12px; }
+      button{ min-height:56px; font-size:15px; }
+      .dayCell{ min-height:88px; border-radius:18px; }
+      .dayNum{ font-size:18px; }
+      .dayValue{ font-size:16px; }
+      .chip{ min-height:42px; padding:0 14px; font-size:14px; }
+      .rankItem{ grid-template-columns:44px 1fr auto; padding:12px; }
+      .rankNo{ width:44px; height:44px; font-size:18px; }
+      .rankName{ font-size:16px; }
+      .rankValue{ font-size:18px; }
+    }
+  </style>
 </head>
 <body>
-  <h1>📊 分析画面</h1>
-  <div class="sub">月次サマリー・カレンダー・日別詳細・曜日分析・ランキングを見る画面です。</div>
+  <div class="page">
+    <div class="titleWrap">
+      <h1 class="pageTitle">📊 分析画面</h1>
+      <p class="sub">月サマリー・月カレンダー・上位店舗・カテゴリ集計を表示します。</p>
+    </div>
 
-  <div class="toolbar">
-    <div class="row2">
-      <button onclick="location.href='index.html'">🏠 店舗管理へ戻る</button>
-      <button class="secondary" onclick="renderReport()">更新</button>
+    <div class="card">
+      <div class="topButtons">
+        <button class="primaryBtn" onclick="location.href='index.html'">📱 店舗管理へ</button>
+        <button class="ghostBtn" onclick="bootReport()">再表示</button>
+      </div>
+    </div>
+
+    <div class="card" id="monthSummaryCard"></div>
+
+    <div class="card">
+      <h2 class="sectionTitle">🗓 月カレンダー</h2>
+      <div id="calendarWrap"></div>
+      <div class="help">※ タップで詳細表示</div>
+    </div>
+
+    <div class="card">
+      <h2 class="sectionTitle">🏆 上位店舗</h2>
+      <div id="topStoresWrap"></div>
+    </div>
+
+    <div class="card">
+      <h2 class="sectionTitle">📦 カテゴリ集計</h2>
+      <div id="categoryWrap"></div>
     </div>
   </div>
 
-  <div class="toolbar">
-    <div class="row2">
-      <select id="monthSelect" onchange="selectedDate=''; renderReport()"></select>
-      <select id="prefFilter" onchange="selectedDate=''; renderReport()"></select>
+  <div id="detailModal" class="modal" onclick="closeDetailModal(event)">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheetHead">
+        <h3 id="detailTitle" class="sheetTitle">詳細</h3>
+        <button class="closeBtn" onclick="hideDetailModal()">×</button>
+      </div>
+      <div id="detailBody"></div>
     </div>
   </div>
 
-  <div id="reportArea"></div>
-
-  <script src="js/utils.js"></script>
-  <script src="js/storage.js"></script>
-  <script src="js/analytics.js"></script>
-  <script src="js/report.js"></script>
+  <script src="./js/report.js?v=detail1"></script>
 </body>
 </html>
