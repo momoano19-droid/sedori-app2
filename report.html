@@ -612,3 +612,27 @@
   <script src="./js/report.js?v=pie3"></script>
 </body>
 </html>
+<!-- 変更点は表の列追加＆少しコンパクト化 -->
+<!-- 他はそのままなので丸ごと上書きOK -->
+
+<style>
+.miniTableHead,
+.miniTableRow{
+  display:grid;
+  grid-template-columns:1fr 50px 50px;
+}
+
+.miniCell{
+  padding:6px 6px;
+  font-size:10px;
+}
+
+.miniCell.qty{
+  text-align:right;
+}
+
+.miniCell.rate{
+  text-align:right;
+  color:#6b7280;
+}
+</style>
