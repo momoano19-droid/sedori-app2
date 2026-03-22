@@ -448,12 +448,13 @@ function renderCalendar(targetMonth, dailyStats) {
       items: 0
     };
 
-    const hasProfit = Number(info.profit || 0) > 0;
-    const hasVisitOnly = !hasProfit && (
-      Number(info.visits || 0) > 0 ||
-      Number(info.success || 0) > 0 ||
-      Number(info.items || 0) > 0
-    );
+    const profit = Number(info.profit || 0);
+    const visits = Number(info.visits || 0);
+    const success = Number(info.success || 0);
+    const items = Number(info.items || 0);
+
+    const hasProfit = profit > 0;
+    const hasVisitOnly = !hasProfit && (visits > 0 || success > 0 || items > 0);
     const isToday = ds === today;
 
     let cls = "dayCell";
@@ -461,21 +462,17 @@ function renderCalendar(targetMonth, dailyStats) {
     else if (hasVisitOnly) cls += " visitOnly";
     if (isToday) cls += " today";
 
-    const valueText = hasProfit
-      ? shortMoney(info.profit)
-      : hasVisitOnly
-        ? "0"
-        : "-";
-
-    const metaText = hasProfit || hasVisitOnly
-      ? `訪${Number(info.visits || 0)} / 個${Number(info.items || 0)}`
-      : "";
+    let valueText = "-";
+    if (hasProfit) {
+      valueText = shortMoney(profit);
+    } else if (hasVisitOnly) {
+      valueText = "0";
+    }
 
     html += `
       <div class="${cls}" onclick="showDayDetail('${ds}')">
         <div class="dayNum">${day}</div>
         <div class="dayValue">${escapeHtml(valueText)}</div>
-        <div class="dayMeta">${escapeHtml(metaText)}</div>
       </div>
     `;
   }
