@@ -90,7 +90,10 @@ function renderMonthPicker(logs) {
   const months = getAvailableMonths(logs);
   if (!selectedMonth) selectedMonth = months[0] || currentMonthStr();
 
-  el.innerHTML = months.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
+  el.innerHTML = months
+    .map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`)
+    .join("");
+
   el.value = selectedMonth;
 }
 
@@ -153,12 +156,16 @@ function buildMonthSummary(stores, logs, targetMonth) {
     if (log.type === "items") items += Number(log.delta || 0);
   });
 
-  const targetStoreIds = new Set(monthLogs.map(l => String(l.storeId || "")).filter(Boolean));
+  const targetStoreIds = new Set(
+    monthLogs.map(l => String(l.storeId || "")).filter(Boolean)
+  );
+
   const rate = visits > 0 ? (success / visits) * 100 : 0;
 
   return {
     ym: targetMonth,
-    storeCount: targetStoreIds.size,
+    registeredStoreCount: stores.length,
+    activeStoreCount: targetStoreIds.size,
     profit,
     visits,
     success,
@@ -174,7 +181,8 @@ function renderMonthSummary(summary) {
   el.innerHTML = `
     <h2 class="sectionTitle" style="margin-bottom:16px;">📌 ${escapeHtml(summary.ym)} サマリー</h2>
     <div class="chipRow" onclick="showMonthDetail('${escapeHtml(summary.ym)}')" style="cursor:pointer;">
-      <div class="chip">対象店舗 ${summary.storeCount}件</div>
+      <div class="chip">現在登録店舗 ${summary.registeredStoreCount}件</div>
+      <div class="chip">対象店舗 ${summary.activeStoreCount}件</div>
       <div class="chip">今月利益 ${yen(summary.profit)}</div>
       <div class="chip">今月訪問 ${summary.visits}回</div>
       <div class="chip">今月成功 ${summary.success}回</div>
@@ -295,26 +303,52 @@ function renderTopStores(list) {
 }
 
 function buildCategorySummary(stores, logs, targetMonth) {
-  const map = {};
+  const monthMap = {};
+  const currentStoreMap = {};
 
   logs.forEach(log => {
     if (ym(log.date) !== targetMonth) return;
+    if (log.type !== "category" || !log.category) return;
 
-    if (log.type === "category" && log.category) {
-      map[log.category] = (map[log.category] || 0) + Number(log.delta || 0);
+    const name = String(log.category).trim();
+    if (!name) return;
+
+    monthMap[name] = (monthMap[name] || 0) + Number(log.delta || 0);
+  });
+
+  stores.forEach(store => {
+    const cc = store.categoryCounts || {};
+    Object.entries(cc).forEach(([name, qty]) => {
+      const key = String(name).trim();
+      if (!key) return;
+      currentStoreMap[key] = (currentStoreMap[key] || 0) + Number(qty || 0);
+    });
+
+    const fallback = String(store.defaultCategory || "").trim();
+    if (
+      fallback &&
+      (!store.categoryCounts || !Object.keys(store.categoryCounts).length) &&
+      Number(store.items || 0) > 0
+    ) {
+      currentStoreMap[fallback] = (currentStoreMap[fallback] || 0) + Number(store.items || 0);
     }
   });
 
-  if (!Object.keys(map).length) {
-    stores.forEach(store => {
-      Object.entries(store.categoryCounts || {}).forEach(([name, qty]) => {
-        if (!name) return;
-        map[name] = (map[name] || 0) + Number(qty || 0);
-      });
-    });
-  }
+  const merged = {};
+  const names = new Set([
+    ...Object.keys(currentStoreMap),
+    ...Object.keys(monthMap)
+  ]);
 
-  return Object.entries(map)
+  names.forEach(name => {
+    const monthQty = Number(monthMap[name] || 0);
+    const currentQty = Number(currentStoreMap[name] || 0);
+
+    // 月データがあるカテゴリは月データ優先、ないものは現在データで補完
+    merged[name] = monthQty > 0 ? monthQty : currentQty;
+  });
+
+  return Object.entries(merged)
     .filter(([, qty]) => qty > 0)
     .sort((a, b) => b[1] - a[1]);
 }
