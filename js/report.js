@@ -146,7 +146,6 @@ function buildCategorySummary(stores, logs, targetMonth) {
   const monthMap = {};
   const storeCurrentMap = {};
 
-  // 1) まず月ログからカテゴリを集計
   logs.forEach(log => {
     if (ym(log.date) !== targetMonth) return;
     if (log.type !== "category") return;
@@ -157,7 +156,6 @@ function buildCategorySummary(stores, logs, targetMonth) {
     monthMap[name] = (monthMap[name] || 0) + Number(log.delta || 0);
   });
 
-  // 2) 次に現在の店舗データからカテゴリを補完
   stores.forEach(store => {
     const cc = store.categoryCounts || {};
     let hasAny = false;
@@ -170,7 +168,6 @@ function buildCategorySummary(stores, logs, targetMonth) {
       storeCurrentMap[key] = (storeCurrentMap[key] || 0) + n;
     });
 
-    // 複数カテゴリがないが defaultCategory と items がある場合の補完
     const fallback = String(store.defaultCategory || "").trim();
     const items = Number(store.items || 0);
     if (!hasAny && fallback && items > 0) {
@@ -178,7 +175,6 @@ function buildCategorySummary(stores, logs, targetMonth) {
     }
   });
 
-  // 3) 月ログ優先、月ログがないカテゴリは現在値で補完
   const merged = {};
   const names = new Set([
     ...Object.keys(monthMap),
@@ -188,9 +184,6 @@ function buildCategorySummary(stores, logs, targetMonth) {
   names.forEach(name => {
     const monthQty = Number(monthMap[name] || 0);
     const currentQty = Number(storeCurrentMap[name] || 0);
-
-    // 月ログにカテゴリがあればそれを優先
-    // なければ現在のカテゴリ数を出す
     merged[name] = monthQty > 0 ? monthQty : currentQty;
   });
 
@@ -234,51 +227,137 @@ function buildMonthSummary(stores, logs, targetMonth) {
   };
 }
 
-function renderMonthSummary(summary) {
-  const el = document.getElementById("monthSummaryCard");
-  if (!el) return;
+function getPieChartParts(categories) {
+  const top = categories.slice(0, 7);
+  const rest = categories.slice(7);
+  const restSum = rest.reduce((sum, [, qty]) => sum + Number(qty || 0), 0);
 
-  const categoryTable = (summary.categories && summary.categories.length)
-    ? `
-      <div style="margin-top:14px;">
-        <div style="font-size:15px;font-weight:900;color:#1d2240;margin-bottom:10px;">
-          月間カテゴリ集計
-        </div>
+  const parts = [...top];
+  if (restSum > 0) parts.push(["その他", restSum]);
+  return parts;
+}
 
-        <div style="background:#fafbfe;border-radius:18px;overflow:hidden;border:1px solid #eef1f7;">
-          <div style="display:grid;grid-template-columns:1fr 88px;background:#eef1f7;font-weight:900;color:#1f2340;">
-            <div style="padding:12px 14px;">カテゴリ</div>
-            <div style="padding:12px 14px;text-align:right;">個数</div>
-          </div>
+function getChartColors() {
+  return [
+    "#4b74ea",
+    "#6fcf97",
+    "#f2c94c",
+    "#eb5757",
+    "#9b51e0",
+    "#56ccf2",
+    "#f2994a",
+    "#95a1b2"
+  ];
+}
 
-          ${summary.categories.map(([name, qty], idx) => `
-            <div style="
-              display:grid;
-              grid-template-columns:1fr 88px;
-              background:#fff;
-              ${idx !== summary.categories.length - 1 ? "border-bottom:1px solid #eef1f7;" : ""}
-            ">
-              <div style="padding:12px 14px;font-weight:700;color:#1f2340;word-break:break-word;">
-                ${escapeHtml(name)}
-              </div>
-              <div style="padding:12px 14px;text-align:right;font-weight:900;color:#4b74ea;">
-                ${qty}個
-              </div>
-            </div>
-          `).join("")}
-        </div>
-      </div>
-    `
-    : `
-      <div style="margin-top:14px;">
-        <div style="font-size:15px;font-weight:900;color:#1d2240;margin-bottom:10px;">
-          月間カテゴリ集計
-        </div>
-        <div style="background:#fafbfe;border-radius:18px;padding:14px;color:#6b7280;">
-          カテゴリデータなし
+function drawCategoryPieChart(canvasId, categories) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const ratio = window.devicePixelRatio || 1;
+  const cssSize = Math.min(290, canvas.parentElement.clientWidth || 290);
+  canvas.width = cssSize * ratio;
+  canvas.height = cssSize * ratio;
+  canvas.style.width = `${cssSize}px`;
+  canvas.style.height = `${cssSize}px`;
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+  ctx.clearRect(0, 0, cssSize, cssSize);
+
+  if (!categories.length) {
+    ctx.fillStyle = "#9ca3af";
+    ctx.font = "15px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("カテゴリデータなし", cssSize / 2, cssSize / 2);
+    return;
+  }
+
+  const parts = getPieChartParts(categories);
+  const total = parts.reduce((sum, [, qty]) => sum + Number(qty || 0), 0);
+  const colors = getChartColors();
+
+  const cx = cssSize / 2;
+  const cy = cssSize / 2;
+  const r = Math.min(cssSize * 0.35, 108);
+
+  let start = -Math.PI / 2;
+
+  parts.forEach(([, qty], idx) => {
+    const value = Number(qty || 0);
+    const angle = total > 0 ? (value / total) * Math.PI * 2 : 0;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, start + angle);
+    ctx.closePath();
+    ctx.fillStyle = colors[idx % colors.length];
+    ctx.fill();
+
+    start += angle;
+  });
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+
+  ctx.fillStyle = "#1f2340";
+  ctx.font = "bold 12px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("カテゴリ", cx, cy - 6);
+
+  ctx.fillStyle = "#4b74ea";
+  ctx.font = "bold 16px sans-serif";
+  ctx.fillText(`${total}個`, cx, cy + 17);
+}
+
+function buildCategoryLegendHtml(categories) {
+  const parts = getPieChartParts(categories);
+  const colors = getChartColors();
+
+  return parts.map(([name, qty], idx) => `
+    <div class="legendItem">
+      <div class="legendColor" style="background:${colors[idx % colors.length]};"></div>
+      <div class="legendName">${escapeHtml(name)}</div>
+      <div class="legendQty">${qty}個</div>
+    </div>
+  `).join("");
+}
+
+function buildMiniCategoryTableHtml(categories) {
+  if (!categories.length) {
+    return `
+      <div class="miniTable">
+        <div class="miniTableRow">
+          <div class="miniCell name" style="color:#6b7280;">カテゴリデータなし</div>
+          <div class="miniCell qty">-</div>
         </div>
       </div>
     `;
+  }
+
+  return `
+    <div class="miniTable">
+      <div class="miniTableHead">
+        <div class="miniCell">カテゴリ</div>
+        <div class="miniCell qty">個数</div>
+      </div>
+      ${categories.map(([name, qty]) => `
+        <div class="miniTableRow">
+          <div class="miniCell name">${escapeHtml(name)}</div>
+          <div class="miniCell qty">${qty}個</div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderMonthSummary(summary) {
+  const el = document.getElementById("monthSummaryCard");
+  if (!el) return;
 
   el.innerHTML = `
     <h2 class="sectionTitle" style="margin-bottom:16px;">📌 ${escapeHtml(summary.ym)} サマリー</h2>
@@ -293,8 +372,22 @@ function renderMonthSummary(summary) {
       <div class="chip">今月成功率 ${summary.rate.toFixed(1)}%</div>
     </div>
 
-    ${categoryTable}
+    <div class="summarySubTitle">月間カテゴリ集計</div>
+
+    <div class="chartWrap">
+      <div class="chartCanvasBox">
+        <canvas id="categoryPieChart"></canvas>
+      </div>
+      <div class="chartLegend">
+        ${buildCategoryLegendHtml(summary.categories)}
+      </div>
+    </div>
+
+    <div class="summarySubTitle">カテゴリ表</div>
+    ${buildMiniCategoryTableHtml(summary.categories)}
   `;
+
+  drawCategoryPieChart("categoryPieChart", summary.categories);
 }
 
 function renderCalendar(targetMonth, dailyStats) {
@@ -638,3 +731,10 @@ function bootReport() {
 }
 
 window.addEventListener("load", bootReport);
+window.addEventListener("resize", () => {
+  const stores = loadStores();
+  const logs = loadLogs();
+  const targetMonth = selectedMonth || currentMonthStr();
+  const summary = buildMonthSummary(stores, logs, targetMonth);
+  drawCategoryPieChart("categoryPieChart", summary.categories || []);
+});
