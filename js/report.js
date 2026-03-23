@@ -15,6 +15,7 @@ const LOG_KEYS = [
 ];
 
 let selectedMonth = null;
+let selectedDay = null;
 
 function readFirstAvailable(keys) {
   for (const key of keys) {
@@ -103,11 +104,13 @@ function renderMonthPicker(logs) {
 
 function changeReportMonth(month) {
   selectedMonth = month;
+  selectedDay = null;
   bootReport();
 }
 
 function goCurrentMonth() {
   selectedMonth = currentMonthStr();
+  selectedDay = null;
   bootReport();
 }
 
@@ -418,6 +421,26 @@ function renderMonthSummary(summary) {
   drawCategoryPieChart("categoryPieChart", summary.categories, summary.ym);
 }
 
+function renderSelectedDayBar(dayStr, info) {
+  const bar = document.getElementById("selectedDayBar");
+  if (!bar) return;
+
+  if (!dayStr) {
+    bar.innerHTML = `
+      <div class="dayStickyLabel">日付をタップするとここに表示されます</div>
+      <div class="dayStickyValue">その日の合計利益 <strong>-</strong></div>
+    `;
+    return;
+  }
+
+  const profit = Number(info?.profit || 0);
+
+  bar.innerHTML = `
+    <div class="dayStickyLabel">${escapeHtml(dayStr)} の合計利益</div>
+    <div class="dayStickyValue"><strong>${escapeHtml(yen(profit))}</strong></div>
+  `;
+}
+
 function renderCalendar(targetMonth, dailyStats) {
   const wrap = document.getElementById("calendarWrap");
   if (!wrap) return;
@@ -428,6 +451,10 @@ function renderCalendar(targetMonth, dailyStats) {
   const startDow = first.getDay();
   const dowNames = ["日", "月", "火", "水", "木", "金", "土"];
   const today = todayStr();
+
+  if (!selectedDay || ym(selectedDay) !== targetMonth) {
+    selectedDay = today.startsWith(targetMonth) ? today : `${targetMonth}-01`;
+  }
 
   let html = `<div class="calendarGrid">`;
 
@@ -456,11 +483,13 @@ function renderCalendar(targetMonth, dailyStats) {
     const hasProfit = profit > 0;
     const hasVisitOnly = !hasProfit && (visits > 0 || success > 0 || items > 0);
     const isToday = ds === today;
+    const isSelected = ds === selectedDay;
 
     let cls = "dayCell";
     if (hasProfit) cls += " hasData";
     else if (hasVisitOnly) cls += " visitOnly";
     if (isToday) cls += " today";
+    if (isSelected) cls += " selected";
 
     let valueText = "-";
     if (hasProfit) {
@@ -470,7 +499,7 @@ function renderCalendar(targetMonth, dailyStats) {
     }
 
     html += `
-      <div class="${cls}" onclick="showDayDetail('${ds}')">
+      <div class="${cls}" onclick="handleDayTap('${ds}')">
         <div class="dayNum">${day}</div>
         <div class="dayValue">${escapeHtml(valueText)}</div>
       </div>
@@ -479,6 +508,16 @@ function renderCalendar(targetMonth, dailyStats) {
 
   html += `</div>`;
   wrap.innerHTML = html;
+
+  renderSelectedDayBar(selectedDay, dailyStats[selectedDay] || { profit: 0 });
+}
+
+function handleDayTap(dayStr) {
+  selectedDay = dayStr;
+  const targetMonth = ym(dayStr);
+  const daily = buildDailyStats(loadLogs(), targetMonth);
+  renderCalendar(targetMonth, daily);
+  showDayDetail(dayStr);
 }
 
 function buildTopStores(stores, logs, targetMonth) {
