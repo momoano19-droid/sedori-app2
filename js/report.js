@@ -57,6 +57,12 @@ function shortMoney(n) {
   return Number(n || 0).toLocaleString();
 }
 
+function safeDivide(a, b) {
+  const x = Number(a || 0);
+  const y = Number(b || 0);
+  return y > 0 ? x / y : 0;
+}
+
 function ym(dateStr) {
   return String(dateStr || "").slice(0, 7);
 }
@@ -221,19 +227,37 @@ function buildMonthSummary(stores, logs, targetMonth) {
     monthLogs.map(l => String(l.storeId || "")).filter(Boolean)
   );
 
+  const activeDates = new Set(
+    monthLogs
+      .map(l => String(l.date || "").slice(0, 10))
+      .filter(Boolean)
+  );
+
+  const activeStoreCount = targetStoreIds.size;
+  const activeDayCount = activeDates.size;
   const rate = visits > 0 ? (success / visits) * 100 : 0;
   const categories = buildCategorySummary(stores, logs, targetMonth);
+
+  const profitPerStore = safeDivide(profit, activeStoreCount);
+  const profitPerVisit = safeDivide(profit, visits);
+  const profitPerSuccess = safeDivide(profit, success);
+  const profitPerDay = safeDivide(profit, activeDayCount);
 
   return {
     ym: targetMonth,
     registeredStoreCount: stores.length,
-    activeStoreCount: targetStoreIds.size,
+    activeStoreCount,
+    activeDayCount,
     profit,
     visits,
     success,
     items,
     rate,
-    categories
+    categories,
+    profitPerStore,
+    profitPerVisit,
+    profitPerSuccess,
+    profitPerDay
   };
 }
 
@@ -401,6 +425,11 @@ function renderMonthSummary(summary) {
       <div class="chip">今月成功 ${summary.success}回</div>
       <div class="chip">今月個数 ${summary.items}個</div>
       <div class="chip">今月成功率 ${summary.rate.toFixed(1)}%</div>
+      <div class="chip">1店舗あたり利益 ${yen(Math.round(summary.profitPerStore))}</div>
+      <div class="chip">1訪問あたり利益 ${yen(Math.round(summary.profitPerVisit))}</div>
+      <div class="chip">成功単価 ${yen(Math.round(summary.profitPerSuccess))}</div>
+      <div class="chip">稼働日数 ${summary.activeDayCount}日</div>
+      <div class="chip">1日あたり利益 ${yen(Math.round(summary.profitPerDay))}</div>
     </div>
 
     <div class="summarySubTitle">月間カテゴリ集計</div>
@@ -492,11 +521,8 @@ function renderCalendar(targetMonth, dailyStats) {
     if (isSelected) cls += " selected";
 
     let valueText = "-";
-    if (hasProfit) {
-      valueText = shortMoney(profit);
-    } else if (hasVisitOnly) {
-      valueText = "0";
-    }
+    if (hasProfit) valueText = shortMoney(profit);
+    else if (hasVisitOnly) valueText = "0";
 
     html += `
       <div class="${cls}" onclick="handleDayTap('${ds}')">
