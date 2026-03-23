@@ -289,11 +289,11 @@
 
     .dayCell{
       width:100%;
-      aspect-ratio:1 / 1.28;
-      border-radius:18px;
+      aspect-ratio:1 / 1.08;
+      border-radius:14px;
       border:2px solid #d9e0ee;
       background:#fff;
-      padding:8px 3px;
+      padding:6px 2px;
       display:flex;
       flex-direction:column;
       align-items:center;
@@ -345,23 +345,23 @@
 
     .dayNum{
       font-size:14px;
-      line-height:1.1;
-      margin-top:2px;
+      line-height:1.05;
+      margin-top:1px;
       font-weight:900;
       text-align:center;
     }
 
     .dayValue{
-      margin-top:10px;
-      font-size:11px;
-      line-height:1.15;
+      margin-top:8px;
+      font-size:clamp(8px, 2.2vw, 12px);
+      line-height:1.05;
       text-align:center;
-      white-space:normal;
-      word-break:break-word;
-      overflow-wrap:anywhere;
-      padding:0 2px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:clip;
       width:100%;
       font-weight:900;
+      letter-spacing:-0.2px;
     }
 
     .help{
@@ -549,18 +549,18 @@
       }
 
       .dayCell{
-        border-radius:20px;
-        padding:10px 4px;
+        border-radius:16px;
+        padding:8px 3px;
       }
 
       .dayNum{
-        font-size:22px;
+        font-size:20px;
       }
 
       .dayValue{
-        font-size:14px;
-        line-height:1.2;
-        margin-top:12px;
+        font-size:13px;
+        line-height:1.08;
+        margin-top:10px;
       }
 
       .rankItem{
