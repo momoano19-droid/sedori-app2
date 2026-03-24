@@ -357,3 +357,58 @@ button:active{
   color:#dc2626;
   font-weight:800;
 }
+
+.topButtons3{
+  grid-template-columns:1fr 1fr 1fr;
+}
+
+/* ===== 説明UI ===== */
+.helpUI{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.4);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+}
+
+.helpUI.show{
+  display:flex;
+}
+
+.helpCard{
+  width:100%;
+  max-width:500px;
+  background:#fff;
+  border-radius:20px;
+  overflow:hidden;
+  box-shadow:0 20px 40px rgba(0,0,0,0.2);
+}
+
+.helpHeader{
+  display:flex;
+  justify-content:space-between;
+  padding:16px;
+  font-weight:800;
+  border-bottom:1px solid #eee;
+}
+
+.helpContent{
+  padding:16px;
+  line-height:1.8;
+}
+
+.helpFooter{
+  display:flex;
+  justify-content:space-between;
+  padding:12px;
+}
+
+.helpFooter button{
+  background:#3976f6;
+  color:#fff;
+  border-radius:12px;
+  padding:10px 14px;
+  font-size:14px;
+}
