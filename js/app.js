@@ -1382,3 +1382,93 @@ function renderTodayRouteList() {
     <div style="line-height:1.8;">${names.join("<br>")}</div>
   `;
 }
+
+let helpStep = 0;
+
+const helpData = [
+  {
+    title: "📘 このツールでできること",
+    content: `
+      ・稼げる店舗が分かる<br>
+      ・仕入れ結果を自動記録<br>
+      ・期待値で判断できる<br>
+      ・近くの店舗を表示<br>
+      ・ルートを自動作成
+    `
+  },
+  {
+    title: "🚀 基本の使い方",
+    content: `
+      ① 店舗を登録<br>
+      ② 訪問したら「訪問＋」<br>
+      ③ 仕入れたら「個数＋」<br>
+      ④ 利益を入力<br><br>
+      → 自動で分析される
+    `
+  },
+  {
+    title: "📊 店舗カードの見方",
+    content: `
+      期待値 → 稼げる度<br>
+      成功率 → 当たりやすさ<br>
+      利益 → 実績<br><br>
+      ✔ 高いほど優秀
+    `
+  },
+  {
+    title: "🔥 判断のコツ",
+    content: `
+      🔥 期待値3000円以上 → 行くべき<br>
+      ⚠️ 成功率低い → 不安定<br>
+      ❌ 連敗中 → 様子見<br><br>
+      👉 期待値が最重要
+    `
+  },
+  {
+    title: "🛣 ルート機能",
+    content: `
+      ① 今日行くにチェック<br>
+      ② ルート作成<br><br>
+      → Googleマップで最適ルート
+    `
+  },
+  {
+    title: "📦 バックアップ",
+    content: `
+      必ず保存！<br><br>
+      ・手動バックアップ<br>
+      ・JSON保存<br><br>
+      👉 データ消失防止
+    `
+  }
+];
+
+function openHelp(){
+  helpStep = 0;
+  document.getElementById("helpUI").classList.add("show");
+  renderHelp();
+}
+
+function closeHelp(){
+  document.getElementById("helpUI").classList.remove("show");
+}
+
+function renderHelp(){
+  const data = helpData[helpStep];
+  document.getElementById("helpTitle").innerHTML = data.title;
+  document.getElementById("helpContent").innerHTML = data.content;
+}
+
+function nextHelp(){
+  if(helpStep < helpData.length - 1){
+    helpStep++;
+    renderHelp();
+  }
+}
+
+function prevHelp(){
+  if(helpStep > 0){
+    helpStep--;
+    renderHelp();
+  }
+}
