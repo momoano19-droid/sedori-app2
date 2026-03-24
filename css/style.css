@@ -862,3 +862,19 @@ button:active{
   padding:10px 14px;
   font-size:14px;
 }
+/* ===== 上部ボタン強化 ===== */
+.mainTopButtons{
+  display:grid;
+  grid-template-columns: 2fr 1fr;
+  gap:14px;
+}
+
+.mainBtn{
+  font-size:18px;
+  box-shadow:0 10px 24px rgba(57,118,246,0.25);
+}
+
+.subBtn{
+  font-size:15px;
+  opacity:0.9;
+}
