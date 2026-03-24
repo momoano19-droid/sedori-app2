@@ -340,6 +340,9 @@ function resolveCategorySelectionInput(input, qty, history, defaultCategory) {
   return parsed;
 }
 
+/* =========================
+   詳細 / 表示強化
+========================= */
 function updateLayoutButtons() {
   const detailBtn = document.getElementById("detailLayoutBtn");
   const compactBtn = document.getElementById("compactLayoutBtn");
@@ -392,22 +395,24 @@ function getStaleCardClass(lastVisitDate) {
 }
 
 function getRecentStats(storeId) {
-  const storeLogs = logs
-    .filter(l => l.storeId === storeId && l.date)
+  const visitLogs = logs
+    .filter(l => l.storeId === storeId && l.type === "visit" && l.date)
     .sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
-  const recentVisits = storeLogs.filter(l => l.type === "visit").slice(0, 3);
-  const recentDates = recentVisits.map(l => l.date);
+  const recentVisitLogs = visitLogs.slice(0, 3);
+  const recentDates = recentVisitLogs.map(l => l.date);
+
+  const recentVisitCount = recentVisitLogs.reduce((sum, l) => sum + Math.max(1, Number(l.delta || 1)), 0);
 
   const recentSuccess = logs
     .filter(l =>
       l.storeId === storeId &&
       l.type === "success" &&
-      recentDates.includes(l.date)
+      recentDates.includes(l.date) &&
+      Number(l.delta || 0) > 0
     )
     .reduce((sum, l) => sum + Number(l.delta || 0), 0);
 
-  const recentVisitCount = recentVisits.reduce((sum, l) => sum + Number(l.delta || 0), 0);
   const recentRate = recentVisitCount > 0 ? (recentSuccess / recentVisitCount) * 100 : 0;
 
   return {
