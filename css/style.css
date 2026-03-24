@@ -883,15 +883,19 @@ button:active{
   box-shadow:0 6px 14px rgba(37,99,235,0.12);
 }
 
+/* ===== ボタン統一挙動 ===== */
 button{
-  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
 }
 
+/* PC用：少し浮く */
 button:hover{
   transform: translateY(-1px);
 }
 
+/* 押した瞬間：即沈む（全ボタン共通） */
 button:active{
+  transition: none;
   transform: scale(0.92);
   box-shadow: inset 0 3px 8px rgba(0,0,0,0.18);
 }
