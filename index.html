@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="店舗管理">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
-  <link rel="stylesheet" href="./css/style.css?v=ui9">
+  <link rel="stylesheet" href="./css/style.css?v=ui10">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
@@ -20,8 +20,9 @@
 
     <!-- 1段目 -->
     <div class="topCard">
-      <div class="topButtons">
+      <div class="topButtons topButtons3">
         <button class="heroBtn" onclick="location.href='report.html'">📊 分析画面へ</button>
+        <button class="ghostBtn" onclick="openHelp()">📘 使い方</button>
         <button class="ghostBtn" onclick="render()">再表示</button>
       </div>
     </div>
@@ -130,8 +131,27 @@
     <div id="storeList"></div>
   </div>
 
+  <!-- UI説明書 -->
+  <div id="helpUI" class="helpUI">
+    <div class="helpCard">
+
+      <div class="helpHeader">
+        <div id="helpTitle">📘 せどりGPSガイド</div>
+        <button onclick="closeHelp()">✕</button>
+      </div>
+
+      <div id="helpContent" class="helpContent"></div>
+
+      <div class="helpFooter">
+        <button onclick="prevHelp()">← 戻る</button>
+        <button onclick="nextHelp()">次へ →</button>
+      </div>
+
+    </div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="./js/app.js?v=ui9"></script>
+  <script src="./js/app.js?v=ui10"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
