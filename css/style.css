@@ -877,4 +877,7 @@ button:active{
 .subBtn{
   font-size:15px;
   opacity:0.9;
+  background:#e8f0ff;
+  color:#2563eb;
+  border:1px solid #c7dbff;
 }
