@@ -1,366 +1,144 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>店舗管理 | せどりGPS管理PRO</title>
 
-  <style>
-    *{ box-sizing:border-box; }
-    html,body{
-      margin:0;
-      padding:0;
-      width:100%;
-      overflow-x:hidden;
-    }
-    body{
-      background:#f3f4f6;
-      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-      color:#1f2340;
-    }
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#3976f6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="店舗管理">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
-    .page{
-      width:100%;
-      max-width:860px;
-      margin:0 auto;
-      padding:12px;
-    }
-
-    .card{
-      background:#fff;
-      border-radius:24px;
-      padding:16px;
-      margin-bottom:16px;
-      box-shadow:0 6px 20px rgba(15,23,42,.06);
-    }
-
-    .pageTitle{
-      margin:0 0 6px;
-      font-size:28px;
-      font-weight:900;
-      line-height:1.25;
-      color:#1d2240;
-    }
-
-    .sub{
-      margin:0;
-      font-size:14px;
-      color:#6b7280;
-      line-height:1.7;
-    }
-
-    .layoutButtons{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:12px;
-    }
-
-    button,
-    input,
-    select{
-      font:inherit;
-    }
-
-    .primaryBtn,
-    .ghostBtn,
-    .dangerBtn,
-    .miniBtn{
-      border:none;
-      border-radius:18px;
-      font-weight:800;
-      cursor:pointer;
-    }
-
-    .primaryBtn,
-    .ghostBtn,
-    .dangerBtn{
-      min-height:54px;
-      padding:0 14px;
-      font-size:16px;
-    }
-
-    .primaryBtn{
-      background:#4b74ea;
-      color:#fff;
-    }
-
-    .ghostBtn{
-      background:#eef1f7;
-      color:#1f2340;
-    }
-
-    .dangerBtn{
-      background:#fee2e2;
-      color:#b91c1c;
-    }
-
-    .toolbar{
-      display:grid;
-      grid-template-columns:1fr auto;
-      gap:12px;
-      align-items:center;
-    }
-
-    .searchInput{
-      width:100%;
-      min-height:52px;
-      border:1px solid #e5e7eb;
-      border-radius:18px;
-      padding:0 14px;
-      background:#fff;
-    }
-
-    .storeList{
-      display:flex;
-      flex-direction:column;
-      gap:14px;
-    }
-
-    .storeCard{
-      border-radius:22px;
-      background:#fff;
-      border:2px solid #dbe3f0;
-      box-shadow:0 6px 18px rgba(15,23,42,.05);
-      overflow:hidden;
-      transition:transform .08s ease, box-shadow .12s ease, opacity .12s ease, border-color .12s ease;
-    }
-
-    .storeCard:active{
-      transform:scale(.995);
-    }
-
-    .storeCard.expected-mid{
-      border-color:#9ec5ff;
-      box-shadow:0 8px 20px rgba(75,116,234,.10);
-    }
-
-    .storeCard.expected-high{
-      border-color:#4b74ea;
-      box-shadow:0 10px 24px rgba(75,116,234,.16);
-    }
-
-    .storeCard.stale-30{
-      opacity:.82;
-    }
-
-    .storeCard.stale-60{
-      opacity:.65;
-    }
-
-    .storeCardBody{
-      padding:16px;
-    }
-
-    .storeTop{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:10px;
-      margin-bottom:10px;
-    }
-
-    .storeName{
-      font-size:20px;
-      font-weight:900;
-      line-height:1.3;
-      color:#1d2240;
-      margin:0;
-    }
-
-    .todayBadge{
-      flex-shrink:0;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      min-height:32px;
-      padding:0 12px;
-      border-radius:999px;
-      background:#eef4ff;
-      color:#356AE6;
-      font-size:12px;
-      font-weight:900;
-    }
-
-    .metaLine{
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      font-size:13px;
-      line-height:1.6;
-      color:#4b5563;
-      margin-bottom:8px;
-    }
-
-    .metaChip{
-      display:inline-flex;
-      align-items:center;
-      min-height:28px;
-      padding:0 10px;
-      border-radius:999px;
-      background:#f3f6fb;
-      color:#334155;
-      font-size:12px;
-      font-weight:800;
-    }
-
-    .addr{
-      font-size:13px;
-      line-height:1.65;
-      color:#6b7280;
-      margin-bottom:12px;
-      word-break:break-word;
-    }
-
-    .statsGrid{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:10px;
-      margin-bottom:12px;
-    }
-
-    .statBox{
-      background:#fafbfe;
-      border:1px solid #edf1f8;
-      border-radius:16px;
-      padding:10px 12px;
-    }
-
-    .statLabel{
-      font-size:11px;
-      font-weight:800;
-      color:#6b7280;
-      margin-bottom:4px;
-      line-height:1.25;
-    }
-
-    .statValue{
-      font-size:18px;
-      font-weight:900;
-      color:#1f2340;
-      line-height:1.2;
-      word-break:break-word;
-    }
-
-    .successGood{ color:#0f9d58; }
-    .successMid{ color:#356AE6; }
-    .successLow{ color:#6b7280; }
-    .successBad{ color:#b91c1c; }
-
-    .detailExtra{
-      margin-top:12px;
-      padding-top:12px;
-      border-top:1px dashed #d7dfec;
-      display:grid;
-      gap:8px;
-    }
-
-    .detailRow{
-      display:flex;
-      flex-wrap:wrap;
-      gap:6px 10px;
-      font-size:13px;
-      line-height:1.6;
-      color:#374151;
-    }
-
-    .warnLine{
-      font-weight:900;
-      color:#b45309;
-    }
-
-    .actions{
-      display:grid;
-      grid-template-columns:repeat(2, 1fr);
-      gap:10px;
-      margin-top:14px;
-    }
-
-    .miniBtn{
-      min-height:46px;
-      padding:0 10px;
-      background:#eef1f7;
-      color:#1f2340;
-      font-size:14px;
-    }
-
-    .miniBtn.primary{
-      background:#e9f1ff;
-      color:#2450a6;
-    }
-
-    .miniBtn.success{
-      background:#e8f7ee;
-      color:#0f9d58;
-    }
-
-    .miniBtn.warn{
-      background:#fff4e5;
-      color:#b45309;
-    }
-
-    .miniBtn.danger{
-      background:#fee2e2;
-      color:#b91c1c;
-    }
-
-    .todayRow{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      margin-top:12px;
-      font-size:14px;
-      color:#374151;
-      font-weight:800;
-    }
-
-    .todayRow input[type="checkbox"]{
-      width:20px;
-      height:20px;
-    }
-
-    .emptyText{
-      font-size:15px;
-      color:#6b7280;
-      line-height:1.8;
-      text-align:center;
-      padding:20px 0;
-    }
-
-    @media (min-width:720px){
-      .actions{
-        grid-template-columns:repeat(4, 1fr);
-      }
-
-      .statsGrid{
-        grid-template-columns:repeat(4, 1fr);
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="./css/style.css?v=ui6">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
   <div class="page">
-    <div class="card">
-      <h1 class="pageTitle">📍 店舗管理</h1>
-      <p class="sub">コンパクト / 詳細を切り替えて、店舗の更新と判断ができます。</p>
+
+    <!-- 1段目 -->
+    <div class="topCard">
+      <div class="topButtons">
+        <button class="heroBtn" onclick="location.href='report.html'">📊 分析画面へ</button>
+        <button class="ghostBtn" onclick="render()">再表示</button>
+      </div>
     </div>
 
+    <!-- 2段目：バックアップ -->
+    <div class="card">
+      <div class="topButtons">
+        <button class="heroBtn" onclick="exportBackup()">📦 手動バックアップ</button>
+        <button class="ghostBtn" onclick="restoreAutoBackup()">♻ 自動バックアップ</button>
+      </div>
+
+      <div class="row2 mt12">
+        <button class="ghostBtn" onclick="document.getElementById('backupFile').click()">📥 バックアップ読込</button>
+        <button class="ghostBtn" onclick="showAutoBackupInfo()">🕒 自動バックアップ確認</button>
+      </div>
+
+      <input
+        id="backupFile"
+        type="file"
+        accept=".json,application/json"
+        style="display:none"
+        onchange="importBackup(event)"
+      >
+
+      <div class="helpText">
+        手動バックアップはJSONを書き出します。自動バックアップは更新のたびに保存されます。
+      </div>
+    </div>
+
+    <!-- 店舗追加 -->
+    <div class="card">
+      <div class="addGrid">
+        <input id="storeName" placeholder="店舗名を入力">
+        <input id="prefName" placeholder="都道府県（例：茨城）">
+        <input id="address" class="span2" placeholder="住所（これだけでもOK）">
+        <input id="mapUrl" class="span2" placeholder="Googleマップ共有リンク / 短縮URL / place URL など">
+      </div>
+
+      <button class="primaryWide" onclick="addStore()">店舗追加</button>
+
+      <div class="helpText">
+        Googleマップの共有リンク、短縮URL、place URL、@緯度経度入りURLなどを読み取れるようにしています。
+      </div>
+    </div>
+
+    <!-- 検索・絞り込み -->
+    <div class="card">
+      <div class="searchGrid">
+        <input id="q" placeholder="🔎 店舗検索（店舗名など）" oninput="render()">
+        <select id="prefFilter" onchange="render()">
+          <option value="__ALL__">全て（都道府県ごと）</option>
+        </select>
+
+        <input id="minExpected" placeholder="期待値 下限（例：2000）" oninput="render()">
+        <input id="minRate" placeholder="成功率 下限%（例：20）" oninput="render()">
+
+        <select id="sortType" onchange="render()">
+          <option value="expected">期待値順</option>
+          <option value="rate">成功率順</option>
+          <option value="avgProfit">平均利益順</option>
+          <option value="visits">訪問回数順</option>
+          <option value="route">距離順</option>
+        </select>
+
+        <button class="primaryBtn" onclick="showNearbyStores()">🚗 現在地で効率更新</button>
+
+        <button class="primaryBtn" onclick="showNearbyStores()">📍 近くの店舗（3km）</button>
+        <button class="ghostBtn" onclick="clearNearbyMode(); render()">通常表示に戻す</button>
+
+        <button class="ghostBtn" onclick="refreshAllCoordinates()">📡 座標なし店舗を一括再取得</button>
+        <button class="ghostBtn" onclick="showNoCoordsOnly()">📍 座標なし店舗を見る</button>
+
+        <button class="ghostBtn" onclick="document.getElementById('mapWrap').scrollIntoView({behavior:'smooth'})">🗺️ 店舗MAP</button>
+        <button class="ghostBtn" onclick="moveToCurrentLocation()">📍 現在地へ移動</button>
+      </div>
+    </div>
+
+    <!-- レイアウト切替 -->
     <div class="card">
       <div class="layoutButtons">
-        <button id="detailLayoutBtn" class="ghostBtn" onclick="setLayoutMode('detail')">詳細</button>
-        <button id="compactLayoutBtn" class="ghostBtn" onclick="setLayoutMode('compact')">コンパクト</button>
+        <button class="ghostBtn" onclick="setLayoutMode('detail')">詳細</button>
+        <button class="primaryBtn" onclick="setLayoutMode('compact')">コンパクト</button>
       </div>
     </div>
 
+    <!-- 今日ルート -->
     <div class="card">
-      <div class="toolbar">
-        <input id="searchInput" class="searchInput" type="text" placeholder="店舗名・住所・都道府県で検索" oninput="renderStores()" />
-        <button class="ghostBtn" onclick="seedDemoIfEmpty()">デモ投入</button>
-      </div>
-    </div>
-
-    <div id="storeList" class="storeList"></div>
+  <div class="topButtons">
+    <button class="primaryBtn" onclick="buildTodayRoute()">🛣 今日ルート作成</button>
+    <button class="ghostBtn" onclick="clearTodayChecks()">☑ 今日行くを解除</button>
+  </div>
+  <div class="helpText">
+    店舗カードの「今日行く」にチェックした店舗を使ってルートを作成します。
   </div>
 
-  <script src="./app.js?v=store-card-final1"></script>
+  <div id="todayRouteList" class="helpText" style="margin-top:10px;"></div>
+</div>
+    </div>
+
+    <!-- 地図 -->
+    <div id="mapWrap" class="card mapWrap">
+      <div class="sectionTitle">店舗MAP</div>
+      <div id="map"></div>
+    </div>
+
+    <!-- 店舗カード一覧 -->
+    <div id="storeList"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="./js/app.js?v=ui6"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js").catch(console.error);
+      });
+    }
+  </script>
 </body>
 </html>
