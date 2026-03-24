@@ -280,3 +280,76 @@ button:active{
   font-size: 16px !important;
   cursor: pointer;
 }
+
+/* =========================
+   レイアウト切替の見た目
+========================= */
+.layoutButtons button.activeLayout{
+  background:#3976f6 !important;
+  color:#fff !important;
+}
+
+/* =========================
+   店舗カード強化
+========================= */
+.item{
+  border:2px solid transparent;
+  transition:opacity .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+.item.expected-high{
+  border-color:#3976f6;
+  box-shadow:0 8px 24px rgba(57,118,246,0.14);
+}
+
+.item.expected-mid{
+  border-color:#9cc0ff;
+  box-shadow:0 8px 20px rgba(57,118,246,0.08);
+}
+
+.item.stale-30{
+  opacity:.82;
+}
+
+.item.stale-60{
+  opacity:.62;
+}
+
+.item .detailBox{
+  margin-top:12px;
+  padding-top:12px;
+  border-top:1px dashed #d8deea;
+}
+
+.item .detailLine{
+  font-size:13px;
+  line-height:1.7;
+  color:#4b5563;
+  margin-top:4px;
+}
+
+.item .detailWarn{
+  color:#b45309;
+  font-weight:800;
+}
+
+/* 成功率色分け */
+.rate-good{
+  color:#16a34a;
+  font-weight:800;
+}
+
+.rate-mid{
+  color:#2563eb;
+  font-weight:800;
+}
+
+.rate-low{
+  color:#6b7280;
+  font-weight:800;
+}
+
+.rate-bad{
+  color:#dc2626;
+  font-weight:800;
+}
