@@ -72,11 +72,12 @@ button{
   font-size:17px;
   font-weight:700;
   cursor:pointer;
-  transition:opacity .2s ease;
+  transition:opacity .2s ease, box-shadow .2s ease, transform .08s ease;
 }
 
 button:active{
   opacity:.88;
+  transform:scale(.995);
 }
 
 .heroBtn,
@@ -287,6 +288,7 @@ button:active{
 .layoutButtons button.activeLayout{
   background:#3976f6 !important;
   color:#fff !important;
+  box-shadow:0 8px 18px rgba(57,118,246,0.20);
 }
 
 /* =========================
@@ -294,7 +296,7 @@ button:active{
 ========================= */
 .item{
   border:2px solid transparent;
-  transition:opacity .2s ease, border-color .2s ease, box-shadow .2s ease;
+  transition:opacity .2s ease, border-color .2s ease, box-shadow .2s ease, transform .08s ease;
 }
 
 .item.expected-high{
@@ -333,7 +335,9 @@ button:active{
   font-weight:800;
 }
 
-/* 成功率色分け */
+/* =========================
+   成功率色分け
+========================= */
 .rate-good{
   color:#16a34a;
   font-weight:800;
