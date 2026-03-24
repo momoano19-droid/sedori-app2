@@ -32,7 +32,7 @@ let logs = loadLogs();
 let nearbyMode = false;
 let nearbyStoreIds = new Set();
 let noCoordsOnlyMode = false;
-let currentLayoutMode = "detail";
+let currentLayoutMode = localStorage.getItem("store_layout_mode") || "compact";
 
 let map = null;
 let mapMarkers = [];
@@ -44,6 +44,7 @@ window.lastPos = null;
 ========================= */
 window.addEventListener("load", () => {
   initMap();
+  updateLayoutButtons();
   render();
   setTimeout(() => autoDetectNearbyStores(), 800);
 });
@@ -337,6 +338,105 @@ function resolveCategorySelectionInput(input, qty, history, defaultCategory) {
   }
 
   return parsed;
+}
+
+function updateLayoutButtons() {
+  const detailBtn = document.getElementById("detailLayoutBtn");
+  const compactBtn = document.getElementById("compactLayoutBtn");
+
+  if (detailBtn) {
+    detailBtn.classList.toggle("activeLayout", currentLayoutMode === "detail");
+    if (currentLayoutMode === "detail") {
+      detailBtn.classList.remove("ghostBtn");
+      detailBtn.classList.add("primaryBtn");
+    } else {
+      detailBtn.classList.remove("primaryBtn");
+      detailBtn.classList.add("ghostBtn");
+    }
+  }
+
+  if (compactBtn) {
+    compactBtn.classList.toggle("activeLayout", currentLayoutMode === "compact");
+    if (currentLayoutMode === "compact") {
+      compactBtn.classList.remove("ghostBtn");
+      compactBtn.classList.add("primaryBtn");
+    } else {
+      compactBtn.classList.remove("primaryBtn");
+      compactBtn.classList.add("ghostBtn");
+    }
+  }
+}
+
+function getRateClass(rate) {
+  if (rate >= 70) return "rate-good";
+  if (rate >= 30) return "rate-mid";
+  if (rate > 0) return "rate-low";
+  return "rate-bad";
+}
+
+function getExpectedCardClass(expected) {
+  if (expected >= 10000) return "expected-high";
+  if (expected >= 3000) return "expected-mid";
+  return "";
+}
+
+function getStaleCardClass(lastVisitDate) {
+  if (!lastVisitDate) return "";
+  const today = new Date(tokyoDateStr());
+  const last = new Date(lastVisitDate);
+  const diff = Math.floor((today - last) / (1000 * 60 * 60 * 24));
+
+  if (diff >= 60) return "stale-60";
+  if (diff >= 30) return "stale-30";
+  return "";
+}
+
+function getRecentStats(storeId) {
+  const storeLogs = logs
+    .filter(l => l.storeId === storeId && l.date)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+  const recentVisits = storeLogs.filter(l => l.type === "visit").slice(0, 3);
+  const recentDates = recentVisits.map(l => l.date);
+
+  const recentSuccess = logs
+    .filter(l =>
+      l.storeId === storeId &&
+      l.type === "success" &&
+      recentDates.includes(l.date)
+    )
+    .reduce((sum, l) => sum + Number(l.delta || 0), 0);
+
+  const recentVisitCount = recentVisits.reduce((sum, l) => sum + Number(l.delta || 0), 0);
+  const recentRate = recentVisitCount > 0 ? (recentSuccess / recentVisitCount) * 100 : 0;
+
+  return {
+    recentVisitCount,
+    recentSuccess,
+    recentRate
+  };
+}
+
+function getNoSuccessStreak(storeId) {
+  const visitLogs = logs
+    .filter(l => l.storeId === storeId && l.type === "visit" && l.date)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+  let streak = 0;
+
+  for (const v of visitLogs) {
+    const hasSuccess = logs.some(l =>
+      l.storeId === storeId &&
+      l.type === "success" &&
+      l.date === v.date &&
+      Number(l.delta || 0) > 0
+    );
+
+    if (hasSuccess) break;
+    streak += Math.max(1, Number(v.delta || 1));
+  }
+
+  return streak;
 }
 
 /* =========================
@@ -959,6 +1059,8 @@ function showNoCoordsOnly() {
 
 function setLayoutMode(mode) {
   currentLayoutMode = mode === "compact" ? "compact" : "detail";
+  localStorage.setItem("store_layout_mode", currentLayoutMode);
+  updateLayoutButtons();
   render();
 }
 
@@ -1075,6 +1177,11 @@ function buildPrefFilter() {
 
 function renderStoreCard(s, idx) {
   const m = getMetrics(s);
+  const rateClass = getRateClass(m.rate);
+  const expectedClass = getExpectedCardClass(m.expected);
+  const staleClass = getStaleCardClass(s.lastVisitDate);
+  const recent = getRecentStats(s.id);
+  const streak = getNoSuccessStreak(s.id);
 
   let dist = null;
   if (window.lastPos && hasCoords(s)) {
@@ -1089,7 +1196,7 @@ function renderStoreCard(s, idx) {
   const compact = currentLayoutMode === "compact";
 
   return `
-    <div class="item">
+    <div class="item ${expectedClass} ${staleClass}">
       <div class="name">${escapeHtml(s.name)}</div>
 
       <div style="margin-top:6px;">
@@ -1097,18 +1204,27 @@ function renderStoreCard(s, idx) {
         ${typeof dist === "number" ? `<span class="badge near">📍 ${dist.toFixed(1)}km</span>` : ``}
         ${s.mapUrl ? `<span class="badge map">🗺 MAPあり</span>` : ``}
         ${hasCoords(s) ? `<span class="badge" style="background:#eef8ff;color:#2563eb;">📡 座標あり</span>` : ``}
-        ${m.freq > 0 ? `<span class="badge freq">補充頻度 ${formatRestockDays(m.freq)}</span>` : ``}
+        <span class="badge freq">補充頻度 ${formatRestockDays(m.freq)}</span>
       </div>
 
-      ${!compact ? `
-        ${s.address ? `<div class="mini mt8">📍 ${escapeHtml(s.address)}</div>` : ``}
+      ${s.address ? `<div class="mini mt8">📍 ${escapeHtml(s.address)}</div>` : ``}
 
+      ${compact ? `
+        <div class="mini mt8">
+          期待値 ${Math.round(m.expected).toLocaleString()}円 / 利益 ${m.profit.toLocaleString()}円 /
+          <span class="${rateClass}">成功率 ${m.rate.toFixed(1)}%</span>
+        </div>
+
+        <div class="mini mt8">
+          訪問 ${m.visits}回 / 成功 ${m.success}回 / 個数 ${m.items}個
+        </div>
+      ` : `
         <div class="mini mt8">
           期待値：${Math.round(m.expected).toLocaleString()}円
         </div>
 
         <div class="mini mt8" style="line-height:1.6;">
-          利益：${m.profit.toLocaleString()}円 / 成功率：${m.rate.toFixed(1)}%<br>
+          利益：${m.profit.toLocaleString()}円 / <span class="${rateClass}">成功率：${m.rate.toFixed(1)}%</span><br>
           平均利益：${Math.round(m.avgProfit).toLocaleString()}円 / 平均個数：${m.avgItems.toFixed(1)}個
         </div>
 
@@ -1117,9 +1233,12 @@ function renderStoreCard(s, idx) {
         </div>
 
         ${categorySummary ? `<div class="mini mt8">📦 ${escapeHtml(categorySummary)}</div>` : ``}
-      ` : `
-        <div class="mini mt8">
-          期待値 ${Math.round(m.expected).toLocaleString()}円 / 利益 ${m.profit.toLocaleString()}円 / 成功率 ${m.rate.toFixed(1)}%
+
+        <div class="detailBox">
+          <div class="detailLine">📅 最終訪問：${s.lastVisitDate ? escapeHtml(s.lastVisitDate) : "なし"}</div>
+          <div class="detailLine">📊 直近3回：成功 ${recent.recentSuccess}回 / ${recent.recentVisitCount}訪問（${recent.recentRate.toFixed(1)}%）</div>
+          <div class="detailLine">💰 訪問あたり期待値：${Math.round(m.expected).toLocaleString()}円</div>
+          ${streak >= 3 ? `<div class="detailLine detailWarn">⚠️ ${streak}回連続成功なし</div>` : ``}
         </div>
       `}
 
@@ -1179,6 +1298,7 @@ function showEmptyDataGuide() {
 }
 
 function render() {
+  updateLayoutButtons();
   buildPrefFilter();
 
   const q = document.getElementById("q")?.value?.trim() || "";
@@ -1230,11 +1350,11 @@ function render() {
     : `<div class="mini">${nearbyMode ? "近くの店舗は見つかりませんでした。" : "該当する店舗がありません。"}</div>`;
 
   renderMapMarkers();
-renderTodayRouteList();
+  renderTodayRouteList();
 
-if (!stores.length) {
-  showEmptyDataGuide();
-}
+  if (!stores.length) {
+    showEmptyDataGuide();
+  }
 }
 
 function renderTodayRouteList() {
