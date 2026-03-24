@@ -12,12 +12,13 @@
   <meta name="apple-mobile-web-app-title" content="店舗管理">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
-  <link rel="stylesheet" href="./css/style.css?v=ui7">
+  <link rel="stylesheet" href="./css/style.css?v=ui9">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
   <div class="page">
 
+    <!-- 1段目 -->
     <div class="topCard">
       <div class="topButtons">
         <button class="heroBtn" onclick="location.href='report.html'">📊 分析画面へ</button>
@@ -25,6 +26,7 @@
       </div>
     </div>
 
+    <!-- 2段目：バックアップ -->
     <div class="card">
       <div class="topButtons">
         <button class="heroBtn" onclick="exportBackup()">📦 手動バックアップ</button>
@@ -49,6 +51,7 @@
       </div>
     </div>
 
+    <!-- 店舗追加 -->
     <div class="card">
       <div class="addGrid">
         <input id="storeName" placeholder="店舗名を入力">
@@ -64,6 +67,7 @@
       </div>
     </div>
 
+    <!-- 検索・絞り込み -->
     <div class="card">
       <div class="searchGrid">
         <input id="q" placeholder="🔎 店舗検索（店舗名など）" oninput="render()">
@@ -95,6 +99,7 @@
       </div>
     </div>
 
+    <!-- レイアウト切替 -->
     <div class="card">
       <div class="layoutButtons">
         <button id="detailLayoutBtn" class="ghostBtn" onclick="setLayoutMode('detail')">詳細</button>
@@ -102,6 +107,7 @@
       </div>
     </div>
 
+    <!-- 今日ルート -->
     <div class="card">
       <div class="topButtons">
         <button class="primaryBtn" onclick="buildTodayRoute()">🛣 今日ルート作成</button>
@@ -110,19 +116,22 @@
       <div class="helpText">
         店舗カードの「今日行く」にチェックした店舗を使ってルートを作成します。
       </div>
+
       <div id="todayRouteList" class="helpText" style="margin-top:10px;"></div>
     </div>
 
+    <!-- 地図 -->
     <div id="mapWrap" class="card mapWrap">
       <div class="sectionTitle">店舗MAP</div>
       <div id="map"></div>
     </div>
 
+    <!-- 店舗カード一覧 -->
     <div id="storeList"></div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="./js/app.js?v=ui7"></script>
+  <script src="./js/app.js?v=ui9"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
