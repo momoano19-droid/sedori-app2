@@ -237,6 +237,29 @@ function getMetrics(s) {
     freq
   };
 }
+/* =========================
+   店舗評価ラベル（初期対応版）
+========================= */
+function getStoreEvaluationLabel(m) {
+  const visits = m.visits;
+  const expected = m.expected;
+  const rate = m.rate;
+
+  // 未評価（最重要）
+  if (visits < 3) {
+    return { label: "🆕 未評価", class: "eval-new" };
+  }
+
+  if (expected >= 3000) {
+    return { label: "🔥 行くべき店舗", class: "eval-good" };
+  }
+
+  if (rate >= 30) {
+    return { label: "⚠️ 様子見店舗", class: "eval-mid" };
+  }
+
+  return { label: "❌ スキップ推奨", class: "eval-bad" };
+}
 
 function formatRestockDays(v) {
   const n = Number(v || 0);
@@ -1182,6 +1205,7 @@ function buildPrefFilter() {
 
 function renderStoreCard(s, idx) {
   const m = getMetrics(s);
+  const evalData = getStoreEvaluationLabel(m);
   const rateClass = getRateClass(m.rate);
   const expectedClass = getExpectedCardClass(m.expected);
   const staleClass = getStaleCardClass(s.lastVisitDate);
@@ -1201,8 +1225,13 @@ function renderStoreCard(s, idx) {
   const compact = currentLayoutMode === "compact";
 
   return `
-    <div class="item ${expectedClass} ${staleClass}">
-      <div class="name">${escapeHtml(s.name)}</div>
+  <div class="item ${expectedClass} ${staleClass}">
+
+    <div class="evalLabel ${evalData.class}">
+      ${evalData.label}
+    </div>
+
+    <div class="name">${escapeHtml(s.name)}</div>
 
       <div style="margin-top:6px;">
         <span class="badge">${escapeHtml(s.pref || "未設定")}</span>
