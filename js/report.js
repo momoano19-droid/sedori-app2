@@ -190,7 +190,7 @@ function getMonthBundle(stores, logs, targetMonth) {
       perStore[storeId] = {
         id: storeId,
         name: storeMap[storeId]?.name || "不明な店舗",
-        pref: storeMap[storeId]?.pref || "",
+        pref: String(storeMap[storeId]?.pref || "").trim(),
         profit: 0,
         visits: 0,
         success: 0,
@@ -262,6 +262,7 @@ function getMonthBundle(stores, logs, targetMonth) {
   };
 
   const topLists = buildTopListsFromStoreStats(Object.values(perStore));
+  const prefStats = buildPrefStats(stores, perStore);
 
   const bundle = {
     monthLogs,
@@ -269,7 +270,8 @@ function getMonthBundle(stores, logs, targetMonth) {
     daily,
     perStore,
     topLists,
-    categories
+    categories,
+    prefStats
   };
 
   cachedMonthData.set(key, bundle);
@@ -349,6 +351,92 @@ function buildTopListsFromStoreStats(storeStats) {
       .sort((a, b) => b.profit - a.profit)
       .slice(0, 10)
   };
+}
+
+/* =========================
+   都道府県別集計
+========================= */
+function buildPrefStats(stores, perStore) {
+  const prefMap = {};
+
+  stores.forEach(store => {
+    const pref = String(store.pref || "").trim() || "未設定";
+    if (!prefMap[pref]) {
+      prefMap[pref] = {
+        pref,
+        registeredStoreCount: 0,
+        activeStoreCount: 0,
+        profit: 0,
+        visits: 0,
+        success: 0,
+        items: 0,
+        rate: 0,
+        expected: 0
+      };
+    }
+    prefMap[pref].registeredStoreCount += 1;
+  });
+
+  Object.values(perStore).forEach(stat => {
+    const pref = String(stat.pref || "").trim() || "未設定";
+    if (!prefMap[pref]) {
+      prefMap[pref] = {
+        pref,
+        registeredStoreCount: 0,
+        activeStoreCount: 0,
+        profit: 0,
+        visits: 0,
+        success: 0,
+        items: 0,
+        rate: 0,
+        expected: 0
+      };
+    }
+
+    prefMap[pref].activeStoreCount += 1;
+    prefMap[pref].profit += Number(stat.profit || 0);
+    prefMap[pref].visits += Number(stat.visits || 0);
+    prefMap[pref].success += Number(stat.success || 0);
+    prefMap[pref].items += Number(stat.items || 0);
+  });
+
+  return Object.values(prefMap)
+    .map(x => {
+      const visits = Number(x.visits || 0);
+      const success = Number(x.success || 0);
+      const profit = Number(x.profit || 0);
+      return {
+        ...x,
+        rate: visits > 0 ? (success / visits) * 100 : 0,
+        expected: visits > 0 ? profit / visits : 0
+      };
+    })
+    .sort((a, b) => b.expected - a.expected || b.profit - a.profit);
+}
+
+function renderPrefAnalysis(list) {
+  const el = document.getElementById("prefAnalysisWrap");
+  if (!el) return;
+
+  if (!list.length) {
+    el.innerHTML = `<div class="emptyText">都道府県データがありません。</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="catList">
+      ${list.map(item => `
+        <div class="catItem" style="grid-template-columns:1fr;">
+          <div class="catName">${escapeHtml(item.pref)}</div>
+          <div class="detailText" style="margin-top:6px;">
+            登録店舗 ${item.registeredStoreCount}件 / 対象店舗 ${item.activeStoreCount}件<br>
+            利益 ${yen(item.profit)} / 訪問 ${item.visits}回 / 成功 ${item.success}回 / 個数 ${item.items}個<br>
+            成功率 ${item.rate.toFixed(1)}% / 期待値 ${Math.round(item.expected).toLocaleString()}円
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
 }
 
 /* =========================
@@ -937,6 +1025,7 @@ function bootReport() {
   renderCalendar(targetMonth, bundle.daily);
   renderTopStores(bundle.topLists);
   renderCategorySummary(bundle.categories);
+  renderPrefAnalysis(bundle.prefStats);
 }
 
 window.addEventListener("load", bootReport);
