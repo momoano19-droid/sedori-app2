@@ -14,16 +14,20 @@
 
   <style>
     *{ box-sizing:border-box; }
+
     html,body{
       margin:0;
       padding:0;
       width:100%;
       overflow-x:hidden;
     }
+
     body{
       background:#f3f4f6;
       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
       color:#1f2340;
+      -webkit-text-size-adjust:100%;
+      text-size-adjust:100%;
     }
 
     .page{
@@ -91,16 +95,30 @@
       color:#1f2340;
       padding:0 16px;
       appearance:none;
+      -webkit-appearance:none;
       border:1px solid #e5e7eb;
     }
 
     button{
       cursor:pointer;
+      transition:
+        transform .08s ease,
+        filter .08s ease,
+        box-shadow .12s ease,
+        opacity .12s ease;
+      -webkit-tap-highlight-color:transparent;
+      touch-action:manipulation;
+    }
+
+    button:active{
+      transform:scale(.96);
+      filter:brightness(.96);
     }
 
     .primaryBtn{
       background:#4b74ea;
       color:#fff;
+      box-shadow:0 10px 22px rgba(75,116,234,.18);
     }
 
     .ghostBtn{
@@ -339,7 +357,7 @@
       font-weight:800;
       color:#444;
       overflow:hidden;
-      transition:transform .08s ease, box-shadow .08s ease, border-color .08s ease;
+      transition:transform .08s ease, box-shadow .08s ease, border-color .08s ease, background .08s ease;
       box-shadow:0 3px 8px rgba(70,90,140,.05);
     }
 
@@ -359,6 +377,13 @@
       box-shadow:0 6px 14px rgba(75,116,234,.22);
     }
 
+    .dayCell.bigSuccess{
+      background:#16a34a;
+      border-color:#16a34a;
+      color:#fff;
+      box-shadow:0 6px 16px rgba(22,163,74,.26);
+    }
+
     .dayCell.visitOnly{
       background:#eaf3ff;
       border-color:#9ec5ff;
@@ -374,17 +399,15 @@
       box-shadow:0 0 0 3px rgba(240,169,58,.15) inset;
     }
 
-    .dayCell.today:not(.hasData):not(.visitOnly){
+    .dayCell.today:not(.hasData):not(.visitOnly):not(.bigSuccess){
       background:#fff7ea;
       border-color:#f0a93a;
       color:#a56a12;
     }
 
-    .dayCell.visitOnly.today{
-      border-color:#f0a93a;
-    }
-
-    .dayCell.hasData.today{
+    .dayCell.visitOnly.today,
+    .dayCell.hasData.today,
+    .dayCell.bigSuccess.today{
       border-color:#f0a93a;
     }
 
@@ -415,6 +438,12 @@
       line-height:1.7;
       color:#6b7280;
       margin-top:10px;
+    }
+
+    .stack{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
     }
 
     .list{
@@ -717,7 +746,7 @@
 
     <div class="card">
       <h2 class="sectionTitle">🏆 上位店舗</h2>
-      <div id="topStoresWrap"></div>
+      <div id="topStoresWrap" class="stack"></div>
     </div>
 
     <div class="card">
@@ -736,6 +765,6 @@
     </div>
   </div>
 
-  <script src="./js/report.js?v=cal3"></script>
+  <script src="./js/report.js?v=cal4"></script>
 </body>
 </html>
