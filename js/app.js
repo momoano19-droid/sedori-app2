@@ -40,6 +40,13 @@ let mapInitialized = false;
 window.lastPos = null;
 
 /* =========================
+   カテゴリ数量モーダル状態
+========================= */
+let qtyCategoryModalResolver = null;
+let qtyCategoryCurrentQty = 1;
+let qtyCategorySelected = {};
+
+/* =========================
    起動
 ========================= */
 window.addEventListener("load", () => {
@@ -47,6 +54,7 @@ window.addEventListener("load", () => {
   updateLayoutButtons();
   render();
   setTimeout(() => autoDetectNearbyStores(), 800);
+  setupButtonPressEffect();
 });
 
 /* =========================
@@ -164,6 +172,12 @@ function escapeHtml(str) {
     .replaceAll("'", "&#39;");
 }
 
+function escapeJsString(str) {
+  return String(str)
+    .replaceAll("\\", "\\\\")
+    .replaceAll("'", "\\'");
+}
+
 function clampNonNeg(n) {
   const x = Number(n);
   if (isNaN(x) || x < 0) return 0;
@@ -237,29 +251,6 @@ function getMetrics(s) {
     freq
   };
 }
-/* =========================
-   店舗評価ラベル（初期対応版）
-========================= */
-function getStoreEvaluationLabel(m) {
-  const visits = m.visits;
-  const expected = m.expected;
-  const rate = m.rate;
-
-  // 未評価（最重要）
-  if (visits < 3) {
-    return { label: "🆕 未評価", class: "eval-new" };
-  }
-
-  if (expected >= 3000) {
-    return { label: "🔥 行くべき店舗", class: "eval-good" };
-  }
-
-  if (rate >= 30) {
-    return { label: "⚠️ 様子見店舗", class: "eval-mid" };
-  }
-
-  return { label: "❌ スキップ推奨", class: "eval-bad" };
-}
 
 function formatRestockDays(v) {
   const n = Number(v || 0);
@@ -331,7 +322,7 @@ function getCategoryHistory() {
   return Object.entries(freq)
     .sort((a, b) => b[1] - a[1])
     .map(([cat]) => cat)
-    .slice(0, 12);
+    .slice(0, 16);
 }
 
 function resolveCategorySelectionInput(input, qty, history, defaultCategory) {
@@ -465,6 +456,26 @@ function getNoSuccessStreak(storeId) {
   }
 
   return streak;
+}
+
+function getStoreEvaluationLabel(m) {
+  const visits = m.visits;
+  const expected = m.expected;
+  const rate = m.rate;
+
+  if (visits < 3) {
+    return { label: "🆕 未評価", class: "eval-new" };
+  }
+
+  if (expected >= 3000) {
+    return { label: "🔥 行くべき店舗", class: "eval-good" };
+  }
+
+  if (rate >= 30) {
+    return { label: "⚠️ 様子見店舗", class: "eval-mid" };
+  }
+
+  return { label: "❌ スキップ推奨", class: "eval-bad" };
 }
 
 /* =========================
@@ -868,38 +879,52 @@ function itemsPlus(i) {
   const s = stores[i];
   if (!s) return;
 
-  const n = clampNonNeg(parseInt(prompt("追加する個数", "1"), 10));
-  if (!n) return;
-
   const history = getCategoryHistory();
-  const historyText = history.length
-    ? `\n\nカテゴリ履歴:\n${history.map((c, idx) => `${idx + 1}: ${c}`).join("\n")}\n\n番号入力で選択、新規は文字入力、複数は 例: 楽器:2, 家電:1`
-    : `\n\nカテゴリ名を入力してください。複数は 例: 楽器:2, 家電:1`;
 
-  const catInput = prompt(`カテゴリを入力してください（追加個数: ${n}）${historyText}`, s.defaultCategory || "");
-  if (catInput === null) return;
+  openQtyCategoryModal({
+    history,
+    defaultCategory: s.defaultCategory
+  }).then(result => {
+    if (!result) return;
 
-  const catMap = resolveCategorySelectionInput(catInput, n, history, s.defaultCategory);
-  if (!catMap) return;
+    const n = clampNonNeg(parseInt(result.qty || "0", 10));
+    const catMap = result.categoryMap && typeof result.categoryMap === "object"
+      ? result.categoryMap
+      : null;
 
-  s.items += n;
-  s.buyDays += 1;
-  if (s.buyDays > s.visits) s.visits = s.buyDays;
-  s.lastVisitDate = tokyoDateStr();
+    if (!n || !catMap) return;
 
-  addLog(s.id, "success", 1);
-  addLog(s.id, "items", n);
+    const keys = Object.keys(catMap);
+    if (!keys.length) return;
 
-  Object.entries(catMap).forEach(([cat, qty]) => {
-    s.categoryCounts[cat] = (s.categoryCounts[cat] || 0) + qty;
-    addLog(s.id, "category", qty, cat);
+    const total = Object.values(catMap).reduce((sum, v) => sum + Number(v || 0), 0);
+    if (total !== n) {
+      alert("カテゴリ個数の合計が一致していません。");
+      return;
+    }
+
+    s.items += n;
+    s.buyDays += 1;
+    if (s.buyDays > s.visits) s.visits = s.buyDays;
+    s.lastVisitDate = tokyoDateStr();
+
+    addLog(s.id, "success", 1);
+    addLog(s.id, "items", n);
+
+    keys.forEach(cat => {
+      const addQty = clampNonNeg(catMap[cat] || 0);
+      if (!addQty) return;
+
+      s.categoryCounts[cat] = (s.categoryCounts[cat] || 0) + addQty;
+      addLog(s.id, "category", addQty, cat);
+    });
+
+    const firstCat = keys[0];
+    if (firstCat) s.defaultCategory = firstCat;
+
+    saveAll();
+    render();
   });
-
-  const firstCat = Object.keys(catMap)[0];
-  if (firstCat) s.defaultCategory = firstCat;
-
-  saveAll();
-  render();
 }
 
 function itemsMinus(i) {
@@ -1225,13 +1250,12 @@ function renderStoreCard(s, idx) {
   const compact = currentLayoutMode === "compact";
 
   return `
-  <div class="item ${expectedClass} ${staleClass}">
+    <div class="item ${expectedClass} ${staleClass}">
+      <div class="evalLabel ${evalData.class}">
+        ${evalData.label}
+      </div>
 
-    <div class="evalLabel ${evalData.class}">
-      ${evalData.label}
-    </div>
-
-    <div class="name">${escapeHtml(s.name)}</div>
+      <div class="name">${escapeHtml(s.name)}</div>
 
       <div style="margin-top:6px;">
         <span class="badge">${escapeHtml(s.pref || "未設定")}</span>
@@ -1402,9 +1426,7 @@ function renderTodayRouteList() {
     return;
   }
 
-  const names = checkedStores.map((s, i) => {
-    return `${i + 1}. ${escapeHtml(s.name)}`;
-  });
+  const names = checkedStores.map((s, i) => `${i + 1}. ${escapeHtml(s.name)}`);
 
   el.innerHTML = `
     <div style="font-weight:700; margin-bottom:6px;">今日行く店舗</div>
@@ -1412,6 +1434,9 @@ function renderTodayRouteList() {
   `;
 }
 
+/* =========================
+   使い方ガイド
+========================= */
 let helpStep = 0;
 
 const helpData = [
@@ -1472,10 +1497,8 @@ const helpData = [
       <b>【コンパクト】</b><br>
       一覧でサッと見る用です。<br>
       店舗を多く並べて、素早く判断したい時に向いています。<br><br>
-
       <b>【詳細】</b><br>
       その店舗を行くべきか判断するための情報を多く表示します。<br><br>
-
       <b>詳細で追加される情報</b><br>
       ・最終訪問日<br>
       ・直近3回の成績<br>
@@ -1489,16 +1512,12 @@ const helpData = [
       <b>主要な指標の意味はこれです。</b><br><br>
       <b>期待値</b><br>
       1回訪問した時に、どれくらい利益が見込めるかの目安です。<br><br>
-
       <b>成功率</b><br>
       訪問した時に、仕入れ成功した割合です。<br><br>
-
       <b>平均利益</b><br>
       成功1回あたり、平均でどれくらい利益が出ているかです。<br><br>
-
       <b>平均個数</b><br>
       成功1回あたり、平均で何個仕入れているかです。<br><br>
-
       <b>補充頻度</b><br>
       どれくらいの間隔で回ると良さそうかの目安です。
     `
@@ -1532,7 +1551,7 @@ const helpData = [
       <b>各ボタンの役割です。</b><br><br>
       ・訪問＋ → 店舗に行った回数を増やす<br>
       ・訪問− → 訪問回数を減らす<br>
-      ・個数＋ → 仕入れ個数を追加する<br>
+      ・個数＋ → 仕入れ入力モーダルを開く<br>
       ・個数− → 仕入れ個数を減らす<br>
       ・利益＋ → 利益を追加する<br>
       ・利益− → 利益を減らす<br>
@@ -1600,7 +1619,7 @@ const helpData = [
   }
 ];
 
-function openHelp(){
+function openHelp() {
   helpStep = 0;
   const el = document.getElementById("helpUI");
   if (!el) return;
@@ -1608,13 +1627,13 @@ function openHelp(){
   renderHelp();
 }
 
-function closeHelp(){
+function closeHelp() {
   const el = document.getElementById("helpUI");
   if (!el) return;
   el.classList.remove("show");
 }
 
-function renderHelp(){
+function renderHelp() {
   const data = helpData[helpStep];
   const titleEl = document.getElementById("helpTitle");
   const contentEl = document.getElementById("helpContent");
@@ -1625,21 +1644,350 @@ function renderHelp(){
   contentEl.innerHTML = data.content;
 }
 
-function nextHelp(){
-  if(helpStep < helpData.length - 1){
+function nextHelp() {
+  if (helpStep < helpData.length - 1) {
     helpStep++;
     renderHelp();
   }
 }
 
-function prevHelp(){
-  if(helpStep > 0){
+function prevHelp() {
+  if (helpStep > 0) {
     helpStep--;
     renderHelp();
   }
 }
+
 /* =========================
-   ボタン押下エフェクト（強化版）
+   個数 + カテゴリ選択モーダル
+========================= */
+function ensureQtyCategoryModal() {
+  if (document.getElementById("qtyCategoryModal")) return;
+
+  const modal = document.createElement("div");
+  modal.id = "qtyCategoryModal";
+  modal.className = "qtyCategoryModal";
+  modal.innerHTML = `
+    <div class="qtyCategoryCard">
+      <div class="qtyCategoryTitle">個数とカテゴリを選択</div>
+      <div class="qtyCategorySub">合計個数を決めて、カテゴリごとに個数を調整してください</div>
+
+      <div class="qtyCategorySectionTitle">合計個数を選択</div>
+      <div class="qtyQuickButtons">
+        <button type="button" class="qtyQuickBtn" data-qty="1" onclick="selectQuickQty(1)">1</button>
+        <button type="button" class="qtyQuickBtn" data-qty="2" onclick="selectQuickQty(2)">2</button>
+        <button type="button" class="qtyQuickBtn" data-qty="3" onclick="selectQuickQty(3)">3</button>
+        <button type="button" class="qtyQuickBtn" data-qty="4" onclick="selectQuickQty(4)">4</button>
+        <button type="button" class="qtyQuickBtn" data-qty="5" onclick="selectQuickQty(5)">5</button>
+      </div>
+
+      <div class="qtyManualRow">
+        <input id="qtyManualInput" class="qtyManualInput" type="number" min="1" step="1" placeholder="5以上はここに入力">
+        <button type="button" class="qtyManualBtn" onclick="applyManualQty()">手入力反映</button>
+      </div>
+
+      <div class="qtySelectedBox">
+        合計個数: <span id="qtySelectedValue">1</span>個
+      </div>
+
+      <div class="qtyCategorySectionTitle">履歴カテゴリ</div>
+      <div id="qtyCategoryChipWrap" class="categoryChipWrap"></div>
+
+      <div class="qtyCategorySectionTitle">新しいカテゴリを追加</div>
+      <div class="categoryAddRow">
+        <input id="qtyNewCategoryInput" class="categoryTextInput" placeholder="新しいカテゴリ名を入力">
+        <button type="button" class="categoryAddBtn" onclick="addNewQtyCategoryChip()">追加</button>
+      </div>
+
+      <div class="qtyCategorySectionTitle">カテゴリごとの個数</div>
+      <div id="qtyCategoryCountEditor" class="qtyCategoryCountEditor">
+        <div class="qtyCategoryEmpty">カテゴリを選択してください</div>
+      </div>
+
+      <div class="qtyRemainPanel" id="qtyRemainPanel">
+        <div class="qtyRemainLabel">残り</div>
+        <div class="qtyRemainValue" id="qtyRemainValue">1</div>
+        <div class="qtyRemainUnit">個</div>
+      </div>
+
+      <div class="qtySelectedBox qtyCategoryTotalCheck" id="qtyCategoryTotalCheck">
+        入力合計: <span id="qtyAssignedTotal">0</span> / <span id="qtyAssignedTarget">1</span>個
+      </div>
+
+      <div class="categoryPickerActions">
+        <button type="button" class="ghostBtn" onclick="closeQtyCategoryModal(null)">キャンセル</button>
+        <button type="button" class="primaryBtn" onclick="confirmQtyCategoryModal()">OK</button>
+      </div>
+    </div>
+  `;
+
+  modal.addEventListener("click", e => {
+    if (e.target === modal) closeQtyCategoryModal(null);
+  });
+
+  document.body.appendChild(modal);
+}
+
+function openQtyCategoryModal({ history = [], defaultCategory = "" }) {
+  ensureQtyCategoryModal();
+
+  const modal = document.getElementById("qtyCategoryModal");
+  const chipWrap = document.getElementById("qtyCategoryChipWrap");
+  const manualInput = document.getElementById("qtyManualInput");
+
+  qtyCategoryCurrentQty = 1;
+  qtyCategorySelected = {};
+
+  let categories = [...history];
+  if (defaultCategory && !categories.includes(defaultCategory)) {
+    categories.unshift(defaultCategory);
+  }
+  if (!categories.length) {
+    categories = ["未分類"];
+  }
+
+  chipWrap.innerHTML = categories.map(cat => `
+    <button
+      type="button"
+      class="categoryChip"
+      data-cat="${escapeHtml(cat)}"
+      onclick="toggleQtyCategoryChip('${escapeJsString(cat)}')"
+    >
+      ${escapeHtml(cat)}
+    </button>
+  `).join("");
+
+  manualInput.value = "";
+  updateQtySelectedValue();
+  renderQtyQuickButtons();
+  renderQtyCategoryChipState();
+  renderQtyCategoryCountEditor();
+  updateQtyAssignedSummary();
+
+  modal.classList.add("show");
+
+  return new Promise(resolve => {
+    qtyCategoryModalResolver = resolve;
+  });
+}
+
+function selectQuickQty(n) {
+  qtyCategoryCurrentQty = Number(n || 1);
+  updateQtySelectedValue();
+  renderQtyQuickButtons();
+  updateQtyAssignedSummary();
+}
+
+function applyManualQty() {
+  const input = document.getElementById("qtyManualInput");
+  if (!input) return;
+
+  const n = clampNonNeg(parseInt(input.value || "0", 10));
+  if (!n) {
+    alert("1以上の個数を入力してください。");
+    return;
+  }
+
+  qtyCategoryCurrentQty = n;
+  updateQtySelectedValue();
+  renderQtyQuickButtons();
+  updateQtyAssignedSummary();
+}
+
+function updateQtySelectedValue() {
+  const valueEl = document.getElementById("qtySelectedValue");
+  const targetEl = document.getElementById("qtyAssignedTarget");
+  if (valueEl) valueEl.textContent = String(qtyCategoryCurrentQty);
+  if (targetEl) targetEl.textContent = String(qtyCategoryCurrentQty);
+}
+
+function renderQtyQuickButtons() {
+  document.querySelectorAll(".qtyQuickBtn").forEach(btn => {
+    const n = Number(btn.getAttribute("data-qty") || "0");
+    btn.classList.toggle("active", n === qtyCategoryCurrentQty);
+  });
+}
+
+function toggleQtyCategoryChip(cat) {
+  if (qtyCategorySelected[cat]) {
+    delete qtyCategorySelected[cat];
+  } else {
+    qtyCategorySelected[cat] = 1;
+  }
+  renderQtyCategoryChipState();
+  renderQtyCategoryCountEditor();
+  updateQtyAssignedSummary();
+}
+
+function renderQtyCategoryChipState() {
+  document.querySelectorAll("#qtyCategoryChipWrap .categoryChip").forEach(el => {
+    const cat = el.getAttribute("data-cat");
+    el.classList.toggle("active", !!qtyCategorySelected[cat]);
+  });
+}
+
+function renderQtyCategoryCountEditor() {
+  const wrap = document.getElementById("qtyCategoryCountEditor");
+  if (!wrap) return;
+
+  const keys = Object.keys(qtyCategorySelected);
+  if (!keys.length) {
+    wrap.innerHTML = `<div class="qtyCategoryEmpty">カテゴリを選択してください</div>`;
+    return;
+  }
+
+  wrap.innerHTML = keys.map(cat => {
+    const value = clampNonNeg(qtyCategorySelected[cat] || 0);
+    return `
+      <div class="qtyCategoryCountRow">
+        <div class="qtyCategoryCountName">${escapeHtml(cat)}</div>
+
+        <div class="qtyStepper">
+          <button
+            type="button"
+            class="qtyStepBtn minus"
+            onclick="changeQtyCategoryCount('${escapeJsString(cat)}', -1)"
+          >
+            −
+          </button>
+
+          <div class="qtyStepValue">${value}</div>
+
+          <button
+            type="button"
+            class="qtyStepBtn plus"
+            onclick="changeQtyCategoryCount('${escapeJsString(cat)}', 1)"
+          >
+            ＋
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function changeQtyCategoryCount(cat, delta) {
+  const current = clampNonNeg(qtyCategorySelected[cat] || 0);
+  const next = Math.max(0, current + Number(delta || 0));
+  qtyCategorySelected[cat] = next;
+  renderQtyCategoryCountEditor();
+  updateQtyAssignedSummary();
+}
+
+function updateQtyAssignedSummary() {
+  const total = Object.values(qtyCategorySelected).reduce((sum, v) => sum + Number(v || 0), 0);
+  const remain = qtyCategoryCurrentQty - total;
+
+  const totalEl = document.getElementById("qtyAssignedTotal");
+  const remainValueEl = document.getElementById("qtyRemainValue");
+  const remainPanelEl = document.getElementById("qtyRemainPanel");
+  const totalCheckEl = document.getElementById("qtyCategoryTotalCheck");
+
+  if (totalEl) totalEl.textContent = String(total);
+  if (remainValueEl) remainValueEl.textContent = String(remain);
+
+  if (remainPanelEl) {
+    remainPanelEl.classList.remove("is-ok", "is-over", "is-under");
+
+    if (remain === 0) {
+      remainPanelEl.classList.add("is-ok");
+    } else if (remain < 0) {
+      remainPanelEl.classList.add("is-over");
+    } else {
+      remainPanelEl.classList.add("is-under");
+    }
+  }
+
+  if (totalCheckEl) {
+    totalCheckEl.classList.remove("is-ok", "is-over", "is-under");
+
+    if (remain === 0) {
+      totalCheckEl.classList.add("is-ok");
+    } else if (remain < 0) {
+      totalCheckEl.classList.add("is-over");
+    } else {
+      totalCheckEl.classList.add("is-under");
+    }
+  }
+}
+
+function addNewQtyCategoryChip() {
+  const input = document.getElementById("qtyNewCategoryInput");
+  const chipWrap = document.getElementById("qtyCategoryChipWrap");
+  if (!input || !chipWrap) return;
+
+  const cat = String(input.value || "").trim();
+  if (!cat) return;
+
+  const exists = [...chipWrap.querySelectorAll(".categoryChip")]
+    .some(el => el.getAttribute("data-cat") === cat);
+
+  if (!exists) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "categoryChip active";
+    btn.setAttribute("data-cat", cat);
+    btn.textContent = cat;
+    btn.onclick = () => toggleQtyCategoryChip(cat);
+    chipWrap.appendChild(btn);
+  }
+
+  qtyCategorySelected[cat] = qtyCategorySelected[cat] || 1;
+  input.value = "";
+  renderQtyCategoryChipState();
+  renderQtyCategoryCountEditor();
+  updateQtyAssignedSummary();
+}
+
+function confirmQtyCategoryModal() {
+  const keys = Object.keys(qtyCategorySelected);
+
+  if (!qtyCategoryCurrentQty || qtyCategoryCurrentQty < 1) {
+    alert("合計個数を選択してください。");
+    return;
+  }
+
+  if (!keys.length) {
+    alert("カテゴリを1つ以上選択してください。");
+    return;
+  }
+
+  const resultMap = {};
+  keys.forEach(cat => {
+    resultMap[cat] = clampNonNeg(qtyCategorySelected[cat] || 0);
+  });
+
+  const total = Object.values(resultMap).reduce((sum, v) => sum + Number(v || 0), 0);
+
+  if (total !== qtyCategoryCurrentQty) {
+    alert(`カテゴリ個数の合計(${total})と合計個数(${qtyCategoryCurrentQty})を一致させてください。`);
+    return;
+  }
+
+  const hasZero = Object.values(resultMap).some(v => Number(v || 0) <= 0);
+  if (hasZero) {
+    alert("選択したカテゴリには1個以上を割り当ててください。");
+    return;
+  }
+
+  closeQtyCategoryModal({
+    qty: qtyCategoryCurrentQty,
+    categoryMap: resultMap
+  });
+}
+
+function closeQtyCategoryModal(result) {
+  const modal = document.getElementById("qtyCategoryModal");
+  if (modal) modal.classList.remove("show");
+
+  if (qtyCategoryModalResolver) {
+    qtyCategoryModalResolver(result);
+    qtyCategoryModalResolver = null;
+  }
+}
+
+/* =========================
+   ボタン押下エフェクト
 ========================= */
 function setupButtonPressEffect() {
   const apply = () => {
@@ -1667,5 +2015,3 @@ function setupButtonPressEffect() {
     subtree: true
   });
 }
-
-window.addEventListener("load", setupButtonPressEffect);
