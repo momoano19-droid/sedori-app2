@@ -1,6 +1,3 @@
-/* =========================
-   基本
-========================= */
 *{
   box-sizing:border-box;
 }
@@ -35,7 +32,63 @@ body{
 }
 
 /* =========================
-   ボタン共通（押し込み強化）
+   レイアウト
+========================= */
+.topButtons,
+.layoutButtons{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+
+.topButtons3{
+  grid-template-columns:1fr 1fr 1fr;
+}
+
+.addGrid,
+.searchGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+
+.addGrid .span2,
+.searchGrid .span2{
+  grid-column:1 / -1;
+}
+
+.row2{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+
+.mt8{ margin-top:8px; }
+.mt12{ margin-top:12px; }
+
+/* =========================
+   入力
+========================= */
+input,
+select{
+  width:100%;
+  min-height:58px;
+  border:1.5px solid #dfe5ef;
+  border-radius:18px;
+  background:#fff;
+  padding:0 16px;
+  font-size:16px;
+  outline:none;
+  color:#1f2340;
+  appearance:none;
+}
+
+input::placeholder{
+  color:#b7bcc7;
+}
+
+/* =========================
+   ボタン
 ========================= */
 button{
   min-height:58px;
@@ -44,17 +97,20 @@ button{
   font-size:17px;
   font-weight:700;
   cursor:pointer;
-  transition:all .08s ease;
+  transition:
+    transform .08s ease,
+    filter .08s ease,
+    box-shadow .12s ease,
+    opacity .12s ease;
+  -webkit-tap-highlight-color:transparent;
 }
 
-button:active{
+button:active,
+button.is-pressed{
   transform:scale(.94);
-  filter:brightness(.92);
+  filter:brightness(.93);
 }
 
-/* =========================
-   ボタン種類
-========================= */
 .heroBtn,
 .primaryBtn,
 .primaryWide{
@@ -72,7 +128,6 @@ button:active{
   color:#1f2340;
 }
 
-/* 使い方ボタン */
 .subBtn{
   background:#e8f0ff;
   color:#2563eb;
@@ -80,59 +135,42 @@ button:active{
 }
 
 /* =========================
-   レイアウト
+   テキスト
 ========================= */
-.topButtons{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:14px;
+.helpText{
+  margin-top:12px;
+  font-size:13px;
+  line-height:1.7;
+  color:#6b7280;
 }
 
-.topButtons3{
-  grid-template-columns:1fr 1fr 1fr;
+.sectionTitle{
+  font-size:22px;
+  font-weight:800;
+  margin-bottom:12px;
 }
 
-.layoutButtons{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:14px;
-}
-
-.addGrid,
-.searchGrid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:14px;
-}
-
-.addGrid .span2,
-.searchGrid .span2{
-  grid-column:1 / -1;
+.mini{
+  font-size:13px;
+  color:#6b7280;
 }
 
 /* =========================
-   入力
+   地図
 ========================= */
-input,
-select{
-  width:100%;
-  min-height:58px;
-  border:1.5px solid #dfe5ef;
+.mapWrap #map{
+  height:280px;
   border-radius:18px;
-  background:#fff;
-  padding:0 16px;
-  font-size:16px;
-  outline:none;
-  color:#1f2340;
-}
-
-input::placeholder{
-  color:#b7bcc7;
+  overflow:hidden;
 }
 
 /* =========================
-   店舗カード
+   店舗一覧
 ========================= */
+#storeList{
+  margin-top:6px;
+}
+
 .item{
   background:#fff;
   border-radius:22px;
@@ -140,144 +178,180 @@ input::placeholder{
   margin-bottom:14px;
   box-shadow:0 6px 18px rgba(15,23,42,0.05);
   border:2px solid transparent;
-  transition:.2s;
+  transition:
+    opacity .2s ease,
+    border-color .2s ease,
+    box-shadow .2s ease,
+    transform .08s ease;
 }
 
 .item.expected-high{
   border-color:#3976f6;
+  box-shadow:0 8px 24px rgba(57,118,246,0.14);
 }
 
 .item.expected-mid{
   border-color:#9cc0ff;
+  box-shadow:0 8px 20px rgba(57,118,246,0.08);
+}
+
+.item.stale-30{
+  opacity:.82;
+}
+
+.item.stale-60{
+  opacity:.62;
 }
 
 .name{
   font-size:20px;
   font-weight:800;
+  margin-bottom:8px;
+  line-height:1.4;
 }
 
+/* =========================
+   評価ラベル
+========================= */
+.evalLabel{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:7px 12px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:800;
+  margin-bottom:10px;
+}
+
+.eval-new{
+  background:#eef1f7;
+  color:#475569;
+}
+
+.eval-good{
+  background:#ffe8cc;
+  color:#c2410c;
+}
+
+.eval-mid{
+  background:#fff4d8;
+  color:#b7791f;
+}
+
+.eval-bad{
+  background:#fef2f2;
+  color:#dc2626;
+}
+
+/* =========================
+   バッジ
+========================= */
 .badge{
   display:inline-block;
   padding:7px 10px;
   border-radius:999px;
   font-size:12px;
   font-weight:700;
-  margin:6px 6px 0 0;
+  margin:0 6px 6px 0;
   background:#eef1f7;
+  color:#445;
 }
 
-.badge.map{ background:#e6f4ff; color:#1677ff; }
-.badge.near{ background:#e9fbef; color:#16a34a; }
-.badge.freq{ background:#fff4d8; color:#b7791f; }
+.badge.map{
+  background:#e6f4ff;
+  color:#1677ff;
+}
 
-.mini{
+.badge.near{
+  background:#e9fbef;
+  color:#16a34a;
+}
+
+.badge.freq{
+  background:#fff4d8;
+  color:#b7791f;
+}
+
+/* =========================
+   詳細欄
+========================= */
+.item .detailBox{
+  margin-top:12px;
+  padding-top:12px;
+  border-top:1px dashed #d8deea;
+}
+
+.item .detailLine{
   font-size:13px;
-  color:#6b7280;
+  line-height:1.7;
+  color:#4b5563;
+  margin-top:4px;
 }
 
-.mt8{ margin-top:8px; }
-
-.row2{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
+.item .detailWarn{
+  color:#b45309;
+  font-weight:800;
 }
 
 /* =========================
    成功率色
 ========================= */
-.rate-good{ color:#16a34a; font-weight:800; }
-.rate-mid{ color:#2563eb; font-weight:800; }
-.rate-low{ color:#6b7280; font-weight:800; }
-.rate-bad{ color:#dc2626; font-weight:800; }
-
-/* =========================
-   ===== カテゴリ入力UI =====
-========================= */
-
-/* 全体ボックス */
-.categoryModal{
-  padding:14px;
-}
-
-/* 残り個数 */
-.remainingBox{
-  font-size:18px;
+.rate-good{
+  color:#16a34a;
   font-weight:800;
-  margin-bottom:12px;
-  text-align:center;
 }
 
-.remainingBox strong{
+.rate-mid{
   color:#2563eb;
-  font-size:22px;
-}
-
-/* カテゴリ行 */
-.categoryRow{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:10px;
-  border-radius:12px;
-  background:#f7f8fb;
-  margin-bottom:8px;
-}
-
-/* カテゴリ名 */
-.categoryName{
-  font-weight:700;
-}
-
-/* ＋－エリア */
-.categoryControls{
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
-
-/* ＋－ボタン */
-.qtyBtn{
-  width:36px;
-  height:36px;
-  border-radius:10px;
-  font-size:18px;
-  font-weight:900;
-  background:#3976f6;
-  color:#fff;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.qtyBtn.minus{
-  background:#e5e7eb;
-  color:#1f2340;
-}
-
-/* 数字表示 */
-.qtyNum{
-  width:28px;
-  text-align:center;
   font-weight:800;
 }
 
-/* 新規カテゴリ入力 */
-.newCategoryInput{
-  width:100%;
-  margin-top:10px;
-  min-height:50px;
-  border-radius:14px;
-  border:1.5px solid #dfe5ef;
-  padding:0 12px;
+.rate-low{
+  color:#6b7280;
+  font-weight:800;
+}
+
+.rate-bad{
+  color:#dc2626;
+  font-weight:800;
 }
 
 /* =========================
-   MAP
+   チェックボックス
 ========================= */
-.mapWrap #map{
-  height:280px;
-  border-radius:18px;
+.item input[type="checkbox"]{
+  appearance:auto !important;
+  -webkit-appearance:checkbox !important;
+  width:20px !important;
+  height:20px !important;
+  min-height:20px !important;
+  padding:0 !important;
+  margin:0 !important;
+  border:none !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  display:inline-block !important;
+  vertical-align:middle;
+  flex:0 0 auto;
+}
+
+.item label{
+  display:inline-flex !important;
+  align-items:center !important;
+  gap:8px !important;
+  font-size:16px !important;
+  cursor:pointer;
+}
+
+/* =========================
+   レイアウト切替
+========================= */
+.layoutButtons button.activeLayout{
+  background:#3976f6 !important;
+  color:#fff !important;
+  box-shadow:0 8px 18px rgba(57,118,246,0.20);
 }
 
 /* =========================
@@ -291,6 +365,7 @@ input::placeholder{
   align-items:center;
   justify-content:center;
   z-index:9999;
+  padding:18px;
 }
 
 .helpUI.show{
@@ -303,24 +378,44 @@ input::placeholder{
   background:#fff;
   border-radius:20px;
   overflow:hidden;
+  box-shadow:0 20px 40px rgba(0,0,0,0.2);
 }
 
 .helpHeader{
   display:flex;
   justify-content:space-between;
+  align-items:center;
+  gap:12px;
   padding:16px;
   font-weight:800;
+  border-bottom:1px solid #eee;
+}
+
+.helpHeader button{
+  min-height:40px;
+  padding:0 12px;
+  border:none;
+  border-radius:12px;
+  background:#eef1f7;
+  color:#1f2340;
+  font-size:14px;
+  font-weight:700;
 }
 
 .helpContent{
   padding:16px;
   line-height:1.8;
+  color:#4b5563;
+  font-size:14px;
+  max-height:60vh;
+  overflow:auto;
 }
 
 .helpFooter{
   display:flex;
-  gap:10px;
-  padding:12px;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 16px 16px;
 }
 
 .helpFooter button{
@@ -328,32 +423,410 @@ input::placeholder{
   background:#3976f6;
   color:#fff;
   border-radius:12px;
-  padding:10px;
+  padding:10px 14px;
+  font-size:14px;
+  font-weight:700;
+  min-height:46px;
 }
 
 /* =========================
-   モバイル
+   個数＋カテゴリモーダル
+========================= */
+.qtyCategoryModal{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:flex-end;
+  justify-content:center;
+  background:rgba(15,23,42,.45);
+  z-index:12000;
+  padding:14px;
+}
+
+.qtyCategoryModal.show{
+  display:flex;
+}
+
+.qtyCategoryCard{
+  width:100%;
+  max-width:560px;
+  background:#fff;
+  border-radius:24px;
+  padding:18px;
+  box-shadow:0 24px 50px rgba(0,0,0,.22);
+  max-height:88vh;
+  overflow:auto;
+}
+
+.qtyCategoryTitle{
+  font-size:22px;
+  font-weight:900;
+  color:#111827;
+  line-height:1.4;
+}
+
+.qtyCategorySub{
+  margin-top:6px;
+  font-size:13px;
+  line-height:1.7;
+  color:#6b7280;
+}
+
+.qtyCategorySectionTitle{
+  margin-top:18px;
+  margin-bottom:10px;
+  font-size:14px;
+  font-weight:800;
+  color:#334155;
+}
+
+.qtyQuickButtons{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:10px;
+}
+
+.qtyQuickBtn{
+  min-height:52px;
+  border-radius:16px;
+  background:#eef1f7;
+  color:#1f2340;
+  font-size:18px;
+  font-weight:900;
+}
+
+.qtyQuickBtn.active{
+  background:#3976f6;
+  color:#fff;
+  box-shadow:0 10px 20px rgba(57,118,246,.20);
+}
+
+.qtyManualRow{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:10px;
+  margin-top:10px;
+}
+
+.qtyManualInput{
+  min-height:54px;
+  border-radius:16px;
+  border:1.5px solid #dfe5ef;
+  padding:0 14px;
+  font-size:16px;
+}
+
+.qtyManualBtn{
+  min-height:54px;
+  padding:0 16px;
+  border-radius:16px;
+  background:#eef1f7;
+  color:#1f2340;
+  white-space:nowrap;
+}
+
+.qtySelectedBox{
+  margin-top:12px;
+  border-radius:18px;
+  background:#f8fafc;
+  padding:14px 16px;
+  font-size:15px;
+  font-weight:800;
+  color:#334155;
+}
+
+.categoryChipWrap{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.categoryChip{
+  min-height:44px;
+  padding:0 14px;
+  border-radius:999px;
+  background:#eef1f7;
+  color:#1f2340;
+  font-size:14px;
+  font-weight:800;
+}
+
+.categoryChip.active{
+  background:#3976f6;
+  color:#fff;
+  box-shadow:0 8px 18px rgba(57,118,246,.18);
+}
+
+.categoryAddRow{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:10px;
+}
+
+.categoryTextInput{
+  min-height:54px;
+  border-radius:16px;
+  border:1.5px solid #dfe5ef;
+  padding:0 14px;
+  font-size:16px;
+}
+
+.categoryAddBtn{
+  min-height:54px;
+  padding:0 16px;
+  border-radius:16px;
+  background:#3976f6;
+  color:#fff;
+  white-space:nowrap;
+}
+
+.qtyCategoryCountEditor{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.qtyCategoryEmpty{
+  border-radius:18px;
+  background:#f8fafc;
+  color:#64748b;
+  padding:18px 16px;
+  font-size:14px;
+  text-align:center;
+}
+
+.qtyCategoryCountRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 14px;
+  border-radius:18px;
+  background:#f8fafc;
+}
+
+.qtyCategoryCountName{
+  font-size:15px;
+  font-weight:800;
+  color:#1f2937;
+  line-height:1.5;
+  flex:1;
+}
+
+.qtyStepper{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.qtyStepBtn{
+  min-height:42px;
+  width:42px;
+  border-radius:14px;
+  font-size:22px;
+  font-weight:900;
+  padding:0;
+}
+
+.qtyStepBtn.minus{
+  background:#eef1f7;
+  color:#1f2340;
+}
+
+.qtyStepBtn.plus{
+  background:#3976f6;
+  color:#fff;
+}
+
+.qtyStepValue{
+  min-width:28px;
+  text-align:center;
+  font-size:18px;
+  font-weight:900;
+  color:#111827;
+}
+
+.qtyRemainPanel{
+  margin-top:14px;
+  border-radius:22px;
+  padding:16px;
+  text-align:center;
+  border:2px solid transparent;
+  background:#f8fafc;
+}
+
+.qtyRemainLabel{
+  font-size:13px;
+  font-weight:800;
+  color:#64748b;
+}
+
+.qtyRemainValue{
+  font-size:38px;
+  line-height:1.1;
+  font-weight:900;
+  margin-top:4px;
+}
+
+.qtyRemainUnit{
+  font-size:14px;
+  font-weight:800;
+  margin-top:2px;
+}
+
+.qtyRemainPanel.is-ok{
+  background:#e9fbef;
+  color:#15803d;
+  border-color:#86efac;
+}
+
+.qtyRemainPanel.is-under{
+  background:#eff6ff;
+  color:#1d4ed8;
+  border-color:#bfdbfe;
+}
+
+.qtyRemainPanel.is-over{
+  background:#fef2f2;
+  color:#dc2626;
+  border-color:#fecaca;
+}
+
+.qtyCategoryTotalCheck{
+  margin-top:12px;
+}
+
+.qtyCategoryTotalCheck.is-ok{
+  background:#e9fbef;
+  color:#15803d;
+}
+
+.qtyCategoryTotalCheck.is-under{
+  background:#eff6ff;
+  color:#1d4ed8;
+}
+
+.qtyCategoryTotalCheck.is-over{
+  background:#fef2f2;
+  color:#dc2626;
+}
+
+.categoryPickerActions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:18px;
+}
+
+/* =========================
+   モバイル最適化
 ========================= */
 @media (max-width:640px){
-
   .page{
     padding:12px;
   }
 
+  .topCard,
+  .card{
+    border-radius:22px;
+    padding:16px;
+    margin-bottom:16px;
+  }
+
+  .topButtons,
+  .layoutButtons,
+  .addGrid,
+  .searchGrid,
+  .row2{
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+
+  .topButtons3{
+    grid-template-columns:1fr 1fr;
+  }
+
+  input,
+  select,
   button{
     min-height:56px;
     font-size:15px;
   }
 
-  .name{
-    font-size:18px;
+  .sectionTitle{
+    font-size:20px;
   }
 
   .mapWrap #map{
     height:240px;
   }
 
-  .remainingBox{
-    font-size:16px;
+  .name{
+    font-size:18px;
+  }
+
+  .helpUI{
+    padding:12px;
+    align-items:flex-end;
+  }
+
+  .helpCard{
+    max-width:none;
+    border-radius:18px;
+  }
+
+  .helpContent{
+    font-size:13px;
+    max-height:58vh;
+  }
+
+  .helpFooter button{
+    min-height:44px;
+    font-size:13px;
+  }
+
+  .qtyCategoryModal{
+    padding:10px;
+    align-items:flex-end;
+  }
+
+  .qtyCategoryCard{
+    border-radius:22px;
+    padding:16px;
+    max-height:90vh;
+  }
+
+  .qtyCategoryTitle{
+    font-size:20px;
+  }
+
+  .qtyQuickButtons{
+    grid-template-columns:repeat(5,1fr);
+    gap:8px;
+  }
+
+  .qtyQuickBtn{
+    min-height:48px;
+    font-size:17px;
+    border-radius:14px;
+  }
+
+  .qtyManualRow,
+  .categoryAddRow,
+  .categoryPickerActions{
+    grid-template-columns:1fr;
+  }
+
+  .qtyManualBtn,
+  .categoryAddBtn{
+    width:100%;
+  }
+
+  .qtyCategoryCountRow{
+    align-items:center;
+  }
+
+  .qtyRemainValue{
+    font-size:34px;
   }
 }
