@@ -40,6 +40,16 @@ let mapInitialized = false;
 window.lastPos = null;
 
 /* =========================
+   軽量化用キャッシュ
+========================= */
+let categoryHistoryCache = null;
+let categoryHistoryDirty = true;
+
+let lastListRenderSignature = "";
+let lastMapRenderSignature = "";
+let mapRenderRafId = null;
+
+/* =========================
    個数＋カテゴリモーダル状態
 ========================= */
 let qtyCategoryModalResolver = null;
@@ -91,7 +101,7 @@ function normalizeStore(s) {
     items: Number(s.items || 0),
     profit: Number(s.profit || 0),
     defaultCategory: String(s.defaultCategory || "").trim(),
-    categoryCounts: (s.categoryCounts && typeof s.categoryCounts === "object") ? s.categoryCounts : {},
+    categoryCounts: (s.categoryCounts && typeof s.categoryCounts === "object") ? { ...s.categoryCounts } : {},
     lastVisitDate: String(s.lastVisitDate || "").trim(),
     today: !!s.today
   };
@@ -154,10 +164,17 @@ function getAutoBackup() {
   return null;
 }
 
+function invalidateDerivedCaches() {
+  categoryHistoryDirty = true;
+  lastListRenderSignature = "";
+  lastMapRenderSignature = "";
+}
+
 function saveAll() {
   saveStores(stores);
   saveLogs(logs);
   saveAutoBackup();
+  invalidateDerivedCaches();
 }
 
 /* =========================
@@ -225,6 +242,7 @@ function addLog(storeId, type, delta, category = "") {
     delta: Number(delta || 0),
     category: String(category || "")
   });
+  categoryHistoryDirty = true;
 }
 
 function getMetrics(s) {
@@ -289,6 +307,7 @@ function applyCategoryDelta(store, deltaMap, sign) {
       store.categoryCounts[cat] = next;
     }
   });
+  categoryHistoryDirty = true;
 }
 
 function sumCategoryCounts(categoryCounts) {
@@ -304,6 +323,10 @@ function makeButtonStyle(bg, color = "#fff") {
 }
 
 function getCategoryHistory() {
+  if (!categoryHistoryDirty && Array.isArray(categoryHistoryCache)) {
+    return categoryHistoryCache;
+  }
+
   const freq = {};
 
   stores.forEach(s => {
@@ -319,10 +342,13 @@ function getCategoryHistory() {
     }
   });
 
-  return Object.entries(freq)
+  categoryHistoryCache = Object.entries(freq)
     .sort((a, b) => b[1] - a[1])
     .map(([cat]) => cat)
     .slice(0, 12);
+
+  categoryHistoryDirty = false;
+  return categoryHistoryCache;
 }
 
 function resolveCategorySelectionInput(input, qty, history, defaultCategory) {
@@ -352,6 +378,57 @@ function resolveCategorySelectionInput(input, qty, history, defaultCategory) {
   }
 
   return parsed;
+}
+
+function getFilterValues() {
+  return {
+    q: document.getElementById("q")?.value?.trim() || "",
+    prefFilter: document.getElementById("prefFilter")?.value || "__ALL__",
+    minExpected: clampNonNeg(parseFloat(document.getElementById("minExpected")?.value || "0")),
+    minRate: clampNonNeg(parseFloat(document.getElementById("minRate")?.value || "0")),
+    sortType: document.getElementById("sortType")?.value || "expected"
+  };
+}
+
+function buildFilteredStoreList() {
+  const { q, prefFilter, minExpected, minRate, sortType } = getFilterValues();
+
+  let list = stores.map((s, idx) => {
+    const m = getMetrics(s);
+    let dist = null;
+    if (window.lastPos && hasCoords(s)) {
+      dist = distanceKm(window.lastPos.lat, window.lastPos.lng, s.lat, s.lng);
+    }
+    return { ...s, _idx: idx, _m: m, _dist: dist };
+  });
+
+  list = list
+    .filter(s => matchesQuery(s, q))
+    .filter(s => prefFilter === "__ALL__" || s.pref === prefFilter)
+    .filter(s => s._m.expected >= minExpected)
+    .filter(s => s._m.rate >= minRate);
+
+  if (nearbyMode) {
+    list = list.filter(s => nearbyStoreIds.has(s.id));
+  }
+
+  if (noCoordsOnlyMode) {
+    list = list.filter(s => !hasCoords(s));
+  }
+
+  list.sort((a, b) => {
+    if (sortType === "rate") return b._m.rate - a._m.rate;
+    if (sortType === "avgProfit") return b._m.avgProfit - a._m.avgProfit;
+    if (sortType === "visits") return b._m.visits - a._m.visits;
+    if (sortType === "route") {
+      const ad = typeof a._dist === "number" ? a._dist : Infinity;
+      const bd = typeof b._dist === "number" ? b._dist : Infinity;
+      return ad - bd;
+    }
+    return b._m.expected - a._m.expected;
+  });
+
+  return list;
 }
 
 /* =========================
@@ -786,6 +863,7 @@ async function editStore(i) {
     const cat = prompt("デフォルトカテゴリ", s.defaultCategory || "");
     if (cat !== null) {
       s.defaultCategory = String(cat).trim();
+      categoryHistoryDirty = true;
     }
   }
 
@@ -841,10 +919,15 @@ async function refreshAllCoordinates() {
 
   if (!confirm(`座標なし店舗 ${targets.length} 件の座標を再取得します。よろしいですか？`)) return;
 
-  for (const s of targets) {
+  for (let idx = 0; idx < targets.length; idx++) {
+    const s = targets[idx];
     const pos = await resolveStoreLatLng(s.pref, s.address, s.name, s.mapUrl, false);
     s.lat = pos.lat;
     s.lng = pos.lng;
+
+    if (idx < targets.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 180));
+    }
   }
 
   saveAll();
@@ -931,14 +1014,72 @@ function itemsMinus(i) {
   const s = stores[i];
   if (!s) return;
 
-  const n = clampNonNeg(parseInt(prompt("減らす個数", "1"), 10));
-  if (!n) return;
+  const currentTotal = Number(s.items || 0);
+  if (currentTotal <= 0) {
+    alert("減らせる個数がありません。");
+    return;
+  }
 
-  s.items = clampNonNeg(s.items - n);
-  addLog(s.id, "items", -n);
+  const history = Object.keys(s.categoryCounts || {}).length
+    ? Object.keys(s.categoryCounts || {})
+    : getCategoryHistory();
 
-  saveAll();
-  render();
+  openQtyCategoryModal({
+    history,
+    defaultCategory: s.defaultCategory
+  }).then(result => {
+    if (!result) return;
+
+    const n = clampNonNeg(parseInt(result.qty || "0", 10));
+    const catMap = result.categoryMap && typeof result.categoryMap === "object"
+      ? result.categoryMap
+      : null;
+
+    if (!n || !catMap) return;
+
+    const total = Object.values(catMap).reduce((sum, v) => sum + Number(v || 0), 0);
+    if (total !== n) {
+      alert("カテゴリ個数の合計が一致していません。");
+      return;
+    }
+
+    if (n > currentTotal) {
+      alert(`現在個数 ${currentTotal} 個を超えて減らすことはできません。`);
+      return;
+    }
+
+    for (const [cat, qty] of Object.entries(catMap)) {
+      const current = Number(s.categoryCounts[cat] || 0);
+      if (qty > current) {
+        alert(`カテゴリ「${cat}」は現在 ${current} 個です。`);
+        return;
+      }
+    }
+
+    s.items = clampNonNeg(s.items - n);
+
+    Object.entries(catMap).forEach(([cat, qty]) => {
+      const current = Number(s.categoryCounts[cat] || 0);
+      const next = Math.max(0, current - qty);
+
+      if (next <= 0) delete s.categoryCounts[cat];
+      else s.categoryCounts[cat] = next;
+
+      addLog(s.id, "category", -qty, cat);
+    });
+
+    addLog(s.id, "items", -n);
+
+    if (!Object.keys(s.categoryCounts || {}).length && s.items === 0) {
+      s.defaultCategory = "";
+    } else if (s.defaultCategory && !s.categoryCounts[s.defaultCategory]) {
+      const remainCats = Object.keys(s.categoryCounts || {});
+      s.defaultCategory = remainCats[0] || s.defaultCategory || "";
+    }
+
+    saveAll();
+    render();
+  });
 }
 
 function profitPlus(i) {
@@ -1017,9 +1158,9 @@ function buildTodayRoute() {
     return s.address;
   };
 
-  const origin = "Current Location";
   const destination = makeDest(sorted[sorted.length - 1]);
   const waypoints = sorted.slice(0, -1).map(makeDest).slice(0, 8);
+  const origin = "Current Location";
 
   const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving${waypoints.length ? `&waypoints=${encodeURIComponent(waypoints.join("|"))}` : ""}`;
 
@@ -1033,6 +1174,8 @@ function clearNearbyMode() {
   nearbyMode = false;
   noCoordsOnlyMode = false;
   nearbyStoreIds = new Set();
+  lastListRenderSignature = "";
+  lastMapRenderSignature = "";
 }
 
 function showNearbyStores() {
@@ -1070,6 +1213,8 @@ function showNearbyStores() {
 
       nearbyMode = true;
       noCoordsOnlyMode = false;
+      lastListRenderSignature = "";
+      lastMapRenderSignature = "";
       render();
     },
     () => alert("現在地を取得できませんでした。"),
@@ -1085,6 +1230,8 @@ function autoDetectNearbyStores() {
         lat: pos.coords.latitude,
         lng: pos.coords.longitude
       };
+      lastListRenderSignature = "";
+      lastMapRenderSignature = "";
     },
     () => {},
     { enableHighAccuracy: true, timeout: 10000 }
@@ -1099,6 +1246,9 @@ function moveToCurrentLocation() {
       const lng = pos.coords.longitude;
       window.lastPos = { lat, lng };
       map.setView([lat, lng], 15);
+      lastListRenderSignature = "";
+      lastMapRenderSignature = "";
+      render();
     },
     () => alert("現在地を取得できませんでした。")
   );
@@ -1107,6 +1257,8 @@ function moveToCurrentLocation() {
 function showNoCoordsOnly() {
   noCoordsOnlyMode = true;
   nearbyMode = false;
+  lastListRenderSignature = "";
+  lastMapRenderSignature = "";
   render();
 }
 
@@ -1114,6 +1266,7 @@ function setLayoutMode(mode) {
   currentLayoutMode = mode === "compact" ? "compact" : "detail";
   localStorage.setItem("store_layout_mode", currentLayoutMode);
   updateLayoutButtons();
+  lastListRenderSignature = "";
   render();
 }
 
@@ -1157,33 +1310,26 @@ function makeMarkerIcon(color) {
   });
 }
 
-function renderMapMarkers() {
+function renderMapMarkersNow() {
   if (!mapInitialized || !map) return;
+
+  const list = buildFilteredStoreList().filter(s => hasCoords(s));
+  const signature = JSON.stringify({
+    ids: list.map(s => s.id),
+    nearbyMode,
+    noCoordsOnlyMode,
+    q: getFilterValues().q,
+    prefFilter: getFilterValues().prefFilter,
+    minExpected: getFilterValues().minExpected,
+    minRate: getFilterValues().minRate
+  });
+
+  if (signature === lastMapRenderSignature) return;
+  lastMapRenderSignature = signature;
 
   clearMapMarkers();
 
-  const q = document.getElementById("q")?.value?.trim() || "";
-  const prefFilter = document.getElementById("prefFilter")?.value || "__ALL__";
-  const minExpected = clampNonNeg(parseFloat(document.getElementById("minExpected")?.value || "0"));
-  const minRate = clampNonNeg(parseFloat(document.getElementById("minRate")?.value || "0"));
-
-  let list = stores
-    .map(s => ({ ...s, _m: getMetrics(s) }))
-    .filter(s => hasCoords(s))
-    .filter(s => matchesQuery(s, q))
-    .filter(s => prefFilter === "__ALL__" || s.pref === prefFilter)
-    .filter(s => s._m.expected >= minExpected)
-    .filter(s => s._m.rate >= minRate);
-
-  if (nearbyMode) {
-    list = list.filter(s => nearbyStoreIds.has(s.id));
-  }
-
-  if (noCoordsOnlyMode) {
-    list = [];
-  }
-
-  if (!list.length) return;
+  if (noCoordsOnlyMode || !list.length) return;
 
   const bounds = [];
 
@@ -1208,6 +1354,14 @@ function renderMapMarkers() {
   } else {
     map.fitBounds(bounds, { padding: [20, 20] });
   }
+}
+
+function scheduleRenderMapMarkers() {
+  if (mapRenderRafId) cancelAnimationFrame(mapRenderRafId);
+  mapRenderRafId = requestAnimationFrame(() => {
+    mapRenderRafId = null;
+    renderMapMarkersNow();
+  });
 }
 
 /* =========================
@@ -1359,55 +1513,31 @@ function render() {
   updateLayoutButtons();
   buildPrefFilter();
 
-  const q = document.getElementById("q")?.value?.trim() || "";
-  const prefFilter = document.getElementById("prefFilter")?.value || "__ALL__";
-  const minExpected = clampNonNeg(parseFloat(document.getElementById("minExpected")?.value || "0"));
-  const minRate = clampNonNeg(parseFloat(document.getElementById("minRate")?.value || "0"));
-  const sortType = document.getElementById("sortType")?.value || "expected";
-
-  let list = stores.map((s, idx) => {
-    const m = getMetrics(s);
-    let dist = null;
-    if (window.lastPos && hasCoords(s)) {
-      dist = distanceKm(window.lastPos.lat, window.lastPos.lng, s.lat, s.lng);
-    }
-    return { ...s, _idx: idx, _m: m, _dist: dist };
-  });
-
-  list = list
-    .filter(s => matchesQuery(s, q))
-    .filter(s => prefFilter === "__ALL__" || s.pref === prefFilter)
-    .filter(s => s._m.expected >= minExpected)
-    .filter(s => s._m.rate >= minRate);
-
-  if (nearbyMode) {
-    list = list.filter(s => nearbyStoreIds.has(s.id));
-  }
-
-  if (noCoordsOnlyMode) {
-    list = list.filter(s => !hasCoords(s));
-  }
-
-  list.sort((a, b) => {
-    if (sortType === "rate") return b._m.rate - a._m.rate;
-    if (sortType === "avgProfit") return b._m.avgProfit - a._m.avgProfit;
-    if (sortType === "visits") return b._m.visits - a._m.visits;
-    if (sortType === "route") {
-      const ad = typeof a._dist === "number" ? a._dist : Infinity;
-      const bd = typeof b._dist === "number" ? b._dist : Infinity;
-      return ad - bd;
-    }
-    return b._m.expected - a._m.expected;
-  });
-
+  const list = buildFilteredStoreList();
   const wrap = document.getElementById("storeList");
   if (!wrap) return;
 
-  wrap.innerHTML = list.length
-    ? list.map(s => renderStoreCard(s, s._idx)).join("")
-    : `<div class="mini">${nearbyMode ? "近くの店舗は見つかりませんでした。" : "該当する店舗がありません。"}</div>`;
+  const signature = JSON.stringify({
+    ids: list.map(s => s.id),
+    q: getFilterValues().q,
+    prefFilter: getFilterValues().prefFilter,
+    minExpected: getFilterValues().minExpected,
+    minRate: getFilterValues().minRate,
+    sortType: getFilterValues().sortType,
+    nearbyMode,
+    noCoordsOnlyMode,
+    layout: currentLayoutMode,
+    todayMarks: stores.filter(s => s.today).map(s => s.id)
+  });
 
-  renderMapMarkers();
+  if (signature !== lastListRenderSignature) {
+    wrap.innerHTML = list.length
+      ? list.map(s => renderStoreCard(s, s._idx)).join("")
+      : `<div class="mini">${nearbyMode ? "近くの店舗は見つかりませんでした。" : "該当する店舗がありません。"}</div>`;
+    lastListRenderSignature = signature;
+  }
+
+  scheduleRenderMapMarkers();
   renderTodayRouteList();
 
   if (!stores.length) {
@@ -1426,9 +1556,7 @@ function renderTodayRouteList() {
     return;
   }
 
-  const names = checkedStores.map((s, i) => {
-    return `${i + 1}. ${escapeHtml(s.name)}`;
-  });
+  const names = checkedStores.map((s, i) => `${i + 1}. ${escapeHtml(s.name)}`);
 
   el.innerHTML = `
     <div style="font-weight:700; margin-bottom:6px;">今日行く店舗</div>
@@ -1651,6 +1779,7 @@ function openQtyCategoryModal({ history = [], defaultCategory = "" }) {
   const modal = document.getElementById("qtyCategoryModal");
   const chipWrap = document.getElementById("qtyCategoryChipWrap");
   const manualInput = document.getElementById("qtyManualInput");
+  const newCategoryInput = document.getElementById("qtyNewCategoryInput");
 
   qtyCategoryCurrentQty = 1;
   qtyCategorySelected = {};
@@ -1675,6 +1804,8 @@ function openQtyCategoryModal({ history = [], defaultCategory = "" }) {
   `).join("");
 
   manualInput.value = "";
+  if (newCategoryInput) newCategoryInput.value = "";
+
   updateQtySelectedValue();
   renderQtyQuickButtons();
   renderQtyCategoryChipState();
@@ -1879,31 +2010,29 @@ function closeQtyCategoryModal(result) {
 }
 
 /* =========================
-   ボタン押下エフェクト
+   ボタン押下エフェクト（軽量版）
 ========================= */
 function setupButtonPressEffect() {
-  const apply = () => {
-    document.querySelectorAll("button").forEach(btn => {
-      if (btn.dataset.pressReady === "1") return;
-      btn.dataset.pressReady = "1";
+  const getButton = target => target?.closest?.("button");
+  if (!document.body.dataset.pressReady) {
+    document.body.dataset.pressReady = "1";
 
-      const on = () => btn.classList.add("is-pressed");
-      const off = () => btn.classList.remove("is-pressed");
+    const on = e => {
+      const btn = getButton(e.target);
+      if (btn) btn.classList.add("is-pressed");
+    };
 
-      btn.addEventListener("touchstart", on, { passive: true });
-      btn.addEventListener("touchend", off, { passive: true });
-      btn.addEventListener("touchcancel", off, { passive: true });
+    const off = e => {
+      const btn = getButton(e.target);
+      if (btn) btn.classList.remove("is-pressed");
+    };
 
-      btn.addEventListener("mousedown", on);
-      btn.addEventListener("mouseup", off);
-      btn.addEventListener("mouseleave", off);
-    });
-  };
+    document.body.addEventListener("touchstart", on, { passive: true });
+    document.body.addEventListener("touchend", off, { passive: true });
+    document.body.addEventListener("touchcancel", off, { passive: true });
 
-  apply();
-
-  new MutationObserver(apply).observe(document.body, {
-    childList: true,
-    subtree: true
-  });
+    document.body.addEventListener("mousedown", on);
+    document.body.addEventListener("mouseup", off);
+    document.body.addEventListener("mouseleave", off, true);
+  }
 }
