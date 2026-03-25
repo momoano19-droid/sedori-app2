@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>店舗管理 | せどりGPS管理PRO</title>
 
   <link rel="manifest" href="./manifest.json">
@@ -20,13 +20,12 @@
 
     <!-- 1段目 -->
     <div class="topButtons mainTopButtons">
-  <button class="heroBtn mainBtn" onclick="location.href='report.html'">
-    📊 分析画面へ
-  </button>
-  <button class="ghostBtn subBtn" onclick="openHelp()">
-    📘 使い方
-  </button>
-</div>
+      <button class="heroBtn mainBtn" onclick="location.href='report.html'">
+        📊 分析画面へ
+      </button>
+      <button class="ghostBtn subBtn" onclick="openHelp()">
+        📘 使い方
+      </button>
     </div>
 
     <!-- 2段目：バックアップ -->
@@ -97,7 +96,7 @@
         <button class="ghostBtn" onclick="refreshAllCoordinates()">📡 座標なし店舗を一括再取得</button>
         <button class="ghostBtn" onclick="showNoCoordsOnly()">📍 座標なし店舗を見る</button>
 
-        <button class="ghostBtn" onclick="document.getElementById('mapWrap').scrollIntoView({behavior:'smooth'})">🗺️ 店舗MAP</button>
+        <button class="ghostBtn" onclick="document.getElementById('mapWrap').scrollIntoView({ behavior:'smooth' })">🗺️ 店舗MAP</button>
         <button class="ghostBtn" onclick="moveToCurrentLocation()">📍 現在地へ移動</button>
       </div>
     </div>
@@ -131,24 +130,23 @@
 
     <!-- 店舗カード一覧 -->
     <div id="storeList"></div>
+
   </div>
 
   <!-- UI説明書 -->
   <div id="helpUI" class="helpUI">
     <div class="helpCard">
-
       <div class="helpHeader">
         <div id="helpTitle">📘 せどりGPSガイド</div>
-        <button onclick="closeHelp()">✕</button>
+        <button type="button" onclick="closeHelp()">✕</button>
       </div>
 
       <div id="helpContent" class="helpContent"></div>
 
       <div class="helpFooter">
-        <button onclick="prevHelp()">← 戻る</button>
-        <button onclick="nextHelp()">次へ →</button>
+        <button type="button" onclick="prevHelp()">← 戻る</button>
+        <button type="button" onclick="nextHelp()">次へ →</button>
       </div>
-
     </div>
   </div>
 
