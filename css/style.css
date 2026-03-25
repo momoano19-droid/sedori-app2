@@ -883,19 +883,20 @@ button:active{
   box-shadow:0 6px 14px rgba(37,99,235,0.12);
 }
 
-/* ===== ボタン統一挙動 ===== */
+/* ===== 強めの押し込み ===== */
 button{
-  transition: transform 0.05s ease, box-shadow 0.05s ease;
+  transition: transform 0.05s ease, box-shadow 0.05s ease, filter 0.05s ease;
 }
 
-/* PC用：少し浮く */
+/* PC用（そのままでOK） */
 button:hover{
   transform: translateY(-1px);
 }
 
-/* 押した瞬間：即沈む（全ボタン共通） */
+/* 押した瞬間：より強く沈む */
 button:active{
   transition: none;
-  transform: scale(0.92);
-  box-shadow: inset 0 3px 8px rgba(0,0,0,0.18);
+  transform: translateY(3px) scale(0.88);
+  box-shadow: inset 0 5px 12px rgba(0,0,0,0.25);
+  filter: brightness(0.92);
 }
