@@ -5,15 +5,20 @@
 html, body{
   margin:0;
   padding:0;
+  width:100%;
+  overflow-x:hidden;
 }
 
 body{
   background:#f3f4f6;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   color:#1f2340;
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
 }
 
 .page{
+  width:100%;
   max-width:760px;
   margin:0 auto;
   padding:14px;
@@ -29,6 +34,7 @@ body{
   padding:18px;
   margin-bottom:18px;
   box-shadow:0 6px 20px rgba(15,23,42,0.06);
+  overflow:hidden;
 }
 
 /* =========================
@@ -42,7 +48,13 @@ body{
 }
 
 .topButtons3{
+  display:grid;
   grid-template-columns:1fr 1fr 1fr;
+  gap:14px;
+}
+
+.mainTopButtons{
+  margin-bottom:18px;
 }
 
 .addGrid,
@@ -81,10 +93,17 @@ select{
   outline:none;
   color:#1f2340;
   appearance:none;
+  -webkit-appearance:none;
 }
 
 input::placeholder{
   color:#b7bcc7;
+}
+
+input:focus,
+select:focus{
+  border-color:#8fb5ff;
+  box-shadow:0 0 0 4px rgba(57,118,246,0.10);
 }
 
 /* =========================
@@ -101,8 +120,11 @@ button{
     transform .08s ease,
     filter .08s ease,
     box-shadow .12s ease,
-    opacity .12s ease;
+    opacity .12s ease,
+    background .12s ease,
+    color .12s ease;
   -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
 }
 
 button:active,
@@ -111,11 +133,22 @@ button.is-pressed{
   filter:brightness(.93);
 }
 
+button:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
 .heroBtn,
 .primaryBtn,
-.primaryWide{
+.primaryWide,
+.mainBtn{
   background:#3976f6;
   color:#fff;
+}
+
+.heroBtn,
+.mainBtn{
+  box-shadow:0 10px 22px rgba(57,118,246,0.18);
 }
 
 .primaryWide{
@@ -148,11 +181,13 @@ button.is-pressed{
   font-size:22px;
   font-weight:800;
   margin-bottom:12px;
+  color:#1d2240;
 }
 
 .mini{
   font-size:13px;
   color:#6b7280;
+  line-height:1.7;
 }
 
 /* =========================
@@ -208,6 +243,7 @@ button.is-pressed{
   font-weight:800;
   margin-bottom:8px;
   line-height:1.4;
+  color:#1f2340;
 }
 
 /* =========================
@@ -256,6 +292,7 @@ button.is-pressed{
   margin:0 6px 6px 0;
   background:#eef1f7;
   color:#445;
+  line-height:1.3;
 }
 
 .badge.map{
@@ -343,6 +380,7 @@ button.is-pressed{
   gap:8px !important;
   font-size:16px !important;
   cursor:pointer;
+  color:#1f2340;
 }
 
 /* =========================
@@ -611,6 +649,8 @@ button.is-pressed{
   color:#1f2937;
   line-height:1.5;
   flex:1;
+  min-width:0;
+  word-break:break-word;
 }
 
 .qtyStepper{
@@ -716,6 +756,24 @@ button.is-pressed{
   grid-template-columns:1fr 1fr;
   gap:12px;
   margin-top:18px;
+}
+
+/* =========================
+   Leaflet微調整
+========================= */
+.leaflet-container{
+  border-radius:18px;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+
+.leaflet-popup-content{
+  line-height:1.6;
+  color:#1f2340;
+  font-size:13px;
+}
+
+.leaflet-control-zoom a{
+  border-radius:10px !important;
 }
 
 /* =========================
