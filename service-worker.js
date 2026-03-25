@@ -1,4 +1,4 @@
-const CACHE_NAME = "sedori-v96";
+const CACHE_NAME = "sedori-v97";
 
 const urlsToCache = [
   "./",
