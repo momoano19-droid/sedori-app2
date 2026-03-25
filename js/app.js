@@ -1609,3 +1609,34 @@ function prevHelp(){
     renderHelp();
   }
 }
+/* =========================
+   ボタン押下エフェクト（強化版）
+========================= */
+function setupButtonPressEffect() {
+  const apply = () => {
+    document.querySelectorAll("button").forEach(btn => {
+      if (btn.dataset.pressReady === "1") return;
+      btn.dataset.pressReady = "1";
+
+      const on = () => btn.classList.add("is-pressed");
+      const off = () => btn.classList.remove("is-pressed");
+
+      btn.addEventListener("touchstart", on, { passive: true });
+      btn.addEventListener("touchend", off, { passive: true });
+      btn.addEventListener("touchcancel", off, { passive: true });
+
+      btn.addEventListener("mousedown", on);
+      btn.addEventListener("mouseup", off);
+      btn.addEventListener("mouseleave", off);
+    });
+  };
+
+  apply();
+
+  new MutationObserver(apply).observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+}
+
+window.addEventListener("load", setupButtonPressEffect);
