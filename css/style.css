@@ -900,3 +900,30 @@ button:active{
   box-shadow: inset 0 5px 12px rgba(0,0,0,0.25);
   filter: brightness(0.92);
 }
+
+/* ===== タップ強化（最後に入れる） ===== */
+button{
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  transition: transform 0.08s ease, filter 0.08s ease;
+}
+
+button:active{
+  transform: translateY(2px) scale(0.94);
+  filter: brightness(0.9);
+  box-shadow: inset 0 4px 10px rgba(0,0,0,0.2);
+}
+
+button::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  background:rgba(0,0,0,0.08);
+  opacity:0;
+  transition:opacity 0.1s ease;
+}
+
+button:active::after{
+  opacity:1;
+}
