@@ -952,3 +952,37 @@ button::after{
 button.is-pressed::after{
   opacity:1;
 }
+
+/* ===== 店舗評価ラベル ===== */
+.evalLabel{
+  font-size:13px;
+  font-weight:800;
+  padding:6px 10px;
+  border-radius:999px;
+  display:inline-block;
+  margin-bottom:6px;
+}
+
+/* 新規 */
+.eval-new{
+  background:#eef2ff;
+  color:#6366f1;
+}
+
+/* 行くべき */
+.eval-good{
+  background:#e6f9ed;
+  color:#16a34a;
+}
+
+/* 微妙 */
+.eval-mid{
+  background:#fff7e6;
+  color:#d97706;
+}
+
+/* スキップ */
+.eval-bad{
+  background:#fdecec;
+  color:#dc2626;
+}
