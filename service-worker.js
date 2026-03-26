@@ -1,4 +1,4 @@
-const CACHE_NAME = "sedori-v135";
+const CACHE_NAME = "sedori-v133";
 
 const STATIC_URLS = [
   "./",
@@ -7,7 +7,7 @@ const STATIC_URLS = [
   "./manifest.json",
   "./css/style.css?v=ui13",
   "./js/app.js?v=ui13",
-  "./js/report.js?v=cal4",
+  "./js/report.js?v=cal5",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
