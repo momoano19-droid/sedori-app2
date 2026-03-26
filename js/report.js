@@ -360,7 +360,9 @@ function buildPrefStats(stores, perStore) {
   const prefMap = {};
 
   stores.forEach(store => {
-    const pref = String(store.pref || "").trim() || "未設定";
+    const pref = String(store.pref || "").trim();
+    if (!pref) return;
+
     if (!prefMap[pref]) {
       prefMap[pref] = {
         pref,
@@ -379,7 +381,9 @@ function buildPrefStats(stores, perStore) {
   });
 
   Object.values(perStore).forEach(stat => {
-    const pref = String(stat.pref || "").trim() || "未設定";
+    const pref = String(stat.pref || "").trim();
+    if (!pref) return;
+
     if (!prefMap[pref]) {
       prefMap[pref] = {
         pref,
@@ -422,6 +426,7 @@ function buildPrefStats(stores, perStore) {
         stores: [...x.stores].sort((a, b) => b.profit - a.profit)
       };
     })
+    .filter(x => x.pref)
     .sort((a, b) => b.expected - a.expected || b.profit - a.profit);
 }
 
