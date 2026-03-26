@@ -371,7 +371,8 @@ function buildPrefStats(stores, perStore) {
         success: 0,
         items: 0,
         rate: 0,
-        expected: 0
+        expected: 0,
+        stores: []
       };
     }
     prefMap[pref].registeredStoreCount += 1;
@@ -389,7 +390,8 @@ function buildPrefStats(stores, perStore) {
         success: 0,
         items: 0,
         rate: 0,
-        expected: 0
+        expected: 0,
+        stores: []
       };
     }
 
@@ -398,6 +400,14 @@ function buildPrefStats(stores, perStore) {
     prefMap[pref].visits += Number(stat.visits || 0);
     prefMap[pref].success += Number(stat.success || 0);
     prefMap[pref].items += Number(stat.items || 0);
+    prefMap[pref].stores.push({
+      id: stat.id,
+      name: stat.name,
+      profit: Number(stat.profit || 0),
+      visits: Number(stat.visits || 0),
+      success: Number(stat.success || 0),
+      items: Number(stat.items || 0)
+    });
   });
 
   return Object.values(prefMap)
@@ -408,7 +418,8 @@ function buildPrefStats(stores, perStore) {
       return {
         ...x,
         rate: visits > 0 ? (success / visits) * 100 : 0,
-        expected: visits > 0 ? profit / visits : 0
+        expected: visits > 0 ? profit / visits : 0,
+        stores: [...x.stores].sort((a, b) => b.profit - a.profit)
       };
     })
     .sort((a, b) => b.expected - a.expected || b.profit - a.profit);
@@ -426,7 +437,7 @@ function renderPrefAnalysis(list) {
   el.innerHTML = `
     <div class="catList">
       ${list.map(item => `
-        <div class="catItem" style="grid-template-columns:1fr;">
+        <div class="catItem" style="grid-template-columns:1fr; cursor:pointer;" onclick="showPrefDetail('${escapeHtml(item.pref)}')">
           <div class="catName">${escapeHtml(item.pref)}</div>
           <div class="detailText" style="margin-top:6px;">
             登録店舗 ${item.registeredStoreCount}件 / 対象店舗 ${item.activeStoreCount}件<br>
@@ -437,6 +448,67 @@ function renderPrefAnalysis(list) {
       `).join("")}
     </div>
   `;
+}
+
+function showPrefDetail(prefName) {
+  const stores = loadStores();
+  const logs = loadLogs();
+  const targetMonth = selectedMonth || currentMonthStr();
+  const bundle = getMonthBundle(stores, logs, targetMonth);
+  const pref = bundle.prefStats.find(x => x.pref === prefName);
+
+  const body = document.getElementById("detailBody");
+  const title = document.getElementById("detailTitle");
+  if (!body || !title) return;
+
+  title.textContent = `${prefName} 詳細`;
+
+  if (!pref) {
+    body.innerHTML = `<div class="emptyText">都道府県データがありません。</div>`;
+    showDetailModal();
+    return;
+  }
+
+  let html = `
+    <div class="detailBlock">
+      <div class="detailTitle">${escapeHtml(pref.pref)} サマリー</div>
+      <div class="detailText">
+        登録店舗：${pref.registeredStoreCount}件<br>
+        対象店舗：${pref.activeStoreCount}件<br>
+        利益：${yen(pref.profit)}<br>
+        訪問：${pref.visits}回 / 成功：${pref.success}回 / 個数：${pref.items}個<br>
+        成功率：${pref.rate.toFixed(1)}%<br>
+        期待値：${Math.round(pref.expected).toLocaleString()}円
+      </div>
+    </div>
+  `;
+
+  if (!pref.stores.length) {
+    html += `<div class="emptyText">この都道府県の対象店舗データはありません。</div>`;
+    body.innerHTML = html;
+    showDetailModal();
+    return;
+  }
+
+  html += pref.stores.map(store => {
+    const rate = Number(store.visits || 0) > 0 ? (Number(store.success || 0) / Number(store.visits || 0)) * 100 : 0;
+    const expected = Number(store.visits || 0) > 0 ? Number(store.profit || 0) / Number(store.visits || 0) : 0;
+
+    return `
+      <div class="detailBlock">
+        <div class="detailTitle">${escapeHtml(store.name)}</div>
+        <div class="detailText">
+          利益：${yen(store.profit)}<br>
+          訪問：${store.visits}回 / 成功：${store.success}回 / 個数：${store.items}個<br>
+          成功率：${rate.toFixed(1)}%<br>
+          期待値：${Math.round(expected).toLocaleString()}円
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  body.innerHTML = html;
+  showDetailModal();
 }
 
 /* =========================
