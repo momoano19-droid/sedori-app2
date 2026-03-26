@@ -277,6 +277,21 @@ function formatRestockDays(v) {
   return `${n.toFixed(1).replace(/\.0$/, "")}日`;
 }
 
+function getDaysSinceLastVisit(lastVisitDate) {
+  if (!lastVisitDate) return null;
+  const today = new Date(tokyoDateStr());
+  const last = new Date(lastVisitDate);
+  if (Number.isNaN(last.getTime())) return null;
+  return Math.floor((today - last) / (1000 * 60 * 60 * 24));
+}
+
+function formatDaysSinceLastVisit(lastVisitDate) {
+  const diff = getDaysSinceLastVisit(lastVisitDate);
+  if (diff === null) return "未訪問";
+  if (diff <= 0) return "今日";
+  return `${diff}日`;
+}
+
 function parseCategoryInput(text) {
   const result = {};
   const raw = String(text || "").trim();
@@ -475,11 +490,8 @@ function getExpectedCardClass(expected) {
 }
 
 function getStaleCardClass(lastVisitDate) {
-  if (!lastVisitDate) return "";
-  const today = new Date(tokyoDateStr());
-  const last = new Date(lastVisitDate);
-  const diff = Math.floor((today - last) / (1000 * 60 * 60 * 24));
-
+  const diff = getDaysSinceLastVisit(lastVisitDate);
+  if (diff === null) return "";
   if (diff >= 60) return "stale-60";
   if (diff >= 30) return "stale-30";
   return "";
@@ -1313,15 +1325,16 @@ function makeMarkerIcon(color) {
 function renderMapMarkersNow() {
   if (!mapInitialized || !map) return;
 
+  const filterValues = getFilterValues();
   const list = buildFilteredStoreList().filter(s => hasCoords(s));
   const signature = JSON.stringify({
     ids: list.map(s => s.id),
     nearbyMode,
     noCoordsOnlyMode,
-    q: getFilterValues().q,
-    prefFilter: getFilterValues().prefFilter,
-    minExpected: getFilterValues().minExpected,
-    minRate: getFilterValues().minRate
+    q: filterValues.q,
+    prefFilter: filterValues.prefFilter,
+    minExpected: filterValues.minExpected,
+    minRate: filterValues.minRate
   });
 
   if (signature === lastMapRenderSignature) return;
@@ -1390,6 +1403,7 @@ function renderStoreCard(s, idx) {
   const staleClass = getStaleCardClass(s.lastVisitDate);
   const recent = getRecentStats(s.id);
   const streak = getNoSuccessStreak(s.id);
+  const sinceVisitText = formatDaysSinceLastVisit(s.lastVisitDate);
 
   let dist = null;
   if (window.lastPos && hasCoords(s)) {
@@ -1448,6 +1462,7 @@ function renderStoreCard(s, idx) {
 
         <div class="detailBox">
           <div class="detailLine">📅 最終訪問：${s.lastVisitDate ? escapeHtml(s.lastVisitDate) : "なし"}</div>
+          <div class="detailLine">🕒 最終訪問から：${escapeHtml(sinceVisitText)}</div>
           <div class="detailLine">📊 直近3回：成功 ${recent.recentSuccess}回 / ${recent.recentVisitCount}訪問（${recent.recentRate.toFixed(1)}%）</div>
           <div class="detailLine">💰 訪問あたり期待値：${Math.round(m.expected).toLocaleString()}円</div>
           ${streak >= 3 ? `<div class="detailLine detailWarn">⚠️ ${streak}回連続成功なし</div>` : ``}
@@ -1517,17 +1532,19 @@ function render() {
   const wrap = document.getElementById("storeList");
   if (!wrap) return;
 
+  const filterValues = getFilterValues();
   const signature = JSON.stringify({
     ids: list.map(s => s.id),
-    q: getFilterValues().q,
-    prefFilter: getFilterValues().prefFilter,
-    minExpected: getFilterValues().minExpected,
-    minRate: getFilterValues().minRate,
-    sortType: getFilterValues().sortType,
+    q: filterValues.q,
+    prefFilter: filterValues.prefFilter,
+    minExpected: filterValues.minExpected,
+    minRate: filterValues.minRate,
+    sortType: filterValues.sortType,
     nearbyMode,
     noCoordsOnlyMode,
     layout: currentLayoutMode,
-    todayMarks: stores.filter(s => s.today).map(s => s.id)
+    todayMarks: stores.filter(s => s.today).map(s => s.id),
+    lastVisitDates: stores.map(s => `${s.id}:${s.lastVisitDate}`)
   });
 
   if (signature !== lastListRenderSignature) {
@@ -1631,6 +1648,7 @@ const helpData = [
       その店舗を行くべきか判断するための情報を多く表示します。<br><br>
       <b>詳細で追加される情報</b><br>
       ・最終訪問日<br>
+      ・最終訪問からの日数<br>
       ・直近3回の成績<br>
       ・訪問あたり期待値<br>
       ・連敗アラート
