@@ -6,7 +6,7 @@ const STATIC_URLS = [
   "./report.html",
   "./manifest.json",
   "./css/style.css?v=ui13",
-  "./js/app.js?v=ui13",
+  "./js/app.js?v=ui14",
   "./js/report.js?v=cal5",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
