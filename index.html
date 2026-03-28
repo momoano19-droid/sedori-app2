@@ -106,17 +106,17 @@
 
     <div class="card">
       <div class="topButtons">
-        <button class="primaryBtn" onclick="buildTodayRoute()">🛣 今日ルート作成</button>
+        <button class="primaryBtn" onclick="buildTodayRoute()">🛣 この順番でルート作成</button>
         <button class="ghostBtn" onclick="saveCurrentRoute()">⭐ ルート保存</button>
       </div>
 
       <div class="row2 mt12">
+        <button class="ghostBtn" onclick="autoOptimizeTodayRoute()">🧭 自動最適化</button>
         <button class="ghostBtn" onclick="clearTodayChecks()">☑ 今日行くを解除</button>
-        <div></div>
       </div>
 
       <div class="helpText">
-        店舗カードの「今日行く」にチェックした店舗を使ってルートを作成します。気に入ったルートは保存して再利用できます。
+        今日行くにチェックした店舗が下に並びます。↑↓で順番変更でき、その順番のままGoogleマップで開きます。
       </div>
 
       <div id="todayRouteList" class="helpText" style="margin-top:10px;"></div>
@@ -133,7 +133,6 @@
     </div>
 
     <div id="storeList"></div>
-
   </div>
 
   <div id="helpUI" class="helpUI">
@@ -153,7 +152,7 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="./js/app.js?v=ui14"></script>
+  <script src="./js/app.js?v=ui15"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
