@@ -18,6 +18,7 @@
 <body>
   <div class="page">
 
+    <!-- 上部ナビ -->
     <div class="topButtons mainTopButtons">
       <button class="heroBtn mainBtn" onclick="location.href='report.html'">
         📊 分析画面へ
@@ -27,8 +28,115 @@
       </button>
     </div>
 
+    <!-- 今日のルート -->
+    <div class="card" style="background:linear-gradient(180deg,#f7fbff 0%, #ffffff 100%); border:1px solid #dce9ff;">
+      <div class="sectionTitle" style="margin-bottom:6px;">🛣 今日のルート</div>
+      <div class="helpText" style="margin-top:0;">
+        今日行くにチェックした店舗が下に並びます。↑↓で順番変更でき、その順番のままGoogleマップで開きます。
+      </div>
+
+      <div class="topButtons" style="margin-top:14px;">
+        <button class="primaryBtn" onclick="buildTodayRoute()">🛣 この順番でルート作成</button>
+        <button class="ghostBtn" onclick="saveCurrentRoute()">⭐ ルート保存</button>
+      </div>
+
+      <div class="row2 mt12">
+        <button class="ghostBtn" onclick="autoOptimizeTodayRoute()">🧭 自動最適化</button>
+        <button class="ghostBtn" onclick="clearTodayChecks()">☑ 今日行くを解除</button>
+      </div>
+
+      <div id="todayRouteList" class="helpText" style="margin-top:14px;"></div>
+    </div>
+
+    <!-- 保存済みルート -->
     <div class="card">
-      <div class="topButtons">
+      <div class="sectionTitle" style="margin-bottom:6px;">⭐ 保存済みルート</div>
+      <div class="helpText" style="margin-top:0;">
+        よく使うルートを保存して、後から再利用できます。
+      </div>
+      <div id="savedRoutesList" class="helpText" style="margin-top:14px;">保存済みルートはまだありません。</div>
+    </div>
+
+    <!-- 検索・絞り込み -->
+    <div class="card">
+      <div class="sectionTitle" style="margin-bottom:6px;">🔎 店舗検索と絞り込み</div>
+      <div class="helpText" style="margin-top:0;">
+        店舗位置をまとめて確認しながら、条件で絞り込めます。
+      </div>
+
+      <div class="searchGrid" style="margin-top:14px;">
+        <input id="q" placeholder="🔎 店舗検索（店舗名など）" oninput="render()">
+        <select id="prefFilter" onchange="render()">
+          <option value="__ALL__">全て（都道府県ごと）</option>
+        </select>
+
+        <select id="sortType" onchange="render()">
+          <option value="expected">期待値順</option>
+          <option value="rate">成功率順</option>
+          <option value="avgProfit">平均利益順</option>
+          <option value="visits">訪問回数順</option>
+          <option value="route">距離順</option>
+        </select>
+        <input id="minExpected" placeholder="期待値 下限（例：2000）" oninput="render()">
+
+        <input id="minRate" placeholder="成功率 下限%（例：20）" oninput="render()">
+        <button class="primaryBtn" onclick="showNearbyStores()">📍 近くの店舗（3km）</button>
+      </div>
+
+      <div class="row2 mt12">
+        <button class="ghostBtn" onclick="showNearbyStores()">🚗 現在地で効率更新</button>
+        <button class="ghostBtn" onclick="clearNearbyMode(); render()">通常表示に戻す</button>
+      </div>
+
+      <div class="row2 mt12">
+        <button class="ghostBtn" onclick="showNoCoordsOnly()">📡 座標なし店舗を見る</button>
+        <button class="ghostBtn" onclick="refreshAllCoordinates()">📡 座標なし店舗を一括再取得</button>
+      </div>
+
+      <div class="row2 mt12">
+        <button class="ghostBtn" onclick="document.getElementById('mapWrap').scrollIntoView({ behavior:'smooth' })">🗺️ 地図に移動</button>
+        <button class="ghostBtn" onclick="moveToCurrentLocation()">📍 現在地へ移動</button>
+      </div>
+    </div>
+
+    <!-- 店舗追加 -->
+    <div class="card">
+      <div class="sectionTitle" style="margin-bottom:6px;">➕ 店舗追加</div>
+      <div class="helpText" style="margin-top:0;">
+        店舗名・都道府県・住所・GoogleマップURLから登録できます。
+      </div>
+
+      <div class="addGrid" style="margin-top:14px;">
+        <input id="storeName" placeholder="店舗名を入力">
+        <input id="prefName" placeholder="都道府県（例：茨城）">
+        <input id="address" class="span2" placeholder="住所（これだけでもOK）">
+        <input id="mapUrl" class="span2" placeholder="Googleマップ共有リンク / 短縮URL / place URL など">
+      </div>
+
+      <button class="primaryWide" onclick="addStore()">店舗追加</button>
+
+      <div class="helpText">
+        Googleマップの共有リンク、短縮URL、place URL、@緯度経度入りURLなどを読み取れるようにしています。
+      </div>
+    </div>
+
+    <!-- 表示切替 -->
+    <div class="card">
+      <div class="sectionTitle" style="margin-bottom:10px;">🧭 表示モード</div>
+      <div class="layoutButtons">
+        <button id="detailLayoutBtn" class="ghostBtn" onclick="setLayoutMode('detail')">詳細</button>
+        <button id="compactLayoutBtn" class="ghostBtn" onclick="setLayoutMode('compact')">コンパクト</button>
+      </div>
+    </div>
+
+    <!-- バックアップ -->
+    <div class="card">
+      <div class="sectionTitle" style="margin-bottom:6px;">💾 バックアップ</div>
+      <div class="helpText" style="margin-top:0;">
+        手動バックアップはJSONを書き出します。自動バックアップは更新のたびに保存されます。
+      </div>
+
+      <div class="topButtons" style="margin-top:14px;">
         <button class="heroBtn" onclick="exportBackup()">📦 手動バックアップ</button>
         <button class="ghostBtn" onclick="restoreAutoBackup()">♻ 自動バックアップ</button>
       </div>
@@ -45,96 +153,29 @@
         style="display:none"
         onchange="importBackup(event)"
       >
-
-      <div class="helpText">
-        手動バックアップはJSONを書き出します。自動バックアップは更新のたびに保存されます。
-      </div>
     </div>
 
-    <div class="card">
-      <div class="addGrid">
-        <input id="storeName" placeholder="店舗名を入力">
-        <input id="prefName" placeholder="都道府県（例：茨城）">
-        <input id="address" class="span2" placeholder="住所（これだけでもOK）">
-        <input id="mapUrl" class="span2" placeholder="Googleマップ共有リンク / 短縮URL / place URL など">
-      </div>
-
-      <button class="primaryWide" onclick="addStore()">店舗追加</button>
-
-      <div class="helpText">
-        Googleマップの共有リンク、短縮URL、place URL、@緯度経度入りURLなどを読み取れるようにしています。
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="searchGrid">
-        <input id="q" placeholder="🔎 店舗検索（店舗名など）" oninput="render()">
-        <select id="prefFilter" onchange="render()">
-          <option value="__ALL__">全て（都道府県ごと）</option>
-        </select>
-
-        <input id="minExpected" placeholder="期待値 下限（例：2000）" oninput="render()">
-        <input id="minRate" placeholder="成功率 下限%（例：20）" oninput="render()">
-
-        <select id="sortType" onchange="render()">
-          <option value="expected">期待値順</option>
-          <option value="rate">成功率順</option>
-          <option value="avgProfit">平均利益順</option>
-          <option value="visits">訪問回数順</option>
-          <option value="route">距離順</option>
-        </select>
-
-        <button class="primaryBtn" onclick="showNearbyStores()">🚗 現在地で効率更新</button>
-
-        <button class="primaryBtn" onclick="showNearbyStores()">📍 近くの店舗（3km）</button>
-        <button class="ghostBtn" onclick="clearNearbyMode(); render()">通常表示に戻す</button>
-
-        <button class="ghostBtn" onclick="refreshAllCoordinates()">📡 座標なし店舗を一括再取得</button>
-        <button class="ghostBtn" onclick="showNoCoordsOnly()">📍 座標なし店舗を見る</button>
-
-        <button class="ghostBtn" onclick="document.getElementById('mapWrap').scrollIntoView({ behavior:'smooth' })">🗺️ 店舗MAP</button>
-        <button class="ghostBtn" onclick="moveToCurrentLocation()">📍 現在地へ移動</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="layoutButtons">
-        <button id="detailLayoutBtn" class="ghostBtn" onclick="setLayoutMode('detail')">詳細</button>
-        <button id="compactLayoutBtn" class="ghostBtn" onclick="setLayoutMode('compact')">コンパクト</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="topButtons">
-        <button class="primaryBtn" onclick="buildTodayRoute()">🛣 この順番でルート作成</button>
-        <button class="ghostBtn" onclick="saveCurrentRoute()">⭐ ルート保存</button>
-      </div>
-
-      <div class="row2 mt12">
-        <button class="ghostBtn" onclick="autoOptimizeTodayRoute()">🧭 自動最適化</button>
-        <button class="ghostBtn" onclick="clearTodayChecks()">☑ 今日行くを解除</button>
-      </div>
-
-      <div class="helpText">
-        今日行くにチェックした店舗が下に並びます。↑↓で順番変更でき、その順番のままGoogleマップで開きます。
-      </div>
-
-      <div id="todayRouteList" class="helpText" style="margin-top:10px;"></div>
-    </div>
-
-    <div class="card">
-      <div class="sectionTitle">⭐ 保存済みルート</div>
-      <div id="savedRoutesList" class="helpText">保存済みルートはまだありません。</div>
-    </div>
-
+    <!-- 地図 -->
     <div id="mapWrap" class="card mapWrap">
-      <div class="sectionTitle">店舗MAP</div>
-      <div id="map"></div>
+      <div class="sectionTitle" style="margin-bottom:6px;">🗺️ 店舗MAP</div>
+      <div class="helpText" style="margin-top:0;">
+        店舗位置をまとめて確認できます。
+      </div>
+      <div id="map" style="margin-top:14px;"></div>
+    </div>
+
+    <!-- 店舗一覧 -->
+    <div class="card" style="padding-bottom:8px;">
+      <div class="sectionTitle" style="margin-bottom:6px;">🏪 店舗一覧</div>
+      <div class="helpText" style="margin-top:0;">
+        距離・期待値・成功率を見ながら、行く店舗を判断できます。
+      </div>
     </div>
 
     <div id="storeList"></div>
   </div>
 
+  <!-- UI説明書 -->
   <div id="helpUI" class="helpUI">
     <div class="helpCard">
       <div class="helpHeader">
