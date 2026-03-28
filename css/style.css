@@ -241,33 +241,20 @@ button:disabled{
   letter-spacing:.01em;
 }
 
-/* 店舗カード内の主要数値を見やすく */
-.item .mini{
-  font-size:13px;
-}
-
-.item .mini strong{
-  font-size:16px;
-  font-weight:900;
-  color:#111827;
-}
-
+/* =========================
+   コンパクト表示強化
+========================= */
 .item .mini .mainExpected{
   display:inline-block;
-  font-size:20px;
+  font-size:22px;
   font-weight:900;
   color:#2563eb;
-  letter-spacing:-0.01em;
-  line-height:1.2;
+  line-height:1.15;
+  letter-spacing:-0.02em;
 }
 
 .item .mini .mainExpected.high{
   color:#dc2626;
-}
-
-.item .mini .mainDistance{
-  font-weight:900;
-  color:#16a34a;
 }
 
 .item .mini .mainProfit{
@@ -277,6 +264,35 @@ button:disabled{
 
 .item .mini .mainRate{
   font-weight:900;
+}
+
+/* compact card numbers row */
+.item .compactMainRow{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px 14px;
+  align-items:center;
+  margin-top:8px;
+}
+
+.item .compactSubRow{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px 12px;
+  align-items:center;
+  margin-top:8px;
+}
+
+.item .compactMainRow > span,
+.item .compactSubRow > span{
+  line-height:1.45;
+}
+
+/* compact buttons */
+.item.compactCard .row2 button{
+  min-height:52px;
+  font-size:16px;
+  border-radius:18px;
 }
 
 /* =========================
@@ -876,7 +892,12 @@ button:disabled{
   }
 
   .item .mini .mainExpected{
-    font-size:18px;
+    font-size:19px;
+  }
+
+  .item.compactCard .row2 button{
+    min-height:50px;
+    font-size:15px;
   }
 
   .helpUI{
