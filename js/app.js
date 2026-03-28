@@ -1986,6 +1986,152 @@ function render() {
 }
 
 /* =========================
+   使い方ガイド
+========================= */
+let helpStep = 0;
+
+const helpData = [
+  {
+    title: "📘 このツールでできること",
+    content: `
+      <b>このツールは、せどり店舗を記録・分析して、行く価値の高い店舗を見つけるための管理ツールです。</b><br><br>
+      ・店舗ごとの実績を記録できる<br>
+      ・期待値、成功率、利益を自動で見られる<br>
+      ・近くの店舗をすぐ探せる<br>
+      ・今日行く店舗でルートを作れる<br>
+      ・保存したルートを再利用できる<br>
+      ・分析画面で月別 / 日別の振り返りができる
+    `
+  },
+  {
+    title: "🚀 基本の使い方",
+    content: `
+      <b>まずはこの流れだけ覚えればOKです。</b><br><br>
+      ① 店舗を登録する<br>
+      ② 店に行ったら「訪問＋」を押す<br>
+      ③ 仕入れできたら「個数＋」を押す<br>
+      ④ 利益が分かったら「利益＋」を押す<br><br>
+      → これだけで店舗ごとの実績がたまり、自動で分析されます。
+    `
+  },
+  {
+    title: "🏪 店舗登録のやり方",
+    content: `
+      <b>登録時は次の4つを入れます。</b><br><br>
+      ・店舗名<br>
+      ・都道府県<br>
+      ・住所<br>
+      ・GoogleマップURL（あれば便利）<br><br>
+      ・住所だけでも登録できます<br>
+      ・GoogleマップURLがあると座標を取りやすくなります
+    `
+  },
+  {
+    title: "🛣 今日のルート機能",
+    content: `
+      <b>今日行く店舗をまとめてルート化できます。</b><br><br>
+      ① 店舗カードの「今日行く」にチェック<br>
+      ② 下の今日のルート順に並ぶ<br>
+      ③ ↑↓で順番変更<br>
+      ④ 「この順番でルート作成」を押す<br><br>
+      自動最適化を押すと、近い順ベースに並び替えもできます。
+    `
+  },
+  {
+    title: "⭐ 保存済みルート",
+    content: `
+      <b>よく使うルートを保存できます。</b><br><br>
+      ・ルート保存で保存<br>
+      ・後から今日のルートに読込可能<br>
+      ・お気に入り登録可能<br>
+      ・ルート名やメモも変更できます
+    `
+  },
+  {
+    title: "📍 近くの店舗機能",
+    content: `
+      <b>現在地を使って近くの店舗を探せます。</b><br><br>
+      ・近くの店舗（3km）で現在地近くを表示<br>
+      ・3km以内が無い時は近い順で表示<br>
+      ・現在地へ移動で地図を今いる位置へ移動できます
+    `
+  },
+  {
+    title: "💾 バックアップ",
+    content: `
+      <b>バックアップはかなり重要です。</b><br><br>
+      ・手動バックアップでJSON保存<br>
+      ・バックアップ読込で復元<br>
+      ・自動バックアップも保存されます
+    `
+  }
+];
+
+function openHelp() {
+  const el = document.getElementById("helpUI");
+  const titleEl = document.getElementById("helpTitle");
+  const contentEl = document.getElementById("helpContent");
+
+  if (!el || !titleEl || !contentEl) {
+    alert("使い方表示の読み込みに失敗しました。");
+    return;
+  }
+
+  helpStep = 0;
+  renderHelp();
+
+  el.classList.add("show");
+  el.setAttribute("aria-hidden", "false");
+}
+
+function closeHelp() {
+  const el = document.getElementById("helpUI");
+  if (!el) return;
+  el.classList.remove("show");
+  el.setAttribute("aria-hidden", "true");
+}
+
+function renderHelp() {
+  const data = helpData[helpStep];
+  const titleEl = document.getElementById("helpTitle");
+  const contentEl = document.getElementById("helpContent");
+  if (!data || !titleEl || !contentEl) return;
+
+  titleEl.innerHTML = data.title;
+  contentEl.innerHTML = data.content;
+}
+
+function nextHelp() {
+  if (helpStep < helpData.length - 1) {
+    helpStep++;
+    renderHelp();
+  }
+}
+
+function prevHelp() {
+  if (helpStep > 0) {
+    helpStep--;
+    renderHelp();
+  }
+}
+
+window.addEventListener("keydown", e => {
+  const el = document.getElementById("helpUI");
+  if (!el || !el.classList.contains("show")) return;
+
+  if (e.key === "Escape") closeHelp();
+});
+
+window.addEventListener("load", () => {
+  const el = document.getElementById("helpUI");
+  if (!el) return;
+
+  el.addEventListener("click", e => {
+    if (e.target === el) closeHelp();
+  });
+});
+
+/* =========================
    個数＋カテゴリモーダル
 ========================= */
 function ensureQtyCategoryModal() {
@@ -2292,7 +2438,7 @@ function closeQtyCategoryModal(result) {
 }
 
 /* =========================
-   ボタン押下エフェクト（軽量版）
+   ボタン押下エフェクト
 ========================= */
 function setupButtonPressEffect() {
   const getButton = target => target?.closest?.("button");
