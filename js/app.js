@@ -29,14 +29,23 @@ const ROUTE_KEYS = [
   "sedori_saved_routes"
 ];
 
+const TODAY_ROUTE_ORDER_KEYS = [
+  "today_route_order",
+  "sedori_today_route_order_v2",
+  "sedori_today_route_order_v1",
+  "sedori_today_route_order"
+];
+
 const PRIMARY_STORE_KEY = "stores";
 const PRIMARY_LOG_KEY = "logs";
 const PRIMARY_AUTO_BACKUP_KEY = "auto_backup";
 const PRIMARY_ROUTE_KEY = "saved_routes";
+const PRIMARY_TODAY_ROUTE_ORDER_KEY = "today_route_order";
 
 let stores = loadStores();
 let logs = loadLogs();
 let savedRoutes = loadSavedRoutes();
+let todayRouteOrder = loadTodayRouteOrder();
 
 let nearbyMode = false;
 let nearbyStoreIds = new Set();
@@ -69,6 +78,7 @@ let qtyCategorySelected = {};
    起動
 ========================= */
 window.addEventListener("load", () => {
+  syncTodayRouteOrder();
   initMap();
   updateLayoutButtons();
   render();
@@ -128,6 +138,11 @@ function normalizeRoute(route) {
   };
 }
 
+function normalizeTodayRouteOrder(v) {
+  if (!Array.isArray(v)) return [];
+  return v.map(x => String(x)).filter(Boolean);
+}
+
 function loadStores() {
   const parsed = readFirstAvailable(STORE_KEYS);
   if (!Array.isArray(parsed)) return [];
@@ -164,13 +179,23 @@ function saveRoutes(v) {
   localStorage.setItem(PRIMARY_ROUTE_KEY, JSON.stringify(v));
 }
 
+function loadTodayRouteOrder() {
+  const parsed = readFirstAvailable(TODAY_ROUTE_ORDER_KEYS);
+  return normalizeTodayRouteOrder(parsed);
+}
+
+function saveTodayRouteOrder(v) {
+  localStorage.setItem(PRIMARY_TODAY_ROUTE_ORDER_KEY, JSON.stringify(normalizeTodayRouteOrder(v)));
+}
+
 function saveAutoBackup() {
   try {
     localStorage.setItem(PRIMARY_AUTO_BACKUP_KEY, JSON.stringify({
       savedAt: new Date().toISOString(),
       stores,
       logs,
-      savedRoutes
+      savedRoutes,
+      todayRouteOrder
     }));
   } catch (e) {
     console.error(e);
@@ -188,7 +213,8 @@ function getAutoBackup() {
         savedAt: parsed.savedAt || "",
         stores: Array.isArray(parsed.stores) ? parsed.stores : [],
         logs: Array.isArray(parsed.logs) ? parsed.logs : [],
-        savedRoutes: Array.isArray(parsed.savedRoutes) ? parsed.savedRoutes : []
+        savedRoutes: Array.isArray(parsed.savedRoutes) ? parsed.savedRoutes : [],
+        todayRouteOrder: Array.isArray(parsed.todayRouteOrder) ? parsed.todayRouteOrder : []
       };
     } catch (e) {
       console.error("backup read error:", key, e);
@@ -207,6 +233,7 @@ function saveAll() {
   saveStores(stores);
   saveLogs(logs);
   saveRoutes(savedRoutes);
+  saveTodayRouteOrder(todayRouteOrder);
   saveAutoBackup();
   invalidateDerivedCaches();
 }
@@ -463,31 +490,116 @@ function buildFilteredStoreList() {
   return list;
 }
 
-function getTodayRouteStores() {
-  const targets = stores.filter(s => s.today);
-  if (!targets.length) return [];
+/* =========================
+   今日ルート順序
+========================= */
+function syncTodayRouteOrder() {
+  const todayIds = stores.filter(s => s.today).map(s => s.id);
+  const todaySet = new Set(todayIds);
 
-  const usable = targets.filter(s => hasCoords(s) || s.address);
-  if (!usable.length) return [];
+  todayRouteOrder = todayRouteOrder.filter(id => todaySet.has(id));
 
-  const sorted = [...usable];
-
-  if (window.lastPos) {
-    sorted.sort((a, b) => {
-      const ad = hasCoords(a) ? distanceKm(window.lastPos.lat, window.lastPos.lng, a.lat, a.lng) : Infinity;
-      const bd = hasCoords(b) ? distanceKm(window.lastPos.lat, window.lastPos.lng, b.lat, b.lng) : Infinity;
-      return ad - bd;
-    });
-  }
-
-  return sorted;
+  todayIds.forEach(id => {
+    if (!todayRouteOrder.includes(id)) {
+      todayRouteOrder.push(id);
+    }
+  });
 }
 
-function openRouteInGoogleMaps(routeStores) {
+function getTodayRouteStores() {
+  syncTodayRouteOrder();
+
+  return todayRouteOrder
+    .map(id => stores.find(s => s.id === id))
+    .filter(s => s && s.today)
+    .filter(s => hasCoords(s) || s.address);
+}
+
+function moveTodayRouteItem(index, delta) {
+  syncTodayRouteOrder();
+
+  const nextIndex = index + delta;
+  if (index < 0 || nextIndex < 0 || index >= todayRouteOrder.length || nextIndex >= todayRouteOrder.length) return;
+
+  const arr = [...todayRouteOrder];
+  const temp = arr[index];
+  arr[index] = arr[nextIndex];
+  arr[nextIndex] = temp;
+  todayRouteOrder = arr;
+
+  saveAll();
+  render();
+}
+
+function removeTodayRouteItem(index) {
+  syncTodayRouteOrder();
+
+  const id = todayRouteOrder[index];
+  if (!id) return;
+
+  const store = stores.find(s => s.id === id);
+  if (store) store.today = false;
+
+  todayRouteOrder = todayRouteOrder.filter((_, i) => i !== index);
+
+  saveAll();
+  render();
+}
+
+function getNearestNeighborRoute(routeStores, startPos = null) {
+  const remaining = [...routeStores];
+  const ordered = [];
+
+  let currentPoint = startPos && typeof startPos.lat === "number" && typeof startPos.lng === "number"
+    ? { lat: startPos.lat, lng: startPos.lng }
+    : null;
+
+  while (remaining.length) {
+    let bestIndex = 0;
+
+    if (currentPoint) {
+      let bestDist = Infinity;
+
+      remaining.forEach((store, idx) => {
+        if (!hasCoords(store)) return;
+        const dist = distanceKm(currentPoint.lat, currentPoint.lng, store.lat, store.lng);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIndex = idx;
+        }
+      });
+    }
+
+    const nextStore = remaining.splice(bestIndex, 1)[0];
+    ordered.push(nextStore);
+
+    if (hasCoords(nextStore)) {
+      currentPoint = { lat: nextStore.lat, lng: nextStore.lng };
+    } else {
+      currentPoint = null;
+    }
+  }
+
+  return ordered;
+}
+
+function autoOptimizeTodayRoute() {
+  const routeStores = getTodayRouteStores();
   if (!routeStores.length) {
-    alert("ルートに使える店舗がありません。");
+    alert("今日のルートに店舗がありません。");
     return;
   }
+
+  const optimized = getNearestNeighborRoute(routeStores, window.lastPos);
+  todayRouteOrder = optimized.map(s => s.id);
+
+  saveAll();
+  render();
+  alert("今日のルートを自動最適化しました。");
+}
+
+function buildGoogleMapsRouteUrl(routeStores) {
+  if (!routeStores.length) return "";
 
   const makeDest = s => {
     if (hasCoords(s)) return `${s.lat},${s.lng}`;
@@ -498,10 +610,53 @@ function openRouteInGoogleMaps(routeStores) {
   const waypoints = routeStores.slice(0, -1).map(makeDest).slice(0, 8);
   const origin = "Current Location";
 
-  const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving${waypoints.length ? `&waypoints=${encodeURIComponent(waypoints.join("|"))}` : ""}`;
-  window.open(url, "_blank");
+  return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving${waypoints.length ? `&waypoints=${encodeURIComponent(waypoints.join("|"))}` : ""}`;
 }
 
+function openSplitRoutes(routeStores) {
+  const first = routeStores.slice(0, 9);
+  const second = routeStores.slice(9, 18);
+
+  const firstUrl = buildGoogleMapsRouteUrl(first);
+  const secondUrl = buildGoogleMapsRouteUrl(second);
+
+  if (firstUrl) window.open(firstUrl, "_blank");
+
+  if (secondUrl) {
+    setTimeout(() => {
+      window.open(secondUrl, "_blank");
+    }, 500);
+  }
+}
+
+function openRouteInGoogleMaps(routeStores) {
+  if (!routeStores.length) {
+    alert("ルートに使える店舗がありません。");
+    return;
+  }
+
+  if (routeStores.length <= 9) {
+    const url = buildGoogleMapsRouteUrl(routeStores);
+    if (!url) {
+      alert("ルートに使える店舗がありません。");
+      return;
+    }
+    window.open(url, "_blank");
+    return;
+  }
+
+  if (routeStores.length <= 18) {
+    alert(`店舗数が ${routeStores.length} 件あるため、ルートを2本に分けて開きます。`);
+    openSplitRoutes(routeStores);
+    return;
+  }
+
+  alert(`店舗数が ${routeStores.length} 件あります。Googleマップで安定して使うため、18件以下に絞ってください。`);
+}
+
+/* =========================
+   保存済みルート
+========================= */
 function sortSavedRoutes() {
   savedRoutes.sort((a, b) => {
     if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
@@ -563,6 +718,9 @@ function openSavedRoute(routeId) {
     s.today = route.storeIds.includes(s.id);
   });
 
+  todayRouteOrder = route.storeIds.filter(id => stores.some(s => s.id === id && s.today));
+  syncTodayRouteOrder();
+
   saveAll();
   render();
   alert(`「${route.name}」を今日のルートに読み込みました。`);
@@ -572,7 +730,7 @@ function openSavedRouteInMaps(routeId) {
   const route = savedRoutes.find(r => r.id === routeId);
   if (!route) return;
 
-  const routeStores = buildSavedRouteStores(route);
+  const routeStores = buildSavedRouteStores(route).filter(s => hasCoords(s) || s.address);
   if (!routeStores.length) {
     alert("このルートの店舗が見つかりません。");
     return;
@@ -803,11 +961,12 @@ function getStoreEvaluationLabel(m) {
 ========================= */
 function exportBackup() {
   const data = {
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     stores,
     logs,
-    savedRoutes
+    savedRoutes,
+    todayRouteOrder
   };
 
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -841,10 +1000,12 @@ function importBackup(event) {
       stores = parsed.stores.map(normalizeStore);
       logs = Array.isArray(parsed.logs) ? parsed.logs : [];
       savedRoutes = Array.isArray(parsed.savedRoutes) ? parsed.savedRoutes.map(normalizeRoute) : [];
+      todayRouteOrder = Array.isArray(parsed.todayRouteOrder) ? normalizeTodayRouteOrder(parsed.todayRouteOrder) : [];
       nearbyMode = false;
       noCoordsOnlyMode = false;
       nearbyStoreIds = new Set();
 
+      syncTodayRouteOrder();
       saveAll();
       render();
       alert("バックアップを読み込みました。");
@@ -871,10 +1032,12 @@ function restoreAutoBackup() {
   stores = Array.isArray(data.stores) ? data.stores.map(normalizeStore) : [];
   logs = Array.isArray(data.logs) ? data.logs : [];
   savedRoutes = Array.isArray(data.savedRoutes) ? data.savedRoutes.map(normalizeRoute) : [];
+  todayRouteOrder = Array.isArray(data.todayRouteOrder) ? normalizeTodayRouteOrder(data.todayRouteOrder) : [];
   nearbyMode = false;
   noCoordsOnlyMode = false;
   nearbyStoreIds = new Set();
 
+  syncTodayRouteOrder();
   saveAll();
   render();
   alert("自動バックアップから復元しました。");
@@ -1123,6 +1286,7 @@ function deleteStore(i) {
   if (!confirm(`「${s.name}」を削除しますか？`)) return;
 
   stores.splice(i, 1);
+  todayRouteOrder = todayRouteOrder.filter(id => id !== s.id);
   saveAll();
   render();
 }
@@ -1362,7 +1526,18 @@ function profitMinus(i) {
 function toggleToday(i, checked) {
   const s = stores[i];
   if (!s) return;
+
   s.today = !!checked;
+
+  if (s.today) {
+    if (!todayRouteOrder.includes(s.id)) {
+      todayRouteOrder.push(s.id);
+    }
+  } else {
+    todayRouteOrder = todayRouteOrder.filter(id => id !== s.id);
+  }
+
+  syncTodayRouteOrder();
   saveAll();
   render();
 }
@@ -1371,6 +1546,7 @@ function clearTodayChecks() {
   stores.forEach(s => {
     s.today = false;
   });
+  todayRouteOrder = [];
   saveAll();
   render();
 }
@@ -1499,7 +1675,7 @@ function initMap() {
 
   map = L.map("map").setView([35.681236, 139.767125], 6);
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{y}.png".replace('{y}','{z}'), {
     maxZoom: 19,
     attribution: "&copy; OpenStreetMap"
   }).addTo(map);
@@ -1731,9 +1907,46 @@ function showEmptyDataGuide() {
   `;
 }
 
+function renderTodayRouteList() {
+  const el = document.getElementById("todayRouteList");
+  if (!el) return;
+
+  syncTodayRouteOrder();
+
+  const routeStores = todayRouteOrder
+    .map(id => stores.find(s => s.id === id))
+    .filter(s => s && s.today);
+
+  if (!routeStores.length) {
+    el.innerHTML = "チェックした店舗はまだありません。";
+    return;
+  }
+
+  el.innerHTML = `
+    <div style="font-weight:700; margin-bottom:8px;">今日のルート順</div>
+    ${routeStores.map((s, idx) => `
+      <div class="item" style="margin-bottom:10px; padding:12px 14px;">
+        <div class="name" style="font-size:16px; margin-bottom:6px;">${idx + 1}. ${escapeHtml(s.name)}</div>
+        <div class="mini">${escapeHtml(s.pref || "")}${s.address ? ` / ${escapeHtml(s.address)}` : ""}</div>
+
+        <div class="row2 mt8">
+          <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="moveTodayRouteItem(${idx}, -1)">↑ 上へ</button>
+          <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="moveTodayRouteItem(${idx}, 1)">↓ 下へ</button>
+        </div>
+
+        <div class="row2 mt8">
+          <button ${makeButtonStyle("#fef2f2", "#dc2626")} onclick="removeTodayRouteItem(${idx})">ルートから外す</button>
+          <div></div>
+        </div>
+      </div>
+    `).join("")}
+  `;
+}
+
 function render() {
   updateLayoutButtons();
   buildPrefFilter();
+  syncTodayRouteOrder();
 
   const list = buildFilteredStoreList();
   const wrap = document.getElementById("storeList");
@@ -1751,6 +1964,7 @@ function render() {
     noCoordsOnlyMode,
     layout: currentLayoutMode,
     todayMarks: stores.filter(s => s.today).map(s => s.id),
+    todayRouteOrder,
     lastVisitDates: stores.map(s => `${s.id}:${s.lastVisitDate}`),
     savedRoutes: savedRoutes.map(r => `${r.id}:${r.updatedAt}:${r.favorite}`).join("|")
   });
@@ -1768,166 +1982,6 @@ function render() {
 
   if (!stores.length) {
     showEmptyDataGuide();
-  }
-}
-
-function renderTodayRouteList() {
-  const el = document.getElementById("todayRouteList");
-  if (!el) return;
-
-  const checkedStores = stores.filter(s => s.today);
-
-  if (!checkedStores.length) {
-    el.innerHTML = "チェックした店舗はまだありません。";
-    return;
-  }
-
-  const names = checkedStores.map((s, i) => `${i + 1}. ${escapeHtml(s.name)}`);
-
-  el.innerHTML = `
-    <div style="font-weight:700; margin-bottom:6px;">今日行く店舗</div>
-    <div style="line-height:1.8;">${names.join("<br>")}</div>
-  `;
-}
-
-/* =========================
-   使い方ガイド
-========================= */
-let helpStep = 0;
-
-const helpData = [
-  {
-    title: "📘 このツールでできること",
-    content: `
-      <b>このツールは、せどり店舗を記録・分析して、行く価値の高い店舗を見つけるための管理ツールです。</b><br><br>
-      ・店舗ごとの実績を記録できる<br>
-      ・期待値、成功率、利益を自動で見られる<br>
-      ・近くの店舗をすぐ探せる<br>
-      ・今日行く店舗でルートを作れる<br>
-      ・保存したルートを再利用できる<br>
-      ・分析画面で月別 / 日別の振り返りができる
-    `
-  },
-  {
-    title: "🚀 基本の使い方",
-    content: `
-      <b>まずはこの流れだけ覚えればOKです。</b><br><br>
-      ① 店舗を登録する<br>
-      ② 店に行ったら「訪問＋」を押す<br>
-      ③ 仕入れできたら「個数＋」を押す<br>
-      ④ 利益が分かったら「利益＋」を押す<br><br>
-      → これだけで店舗ごとの実績がたまり、自動で分析されます。
-    `
-  },
-  {
-    title: "🏪 店舗登録のやり方",
-    content: `
-      <b>登録時は次の4つを入れます。</b><br><br>
-      ・店舗名<br>
-      ・都道府県<br>
-      ・住所<br>
-      ・GoogleマップURL（あれば便利）<br><br>
-      <b>ポイント</b><br>
-      ・住所だけでも登録できます<br>
-      ・GoogleマップURLがあると座標を取りやすくなります<br>
-      ・座標が取れると「近くの店舗」や地図表示に使えます
-    `
-  },
-  {
-    title: "📊 店舗カードの見方",
-    content: `
-      <b>店舗カードには、その店の強さがまとまっています。</b><br><br>
-      ・期待値 → その店に行った時の価値<br>
-      ・利益 → その店で出た累計利益<br>
-      ・成功率 → 行った時に仕入れできる割合<br>
-      ・訪問 / 成功 / 個数 → 実績の回数<br><br>
-      <b>見方のコツ</b><br>
-      ・期待値が高い店ほど優先<br>
-      ・成功率が高い店ほど安定<br>
-      ・利益が大きい店は主力候補
-    `
-  },
-  {
-    title: "🧭 コンパクトと詳細の違い",
-    content: `
-      <b>表示モードは2種類あります。</b><br><br>
-      <b>【コンパクト】</b><br>
-      一覧でサッと見る用です。<br>
-      店舗を多く並べて、素早く判断したい時に向いています。<br><br>
-      <b>【詳細】</b><br>
-      その店舗を行くべきか判断するための情報を多く表示します。<br><br>
-      <b>詳細で追加される情報</b><br>
-      ・最終訪問日<br>
-      ・最終訪問からの日数<br>
-      ・直近3回の成績<br>
-      ・訪問あたり期待値<br>
-      ・連敗アラート
-    `
-  },
-  {
-    title: "📍 近くの店舗機能",
-    content: `
-      <b>現在地を使って近くの店舗を探せます。</b><br><br>
-      ・「近くの店舗（3km）」で現在地の近くを表示<br>
-      ・3km以内が無い時は近い順で表示<br>
-      ・「現在地へ移動」で地図を今いる場所に移動<br><br>
-      <b>座標が入っている店舗ほど便利に使えます。</b>
-    `
-  },
-  {
-    title: "🛣 今日ルート機能",
-    content: `
-      <b>今日回る店舗をまとめてルート化できます。</b><br><br>
-      ① 店舗カードの「今日行く」にチェック<br>
-      ② 「今日ルート作成」でGoogleマップを開く<br>
-      ③ 「ルート保存」でお気に入り登録や再利用ができます
-    `
-  },
-  {
-    title: "📦 バックアップ",
-    content: `
-      <b>バックアップはかなり重要です。</b><br><br>
-      ・「手動バックアップ」でJSON保存<br>
-      ・「バックアップ読込」で復元<br>
-      ・「自動バックアップ」で内部保存
-    `
-  }
-];
-
-function openHelp() {
-  helpStep = 0;
-  const el = document.getElementById("helpUI");
-  if (!el) return;
-  el.classList.add("show");
-  renderHelp();
-}
-
-function closeHelp() {
-  const el = document.getElementById("helpUI");
-  if (!el) return;
-  el.classList.remove("show");
-}
-
-function renderHelp() {
-  const data = helpData[helpStep];
-  const titleEl = document.getElementById("helpTitle");
-  const contentEl = document.getElementById("helpContent");
-  if (!titleEl || !contentEl) return;
-  titleEl.innerHTML = data.title;
-  contentEl.innerHTML = data.content;
-}
-
-function nextHelp() {
-  if (helpStep < helpData.length - 1) {
-    helpStep++;
-    renderHelp();
-  }
-}
-
-function prevHelp() {
-  if (helpStep > 0) {
-    helpStep--;
-    renderHelp();
   }
 }
 
