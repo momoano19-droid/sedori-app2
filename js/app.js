@@ -1778,27 +1778,69 @@ function buildPrefFilter() {
   }
 }
 
-function renderStoreCard(s, idx) {
-  const m = getMetrics(s);
-  const evalData = getStoreEvaluationLabel(m);
-  const rateClass = getRateClass(m.rate);
-  const expectedClass = getExpectedCardClass(m.expected);
-  const staleClass = getStaleCardClass(s.lastVisitDate);
+function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedClass, staleClass) {
+  const expectedHighClass = m.expected >= 10000 ? "high" : "";
+  const compactBadges = [
+    `<span class="badge">${escapeHtml(s.pref || "未設定")}</span>`,
+    typeof dist === "number" ? `<span class="badge near">📍 ${dist.toFixed(1)}km</span>` : ``,
+    s.mapUrl ? `<span class="badge map">🗺 MAPあり</span>` : ``,
+    hasCoords(s) ? `<span class="badge" style="background:#eef8ff;color:#2563eb;">📡 座標あり</span>` : ``,
+    `<span class="badge freq">補充頻度 ${formatRestockDays(m.freq)}</span>`
+  ].filter(Boolean).join("");
+
+  return `
+    <div class="item ${expectedClass} ${staleClass}">
+      <div class="evalLabel ${evalData.class}">
+        ${evalData.label}
+      </div>
+
+      <div class="name">${escapeHtml(s.name)}</div>
+
+      <div style="margin-top:6px;">
+        ${compactBadges}
+      </div>
+
+      <div class="mini mt8" style="display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;">
+        <span>期待値 <span class="mainExpected ${expectedHighClass}">${Math.round(m.expected).toLocaleString()}円</span></span>
+        <span class="${rateClass}">成功率 ${m.rate.toFixed(1)}%</span>
+        <span>利益 <span class="mainProfit">${m.profit.toLocaleString()}円</span></span>
+      </div>
+
+      <div class="mini mt8" style="display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;">
+        <span>訪問 ${m.visits}回</span>
+        <span>成功 ${m.success}回</span>
+        <span>個数 ${m.items}個</span>
+      </div>
+
+      <div class="mt8">
+        <label style="font-size:15px;">
+          <input type="checkbox" ${s.today ? "checked" : ""} onchange="toggleToday(${idx}, this.checked)">
+          今日行く
+        </label>
+      </div>
+
+      <div class="row2 mt8">
+        <button ${makeButtonStyle("#dff7e8", "#129b52")} onclick="visit(${idx})">訪問＋</button>
+        <button ${makeButtonStyle("#e7f0ff", "#2563eb")} onclick="itemsPlus(${idx})">個数＋</button>
+      </div>
+
+      <div class="row2 mt8">
+        <button ${makeButtonStyle("#fff0e1", "#ea580c")} onclick="profitPlus(${idx})">利益＋</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="navigateToStore(${idx})">ナビ</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedClass, staleClass) {
   const recent = getRecentStats(s.id);
   const streak = getNoSuccessStreak(s.id);
   const sinceVisitText = formatDaysSinceLastVisit(s.lastVisitDate);
-
-  let dist = null;
-  if (window.lastPos && hasCoords(s)) {
-    dist = distanceKm(window.lastPos.lat, window.lastPos.lng, s.lat, s.lng);
-  }
 
   const categorySummary = Object.entries(s.categoryCounts || {})
     .filter(([, qty]) => Number(qty) > 0)
     .map(([cat, qty]) => `${cat}:${qty}`)
     .join(" / ");
-
-  const compact = currentLayoutMode === "compact";
 
   return `
     <div class="item ${expectedClass} ${staleClass}">
@@ -1818,39 +1860,28 @@ function renderStoreCard(s, idx) {
 
       ${s.address ? `<div class="mini mt8">📍 ${escapeHtml(s.address)}</div>` : ``}
 
-      ${compact ? `
-        <div class="mini mt8">
-          期待値 ${Math.round(m.expected).toLocaleString()}円 / 利益 ${m.profit.toLocaleString()}円 /
-          <span class="${rateClass}">成功率 ${m.rate.toFixed(1)}%</span>
-        </div>
+      <div class="mini mt8">
+        期待値：${Math.round(m.expected).toLocaleString()}円
+      </div>
 
-        <div class="mini mt8">
-          訪問 ${m.visits}回 / 成功 ${m.success}回 / 個数 ${m.items}個
-        </div>
-      ` : `
-        <div class="mini mt8">
-          期待値：${Math.round(m.expected).toLocaleString()}円
-        </div>
+      <div class="mini mt8" style="line-height:1.6;">
+        利益：${m.profit.toLocaleString()}円 / <span class="${rateClass}">成功率：${m.rate.toFixed(1)}%</span><br>
+        平均利益：${Math.round(m.avgProfit).toLocaleString()}円 / 平均個数：${m.avgItems.toFixed(1)}個
+      </div>
 
-        <div class="mini mt8" style="line-height:1.6;">
-          利益：${m.profit.toLocaleString()}円 / <span class="${rateClass}">成功率：${m.rate.toFixed(1)}%</span><br>
-          平均利益：${Math.round(m.avgProfit).toLocaleString()}円 / 平均個数：${m.avgItems.toFixed(1)}個
-        </div>
+      <div class="mini mt8">
+        訪問：${m.visits}回 / 成功：${m.success}回 / 個数：${m.items}個
+      </div>
 
-        <div class="mini mt8">
-          訪問：${m.visits}回 / 成功：${m.success}回 / 個数：${m.items}個
-        </div>
+      ${categorySummary ? `<div class="mini mt8">📦 ${escapeHtml(categorySummary)}</div>` : ``}
 
-        ${categorySummary ? `<div class="mini mt8">📦 ${escapeHtml(categorySummary)}</div>` : ``}
-
-        <div class="detailBox">
-          <div class="detailLine">📅 最終訪問：${s.lastVisitDate ? escapeHtml(s.lastVisitDate) : "なし"}</div>
-          <div class="detailLine">🕒 最終訪問から：${escapeHtml(sinceVisitText)}</div>
-          <div class="detailLine">📊 直近3回：成功 ${recent.recentSuccess}回 / ${recent.recentVisitCount}訪問（${recent.recentRate.toFixed(1)}%）</div>
-          <div class="detailLine">💰 訪問あたり期待値：${Math.round(m.expected).toLocaleString()}円</div>
-          ${streak >= 3 ? `<div class="detailLine detailWarn">⚠️ ${streak}回連続成功なし</div>` : ``}
-        </div>
-      `}
+      <div class="detailBox">
+        <div class="detailLine">📅 最終訪問：${s.lastVisitDate ? escapeHtml(s.lastVisitDate) : "なし"}</div>
+        <div class="detailLine">🕒 最終訪問から：${escapeHtml(sinceVisitText)}</div>
+        <div class="detailLine">📊 直近3回：成功 ${recent.recentSuccess}回 / ${recent.recentVisitCount}訪問（${recent.recentRate.toFixed(1)}%）</div>
+        <div class="detailLine">💰 訪問あたり期待値：${Math.round(m.expected).toLocaleString()}円</div>
+        ${streak >= 3 ? `<div class="detailLine detailWarn">⚠️ ${streak}回連続成功なし</div>` : ``}
+      </div>
 
       <div class="mt8">
         <label style="font-size:13px;">
@@ -1885,6 +1916,25 @@ function renderStoreCard(s, idx) {
       </div>
     </div>
   `;
+}
+
+function renderStoreCard(s, idx) {
+  const m = getMetrics(s);
+  const evalData = getStoreEvaluationLabel(m);
+  const rateClass = getRateClass(m.rate);
+  const expectedClass = getExpectedCardClass(m.expected);
+  const staleClass = getStaleCardClass(s.lastVisitDate);
+
+  let dist = null;
+  if (window.lastPos && hasCoords(s)) {
+    dist = distanceKm(window.lastPos.lat, window.lastPos.lng, s.lat, s.lng);
+  }
+
+  if (currentLayoutMode === "compact") {
+    return renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedClass, staleClass);
+  }
+
+  return renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedClass, staleClass);
 }
 
 function showEmptyDataGuide() {
