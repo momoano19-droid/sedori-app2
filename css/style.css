@@ -176,6 +176,7 @@ button:disabled{
 .mini{
   font-size:13px;
   color:#6b7280;
+  line-height:1.65;
 }
 
 /* =========================
@@ -215,7 +216,7 @@ button:disabled{
 
 .item.expected-high{
   border-color:#3976f6;
-  box-shadow:0 8px 24px rgba(57,118,246,0.14);
+  box-shadow:0 10px 26px rgba(57,118,246,0.16);
 }
 
 .item.expected-mid{
@@ -232,11 +233,50 @@ button:disabled{
 }
 
 .name{
-  font-size:20px;
+  font-size:21px;
   font-weight:900;
   margin-bottom:8px;
-  line-height:1.4;
+  line-height:1.38;
   color:#1a2140;
+  letter-spacing:.01em;
+}
+
+/* 店舗カード内の主要数値を見やすく */
+.item .mini{
+  font-size:13px;
+}
+
+.item .mini strong{
+  font-size:16px;
+  font-weight:900;
+  color:#111827;
+}
+
+.item .mini .mainExpected{
+  display:inline-block;
+  font-size:20px;
+  font-weight:900;
+  color:#2563eb;
+  letter-spacing:-0.01em;
+  line-height:1.2;
+}
+
+.item .mini .mainExpected.high{
+  color:#dc2626;
+}
+
+.item .mini .mainDistance{
+  font-weight:900;
+  color:#16a34a;
+}
+
+.item .mini .mainProfit{
+  font-weight:900;
+  color:#ea580c;
+}
+
+.item .mini .mainRate{
+  font-weight:900;
 }
 
 /* =========================
@@ -287,6 +327,7 @@ button:disabled{
   background:#eef1f7;
   color:#445;
   vertical-align:middle;
+  line-height:1.2;
 }
 
 .badge.map{
@@ -297,6 +338,7 @@ button:disabled{
 .badge.near{
   background:#e9fbef;
   color:#16a34a;
+  box-shadow:inset 0 0 0 1px rgba(34,197,94,.15);
 }
 
 .badge.freq{
@@ -830,6 +872,10 @@ button:disabled{
   }
 
   .name{
+    font-size:18px;
+  }
+
+  .item .mini .mainExpected{
     font-size:18px;
   }
 
