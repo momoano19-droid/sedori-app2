@@ -28,26 +28,6 @@
       </button>
     </div>
 
-    <!-- 今日のルート -->
-    <div class="card" style="background:linear-gradient(180deg,#f7fbff 0%, #ffffff 100%); border:1px solid #dce9ff;">
-      <div class="sectionTitle" style="margin-bottom:6px;">🛣 今日のルート</div>
-      <div class="helpText" style="margin-top:0;">
-        今日行くにチェックした店舗が下に並びます。↑↓で順番変更でき、その順番のままGoogleマップで開きます。
-      </div>
-
-      <div class="topButtons" style="margin-top:14px;">
-        <button type="button" class="primaryBtn" onclick="buildTodayRoute()">🛣 この順番でルート作成</button>
-        <button type="button" class="ghostBtn" onclick="saveCurrentRoute()">⭐ ルート保存</button>
-      </div>
-
-      <div class="row2 mt12">
-        <button type="button" class="ghostBtn" onclick="autoOptimizeTodayRoute()">🧭 自動最適化</button>
-        <button type="button" class="ghostBtn" onclick="clearTodayChecks()">☑ 今日行くを解除</button>
-      </div>
-
-      <div id="todayRouteList" class="helpText" style="margin-top:14px;"></div>
-    </div>
-
     <!-- 保存済みルート -->
     <div class="card">
       <div class="sectionTitle" style="margin-bottom:6px;">⭐ 保存済みルート</div>
@@ -167,6 +147,26 @@
     <!-- 店舗一覧タイトル -->
     <div class="card" style="padding-bottom:8px;">
       <div class="sectionTitle" style="margin-bottom:0;">🏪 店舗一覧</div>
+    </div>
+
+    <!-- 今日のルート -->
+    <div class="card" style="background:linear-gradient(180deg,#f7fbff 0%, #ffffff 100%); border:1px solid #dce9ff;">
+      <div class="sectionTitle" style="margin-bottom:6px;">🛣 今日のルート</div>
+      <div class="helpText" style="margin-top:0;">
+        今日行くにチェックした店舗が下に並びます。↑↓で順番変更でき、その順番のままGoogleマップで開きます。
+      </div>
+
+      <div class="topButtons" style="margin-top:14px;">
+        <button type="button" class="primaryBtn" onclick="buildTodayRoute()">🛣 この順番でルート作成</button>
+        <button type="button" class="ghostBtn" onclick="saveCurrentRoute()">⭐ ルート保存</button>
+      </div>
+
+      <div class="row2 mt12">
+        <button type="button" class="ghostBtn" onclick="autoOptimizeTodayRoute()">🧭 自動最適化</button>
+        <button type="button" class="ghostBtn" onclick="clearTodayChecks()">☑ 今日行くを解除</button>
+      </div>
+
+      <div id="todayRouteList" class="helpText" style="margin-top:14px;"></div>
     </div>
 
     <!-- 店舗一覧 -->
