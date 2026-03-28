@@ -1675,7 +1675,7 @@ function initMap() {
 
   map = L.map("map").setView([35.681236, 139.767125], 6);
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{y}.png".replace('{y}','{z}'), {
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "&copy; OpenStreetMap"
   }).addTo(map);
