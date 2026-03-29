@@ -41,6 +41,7 @@ const PRIMARY_LOG_KEY = "logs";
 const PRIMARY_AUTO_BACKUP_KEY = "auto_backup";
 const PRIMARY_ROUTE_KEY = "saved_routes";
 const PRIMARY_TODAY_ROUTE_ORDER_KEY = "today_route_order";
+const SORT_TYPE_STORAGE_KEY = "store_sort_type";
 
 let stores = loadStores();
 let logs = loadLogs();
@@ -81,6 +82,7 @@ window.addEventListener("load", () => {
   syncTodayRouteOrder();
   initMap();
   updateLayoutButtons();
+  restoreSortType();
   render();
   setTimeout(() => autoDetectNearbyStores(), 800);
   setupButtonPressEffect();
@@ -437,6 +439,25 @@ function getCategoryHistory() {
 
   categoryHistoryDirty = false;
   return categoryHistoryCache;
+}
+
+function restoreSortType() {
+  const sel = document.getElementById("sortType");
+  if (!sel) return;
+
+  const saved = localStorage.getItem(SORT_TYPE_STORAGE_KEY);
+  if (!saved) return;
+
+  const exists = [...sel.options].some(opt => opt.value === saved);
+  if (exists) {
+    sel.value = saved;
+  }
+}
+
+function saveSortType() {
+  const sel = document.getElementById("sortType");
+  if (!sel) return;
+  localStorage.setItem(SORT_TYPE_STORAGE_KEY, sel.value || "expected");
 }
 
 function getFilterValues() {
@@ -1789,7 +1810,7 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
   ].filter(Boolean).join("");
 
   return `
-    <div class="item ${expectedClass} ${staleClass}">
+    <div class="item compactCard ${expectedClass} ${staleClass}">
       <div class="evalLabel ${evalData.class}">
         ${evalData.label}
       </div>
@@ -1800,13 +1821,13 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
         ${compactBadges}
       </div>
 
-      <div class="mini mt8" style="display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;">
+      <div class="mini compactMainRow">
         <span>期待値 <span class="mainExpected ${expectedHighClass}">${Math.round(m.expected).toLocaleString()}円</span></span>
         <span class="${rateClass}">成功率 ${m.rate.toFixed(1)}%</span>
         <span>利益 <span class="mainProfit">${m.profit.toLocaleString()}円</span></span>
       </div>
 
-      <div class="mini mt8" style="display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;">
+      <div class="mini compactSubRow">
         <span>訪問 ${m.visits}回</span>
         <span>成功 ${m.success}回</span>
         <span>個数 ${m.items}個</span>
