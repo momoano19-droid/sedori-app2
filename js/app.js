@@ -1640,14 +1640,24 @@ function showNearbyStores() {
 
 function autoDetectNearbyStores() {
   if (!navigator.geolocation) return;
+
   navigator.geolocation.getCurrentPosition(
     pos => {
       window.lastPos = {
         lat: pos.coords.latitude,
         lng: pos.coords.longitude
       };
+
       lastListRenderSignature = "";
       lastMapRenderSignature = "";
+
+      const sortType = document.getElementById("sortType")?.value || "expected";
+
+      if (sortType === "route" || nearbyMode) {
+        render();
+      } else {
+        scheduleRenderMapMarkers();
+      }
     },
     () => {},
     { enableHighAccuracy: true, timeout: 10000 }
