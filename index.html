@@ -46,30 +46,28 @@
 
       <div class="searchGrid" style="margin-top:14px;">
         <input id="q" placeholder="🔎 店舗検索（店舗名など）" oninput="render()">
+
         <select id="prefFilter" onchange="render()">
           <option value="__ALL__">全て（都道府県ごと）</option>
         </select>
 
-        <select id="sortType" onchange="render()">
+        <select id="sortType" onchange="saveSortType(); render()">
           <option value="expected">期待値順</option>
           <option value="rate">成功率順</option>
           <option value="avgProfit">平均利益順</option>
           <option value="visits">訪問回数順</option>
           <option value="route">距離順</option>
         </select>
+
         <input id="minExpected" placeholder="期待値 下限（例：2000）" oninput="render()">
 
         <input id="minRate" placeholder="成功率 下限%（例：20）" oninput="render()">
-        <button type="button" class="primaryBtn" onclick="showNearbyStores()">📍 近くの店舗（3km）</button>
+
+        <button type="button" class="ghostBtn" onclick="showNoCoordsOnly()">📡 座標なし店舗を見る</button>
       </div>
 
       <div class="row2 mt12">
         <button type="button" class="ghostBtn" onclick="showNearbyStores()">🚗 現在地で効率更新</button>
-        <button type="button" class="ghostBtn" onclick="clearNearbyMode(); render()">通常表示に戻す</button>
-      </div>
-
-      <div class="row2 mt12">
-        <button type="button" class="ghostBtn" onclick="showNoCoordsOnly()">📡 座標なし店舗を見る</button>
         <button type="button" class="ghostBtn" onclick="refreshAllCoordinates()">📡 座標なし店舗を一括再取得</button>
       </div>
 
@@ -144,17 +142,21 @@
       <div id="map" style="margin-top:14px;"></div>
     </div>
 
-
     <!-- 今日のルート -->
     <div class="card" style="background:linear-gradient(180deg,#f7fbff 0%, #ffffff 100%); border:1px solid #dce9ff;">
       <div class="sectionTitle" style="margin-bottom:6px;">🛣 今日のルート</div>
       <div class="helpText" style="margin-top:0;">
-        今日行くにチェックした店舗が下に並びます。↑↓で順番変更でき、その順番のままGoogleマップで開きます。
+        今日行くにチェックした店舗が下に並びます。近くの店舗表示や通常表示への切替もここからできます。
       </div>
 
       <div class="topButtons" style="margin-top:14px;">
         <button type="button" class="primaryBtn" onclick="buildTodayRoute()">🛣 この順番でルート作成</button>
         <button type="button" class="ghostBtn" onclick="saveCurrentRoute()">⭐ ルート保存</button>
+      </div>
+
+      <div class="row2 mt12">
+        <button type="button" class="ghostBtn" onclick="showNearbyStores()">📍 近くの店舗（3km）</button>
+        <button type="button" class="ghostBtn" onclick="clearNearbyMode(); render()">通常表示に戻す</button>
       </div>
 
       <div class="row2 mt12">
@@ -187,7 +189,7 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="./js/app.js?v=ui16"></script>
+  <script src="./js/app.js?v=ui17"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
