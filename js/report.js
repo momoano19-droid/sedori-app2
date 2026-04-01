@@ -278,50 +278,20 @@ function getMonthBundle(stores, logs, targetMonth) {
   return bundle;
 }
 
-function buildCategorySummary(stores, monthLogs) {
+function buildCategorySummary(stores, logs, targetMonth) {
   const monthMap = {};
-  const storeCurrentMap = {};
 
-  monthLogs.forEach(log => {
+  logs.forEach(log => {
+    if (ym(log.date) !== targetMonth) return;
     if (log.type !== "category") return;
+
     const name = String(log.category || "").trim();
     if (!name) return;
+
     monthMap[name] = (monthMap[name] || 0) + Number(log.delta || 0);
   });
 
-  stores.forEach(store => {
-    const cc = store.categoryCounts || {};
-    let hasAny = false;
-
-    Object.entries(cc).forEach(([name, qty]) => {
-      const key = String(name || "").trim();
-      const n = Number(qty || 0);
-      if (!key || n <= 0) return;
-      hasAny = true;
-      storeCurrentMap[key] = (storeCurrentMap[key] || 0) + n;
-    });
-
-    const fallback = String(store.defaultCategory || "").trim();
-    const items = Number(store.items || 0);
-
-    if (!hasAny && fallback && items > 0) {
-      storeCurrentMap[fallback] = (storeCurrentMap[fallback] || 0) + items;
-    }
-  });
-
-  const merged = {};
-  const names = new Set([
-    ...Object.keys(monthMap),
-    ...Object.keys(storeCurrentMap)
-  ]);
-
-  names.forEach(name => {
-    const monthQty = Number(monthMap[name] || 0);
-    const currentQty = Number(storeCurrentMap[name] || 0);
-    merged[name] = monthQty > 0 ? monthQty : currentQty;
-  });
-
-  return Object.entries(merged)
+  return Object.entries(monthMap)
     .filter(([, qty]) => Number(qty) > 0)
     .sort((a, b) => Number(b[1]) - Number(a[1]));
 }
