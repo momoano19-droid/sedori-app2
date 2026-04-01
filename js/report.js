@@ -282,23 +282,37 @@ function getMonthBundle(stores, logs, targetMonth) {
 
 /* =========================
    月間カテゴリ集計
-   → その月に仕入れたカテゴリを出す
-   → マイナス調整は含めず、プラスのみ集計
+   → categoryプラスログを優先
+   → items合計に足りない分は未分類で補完
 ========================= */
 function buildMonthlyCategorySummary(monthLogs) {
   const monthMap = {};
+  let monthItemsTotal = 0;
+  let categoryPositiveTotal = 0;
 
   monthLogs.forEach(log => {
+    const delta = Number(log.delta || 0);
+
+    if (log.type === "items") {
+      monthItemsTotal += delta;
+    }
+
     if (log.type !== "category") return;
 
     const name = String(log.category || "").trim();
     if (!name) return;
-
-    const delta = Number(log.delta || 0);
     if (delta <= 0) return;
 
     monthMap[name] = (monthMap[name] || 0) + delta;
+    categoryPositiveTotal += delta;
   });
+
+  const normalizedItemsTotal = Math.max(0, monthItemsTotal);
+  const missing = Math.max(0, normalizedItemsTotal - categoryPositiveTotal);
+
+  if (missing > 0) {
+    monthMap["未分類"] = (monthMap["未分類"] || 0) + missing;
+  }
 
   return Object.entries(monthMap)
     .filter(([, qty]) => Number(qty) > 0)
