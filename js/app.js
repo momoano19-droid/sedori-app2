@@ -1796,7 +1796,7 @@ function renderMapMarkersNow() {
         <label style="
           display:flex;
           align-items:center;
-          gap:5px;
+          gap:6px;
           font-size:11px;
           font-weight:700;
           margin-bottom:8px;
@@ -1808,10 +1808,10 @@ function renderMapMarkersNow() {
             ${s.today ? "checked" : ""}
             onchange="toggleTodayByStoreId('${escapeJsString(s.id)}', this.checked)"
             style="
-              width:10px;
-              height:10px;
-              min-width:10px;
-              min-height:10px;
+              width:20px;
+              height:20px;
+              min-width:20px;
+              min-height:20px;
               margin:0;
               padding:0;
               vertical-align:middle;
