@@ -1563,6 +1563,12 @@ function toggleToday(i, checked) {
   render();
 }
 
+function toggleTodayByStoreId(storeId, checked) {
+  const idx = stores.findIndex(s => s.id === storeId);
+  if (idx < 0) return;
+  toggleToday(idx, checked);
+}
+
 function clearTodayChecks() {
   stores.forEach(s => {
     s.today = false;
@@ -1748,7 +1754,8 @@ function renderMapMarkersNow() {
     q: filterValues.q,
     prefFilter: filterValues.prefFilter,
     minExpected: filterValues.minExpected,
-    minRate: filterValues.minRate
+    minRate: filterValues.minRate,
+    todayMarks: stores.filter(s => s.today).map(s => s.id)
   });
 
   if (signature === lastMapRenderSignature) return;
@@ -1765,11 +1772,56 @@ function renderMapMarkersNow() {
       icon: makeMarkerIcon(getMarkerColor(s._m.expected))
     }).addTo(map);
 
+    const navUrl = hasCoords(s)
+      ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${s.lat},${s.lng}`)}&travelmode=driving`
+      : (s.address
+          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}`
+          : "");
+
     marker.bindPopup(`
-      <div><b>${escapeHtml(s.name)}</b></div>
-      <div>${escapeHtml(s.pref || "未設定")}</div>
-      <div>期待値：${Math.round(s._m.expected).toLocaleString()}円</div>
-      <div>成功率：${s._m.rate.toFixed(1)}%</div>
+      <div style="min-width:210px;">
+        <div style="font-weight:800; font-size:15px; margin-bottom:4px;">
+          ${escapeHtml(s.name)}
+        </div>
+        <div style="font-size:12px; color:#6b7280; margin-bottom:6px;">
+          ${escapeHtml(s.pref || "未設定")}
+        </div>
+        <div style="font-size:13px; margin-bottom:4px;">
+          期待値：${Math.round(s._m.expected).toLocaleString()}円
+        </div>
+        <div style="font-size:13px; margin-bottom:10px;">
+          成功率：${s._m.rate.toFixed(1)}%
+        </div>
+
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; margin-bottom:10px; cursor:pointer;">
+          <input
+            type="checkbox"
+            ${s.today ? "checked" : ""}
+            onchange="toggleTodayByStoreId('${escapeJsString(s.id)}', this.checked)"
+          >
+          今日行く
+        </label>
+
+        ${
+          navUrl
+            ? `<button
+                 type="button"
+                 onclick="window.open('${navUrl}','_blank')"
+                 style="
+                   width:100%;
+                   min-height:40px;
+                   border:none;
+                   border-radius:12px;
+                   background:#3976f6;
+                   color:#fff;
+                   font-size:13px;
+                   font-weight:800;
+                   cursor:pointer;
+                 "
+               >ナビ</button>`
+            : `<div style="font-size:12px; color:#9ca3af;">住所または座標なし</div>`
+        }
+      </div>
     `);
 
     mapMarkers.push(marker);
