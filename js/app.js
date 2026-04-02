@@ -1779,25 +1779,43 @@ function renderMapMarkersNow() {
           : "");
 
     marker.bindPopup(`
-      <div style="min-width:210px;">
-        <div style="font-weight:800; font-size:15px; margin-bottom:4px;">
+      <div style="min-width:170px; max-width:200px;">
+        <div style="font-weight:800; font-size:14px; margin-bottom:4px; line-height:1.35;">
           ${escapeHtml(s.name)}
         </div>
-        <div style="font-size:12px; color:#6b7280; margin-bottom:6px;">
+        <div style="font-size:11px; color:#6b7280; margin-bottom:6px;">
           ${escapeHtml(s.pref || "未設定")}
         </div>
-        <div style="font-size:13px; margin-bottom:4px;">
+        <div style="font-size:12px; margin-bottom:3px; line-height:1.4;">
           期待値：${Math.round(s._m.expected).toLocaleString()}円
         </div>
-        <div style="font-size:13px; margin-bottom:10px;">
+        <div style="font-size:12px; margin-bottom:8px; line-height:1.4;">
           成功率：${s._m.rate.toFixed(1)}%
         </div>
 
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; margin-bottom:10px; cursor:pointer;">
+        <label style="
+          display:flex;
+          align-items:center;
+          gap:5px;
+          font-size:11px;
+          font-weight:700;
+          margin-bottom:8px;
+          cursor:pointer;
+          line-height:1.1;
+        ">
           <input
             type="checkbox"
             ${s.today ? "checked" : ""}
             onchange="toggleTodayByStoreId('${escapeJsString(s.id)}', this.checked)"
+            style="
+              width:10px;
+              height:10px;
+              min-width:10px;
+              min-height:10px;
+              margin:0;
+              padding:0;
+              vertical-align:middle;
+            "
           >
           今日行く
         </label>
@@ -1809,17 +1827,19 @@ function renderMapMarkersNow() {
                  onclick="window.open('${navUrl}','_blank')"
                  style="
                    width:100%;
-                   min-height:40px;
+                   min-height:30px;
+                   height:30px;
                    border:none;
-                   border-radius:12px;
+                   border-radius:10px;
                    background:#3976f6;
                    color:#fff;
-                   font-size:13px;
+                   font-size:12px;
                    font-weight:800;
                    cursor:pointer;
+                   padding:0 10px;
                  "
                >ナビ</button>`
-            : `<div style="font-size:12px; color:#9ca3af;">住所または座標なし</div>`
+            : `<div style="font-size:11px; color:#9ca3af;">住所または座標なし</div>`
         }
       </div>
     `);
