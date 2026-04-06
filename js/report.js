@@ -16,6 +16,7 @@ const LOG_KEYS = [
 
 let selectedMonth = null;
 let selectedDay = null;
+let prefAnalysisMode = "month";
 
 /* =========================
    軽量化キャッシュ
@@ -379,6 +380,45 @@ function buildTopListsFromStoreStats(storeStats) {
   };
 }
 
+function buildStoreStatsFromLogs(stores, logs) {
+  const storeMap = getStoreMap(stores);
+  const perStore = {};
+
+  logs.forEach(log => {
+    const storeId = String(log.storeId || "").trim();
+    if (!storeId) return;
+
+    if (!perStore[storeId]) {
+      perStore[storeId] = {
+        id: storeId,
+        name: storeMap[storeId]?.name || "不明な店舗",
+        pref: String(storeMap[storeId]?.pref || "").trim(),
+        profit: 0,
+        visits: 0,
+        success: 0,
+        items: 0,
+        categories: {}
+      };
+    }
+
+    const delta = Number(log.delta || 0);
+
+    if (log.type === "profit") perStore[storeId].profit += delta;
+    if (log.type === "visit") perStore[storeId].visits += delta;
+    if (log.type === "success") perStore[storeId].success += delta;
+    if (log.type === "items") perStore[storeId].items += delta;
+
+    if (log.type === "category" && log.category) {
+      const cat = String(log.category).trim();
+      if (cat) {
+        perStore[storeId].categories[cat] = (perStore[storeId].categories[cat] || 0) + delta;
+      }
+    }
+  });
+
+  return perStore;
+}
+
 /* =========================
    都道府県別集計
 ========================= */
@@ -456,43 +496,88 @@ function buildPrefStats(stores, perStore) {
     .sort((a, b) => b.expected - a.expected || b.profit - a.profit);
 }
 
-function renderPrefAnalysis(list) {
+function setPrefAnalysisMode(mode) {
+  prefAnalysisMode = mode === "total" ? "total" : "month";
+  bootReport();
+}
+
+function renderPrefAnalysis(monthList, totalList) {
   const el = document.getElementById("prefAnalysisWrap");
   if (!el) return;
 
-  if (!list.length) {
-    el.innerHTML = `<div class="emptyText">都道府県データがありません。</div>`;
-    return;
-  }
+  const activeList = prefAnalysisMode === "total" ? totalList : monthList;
 
   el.innerHTML = `
-    <div class="catList">
-      ${list.map(item => `
-        <div class="catItem" style="grid-template-columns:1fr; cursor:pointer;" onclick="showPrefDetail('${escapeHtml(item.pref)}')">
-          <div class="catName">${escapeHtml(item.pref)}</div>
-          <div class="detailText" style="margin-top:6px;">
-            登録店舗 ${item.registeredStoreCount}件 / 対象店舗 ${item.activeStoreCount}件<br>
-            利益 ${yen(item.profit)} / 訪問 ${item.visits}回 / 成功 ${item.success}回 / 個数 ${item.items}個<br>
-            成功率 ${item.rate.toFixed(1)}% / 期待値 ${Math.round(item.expected).toLocaleString()}円
-          </div>
-        </div>
-      `).join("")}
+    <div class="card" style="margin-bottom:12px;">
+      <h2 class="sectionTitle">🗾 都道府県別分析</h2>
+
+      <div class="row2 mt8">
+        <button
+          type="button"
+          onclick="setPrefAnalysisMode('month')"
+          style="
+            min-height:44px;
+            border:none;
+            border-radius:14px;
+            font-weight:800;
+            background:${prefAnalysisMode === "month" ? "#3976f6" : "#eef1f7"};
+            color:${prefAnalysisMode === "month" ? "#fff" : "#1f2340"};
+          "
+        >今月</button>
+
+        <button
+          type="button"
+          onclick="setPrefAnalysisMode('total')"
+          style="
+            min-height:44px;
+            border:none;
+            border-radius:14px;
+            font-weight:800;
+            background:${prefAnalysisMode === "total" ? "#3976f6" : "#eef1f7"};
+            color:${prefAnalysisMode === "total" ? "#fff" : "#1f2340"};
+          "
+        >トータル</button>
+      </div>
+
+      ${
+        !activeList.length
+          ? `<div class="emptyText" style="margin-top:12px;">都道府県データがありません。</div>`
+          : `
+            <div class="catList" style="margin-top:12px;">
+              ${activeList.map(item => `
+                <div class="catItem" style="grid-template-columns:1fr; cursor:pointer;" onclick="showPrefDetail('${escapeHtml(item.pref)}', '${prefAnalysisMode}')">
+                  <div class="catName">${escapeHtml(item.pref)}</div>
+                  <div class="detailText" style="margin-top:6px;">
+                    登録店舗 ${item.registeredStoreCount}件 / 対象店舗 ${item.activeStoreCount}件<br>
+                    利益 ${yen(item.profit)} / 訪問 ${item.visits}回 / 成功 ${item.success}回 / 個数 ${item.items}個<br>
+                    成功率 ${item.rate.toFixed(1)}% / 期待値 ${Math.round(item.expected).toLocaleString()}円
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          `
+      }
     </div>
   `;
 }
 
-function showPrefDetail(prefName) {
+function showPrefDetail(prefName, mode = prefAnalysisMode) {
   const stores = loadStores();
   const logs = loadLogs();
   const targetMonth = selectedMonth || currentMonthStr();
-  const bundle = getMonthBundle(stores, logs, targetMonth);
-  const pref = bundle.prefStats.find(x => x.pref === prefName);
+
+  const monthBundle = getMonthBundle(stores, logs, targetMonth);
+  const totalPerStore = buildStoreStatsFromLogs(stores, logs);
+  const totalPrefStats = buildPrefStats(stores, totalPerStore);
+
+  const sourceList = mode === "total" ? totalPrefStats : monthBundle.prefStats;
+  const pref = sourceList.find(x => x.pref === prefName);
 
   const body = document.getElementById("detailBody");
   const title = document.getElementById("detailTitle");
   if (!body || !title) return;
 
-  title.textContent = `${prefName} 詳細`;
+  title.textContent = `${prefName} 詳細（${mode === "total" ? "トータル" : "今月"}）`;
 
   if (!pref) {
     body.innerHTML = `<div class="emptyText">都道府県データがありません。</div>`;
@@ -1124,11 +1209,14 @@ function bootReport() {
   const targetMonth = selectedMonth || currentMonthStr();
   const bundle = getMonthBundle(stores, logs, targetMonth);
 
+  const totalPerStore = buildStoreStatsFromLogs(stores, logs);
+  const totalPrefStats = buildPrefStats(stores, totalPerStore);
+
   renderMonthSummary(bundle.summary);
   renderCalendar(targetMonth, bundle.daily);
   renderTopStores(bundle.topLists);
   renderCategorySummary(bundle.totalCategories);
-  renderPrefAnalysis(bundle.prefStats);
+  renderPrefAnalysis(bundle.prefStats, totalPrefStats);
 }
 
 window.addEventListener("load", bootReport);
