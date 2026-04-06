@@ -56,6 +56,7 @@ let currentLayoutMode = localStorage.getItem("store_layout_mode") || "compact";
 let map = null;
 let mapMarkers = [];
 let mapInitialized = false;
+let preserveMapViewOnNextRender = false;
 window.lastPos = null;
 
 /* =========================
@@ -1566,6 +1567,8 @@ function toggleToday(i, checked) {
 function toggleTodayByStoreId(storeId, checked) {
   const idx = stores.findIndex(s => s.id === storeId);
   if (idx < 0) return;
+
+  preserveMapViewOnNextRender = true;
   toggleToday(idx, checked);
 }
 
@@ -1761,9 +1764,16 @@ function renderMapMarkersNow() {
   if (signature === lastMapRenderSignature) return;
   lastMapRenderSignature = signature;
 
+  const shouldPreserveView = preserveMapViewOnNextRender;
+  const currentCenter = shouldPreserveView ? map.getCenter() : null;
+  const currentZoom = shouldPreserveView ? map.getZoom() : null;
+
   clearMapMarkers();
 
-  if (noCoordsOnlyMode || !list.length) return;
+  if (noCoordsOnlyMode || !list.length) {
+    preserveMapViewOnNextRender = false;
+    return;
+  }
 
   const bounds = [];
 
@@ -1848,11 +1858,15 @@ function renderMapMarkersNow() {
     bounds.push([s.lat, s.lng]);
   });
 
-  if (bounds.length === 1) {
+  if (shouldPreserveView && currentCenter && typeof currentZoom === "number") {
+    map.setView(currentCenter, currentZoom);
+  } else if (bounds.length === 1) {
     map.setView(bounds[0], 15);
   } else {
     map.fitBounds(bounds, { padding: [20, 20] });
   }
+
+  preserveMapViewOnNextRender = false;
 }
 
 function scheduleRenderMapMarkers() {
