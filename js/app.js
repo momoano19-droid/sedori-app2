@@ -57,6 +57,7 @@ let map = null;
 let mapMarkers = [];
 let mapInitialized = false;
 let preserveMapViewOnNextRender = false;
+let splitRouteCache = null;
 window.lastPos = null;
 
 /* =========================
@@ -549,6 +550,7 @@ function moveTodayRouteItem(index, delta) {
   arr[nextIndex] = temp;
   todayRouteOrder = arr;
 
+  clearSplitRouteCache();
   saveAll();
   render();
 }
@@ -563,6 +565,7 @@ function removeTodayRouteItem(index) {
   if (store) store.today = false;
 
   todayRouteOrder = todayRouteOrder.filter((_, i) => i !== index);
+  clearSplitRouteCache();
 
   saveAll();
   render();
@@ -615,6 +618,7 @@ function autoOptimizeTodayRoute() {
   const optimized = getNearestNeighborRoute(routeStores, window.lastPos);
   todayRouteOrder = optimized.map(s => s.id);
 
+  clearSplitRouteCache();
   saveAll();
   render();
   alert("今日のルートを自動最適化しました。");
@@ -635,20 +639,35 @@ function buildGoogleMapsRouteUrl(routeStores) {
   return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving${waypoints.length ? `&waypoints=${encodeURIComponent(waypoints.join("|"))}` : ""}`;
 }
 
-function openSplitRoutes(routeStores) {
+function clearSplitRouteCache() {
+  splitRouteCache = null;
+}
+
+function setSplitRouteCache(routeStores) {
   const first = routeStores.slice(0, 9);
   const second = routeStores.slice(9, 18);
 
-  const firstUrl = buildGoogleMapsRouteUrl(first);
-  const secondUrl = buildGoogleMapsRouteUrl(second);
+  splitRouteCache = {
+    first,
+    second,
+    firstUrl: buildGoogleMapsRouteUrl(first),
+    secondUrl: buildGoogleMapsRouteUrl(second)
+  };
+}
 
-  if (firstUrl) window.open(firstUrl, "_blank");
-
-  if (secondUrl) {
-    setTimeout(() => {
-      window.open(secondUrl, "_blank");
-    }, 500);
+function openSplitRoutePart(part) {
+  if (!splitRouteCache) {
+    alert("分割ルートがありません。もう一度「この順番でルート作成」を押してください。");
+    return;
   }
+
+  const url = part === 2 ? splitRouteCache.secondUrl : splitRouteCache.firstUrl;
+  if (!url) {
+    alert(`ルート${part}を開けませんでした。`);
+    return;
+  }
+
+  window.open(url, "_blank");
 }
 
 function openRouteInGoogleMaps(routeStores) {
@@ -658,21 +677,26 @@ function openRouteInGoogleMaps(routeStores) {
   }
 
   if (routeStores.length <= 9) {
+    clearSplitRouteCache();
     const url = buildGoogleMapsRouteUrl(routeStores);
     if (!url) {
       alert("ルートに使える店舗がありません。");
       return;
     }
     window.open(url, "_blank");
+    render();
     return;
   }
 
   if (routeStores.length <= 18) {
-    alert(`店舗数が ${routeStores.length} 件あるため、ルートを2本に分けて開きます。`);
-    openSplitRoutes(routeStores);
+    setSplitRouteCache(routeStores);
+    render();
+    alert(`店舗数が ${routeStores.length} 件あるため、ルートを2本に分けました。今日のルート欄の「ルート1を開く」「ルート2を開く」から開いてください。`);
     return;
   }
 
+  clearSplitRouteCache();
+  render();
   alert(`店舗数が ${routeStores.length} 件あります。Googleマップで安定して使うため、18件以下に絞ってください。`);
 }
 
@@ -741,6 +765,7 @@ function openSavedRoute(routeId) {
   });
 
   todayRouteOrder = route.storeIds.filter(id => stores.some(s => s.id === id && s.today));
+  clearSplitRouteCache();
   syncTodayRouteOrder();
 
   saveAll();
@@ -1026,6 +1051,7 @@ function importBackup(event) {
       nearbyMode = false;
       noCoordsOnlyMode = false;
       nearbyStoreIds = new Set();
+      clearSplitRouteCache();
 
       syncTodayRouteOrder();
       saveAll();
@@ -1058,6 +1084,7 @@ function restoreAutoBackup() {
   nearbyMode = false;
   noCoordsOnlyMode = false;
   nearbyStoreIds = new Set();
+  clearSplitRouteCache();
 
   syncTodayRouteOrder();
   saveAll();
@@ -1309,6 +1336,7 @@ function deleteStore(i) {
 
   stores.splice(i, 1);
   todayRouteOrder = todayRouteOrder.filter(id => id !== s.id);
+  clearSplitRouteCache();
   saveAll();
   render();
 }
@@ -1559,6 +1587,7 @@ function toggleToday(i, checked) {
     todayRouteOrder = todayRouteOrder.filter(id => id !== s.id);
   }
 
+  clearSplitRouteCache();
   syncTodayRouteOrder();
   saveAll();
   render();
@@ -1577,6 +1606,7 @@ function clearTodayChecks() {
     s.today = false;
   });
   todayRouteOrder = [];
+  clearSplitRouteCache();
   saveAll();
   render();
 }
@@ -2089,8 +2119,22 @@ function renderTodayRouteList() {
     return;
   }
 
+  const splitButtonsHtml =
+    splitRouteCache && routeStores.length >= 10 && routeStores.length <= 18
+      ? `
+        <div class="row2 mt8" style="margin-bottom:12px;">
+          <button ${makeButtonStyle("#3976f6", "#fff")} onclick="openSplitRoutePart(1)">ルート1を開く</button>
+          <button ${makeButtonStyle("#3976f6", "#fff")} onclick="openSplitRoutePart(2)">ルート2を開く</button>
+        </div>
+        <div class="mini" style="margin-bottom:12px;">
+          ルート1：1〜9店舗目 / ルート2：10〜18店舗目
+        </div>
+      `
+      : "";
+
   el.innerHTML = `
     <div style="font-weight:700; margin-bottom:8px;">今日のルート順</div>
+    ${splitButtonsHtml}
     ${routeStores.map((s, idx) => `
       <div class="item" style="margin-bottom:10px; padding:12px 14px;">
         <div class="name" style="font-size:16px; margin-bottom:6px;">${idx + 1}. ${escapeHtml(s.name)}</div>
@@ -2132,6 +2176,7 @@ function render() {
     layout: currentLayoutMode,
     todayMarks: stores.filter(s => s.today).map(s => s.id),
     todayRouteOrder,
+    splitRouteCacheExists: !!splitRouteCache,
     lastVisitDates: stores.map(s => `${s.id}:${s.lastVisitDate}`),
     savedRoutes: savedRoutes.map(r => `${r.id}:${r.updatedAt}:${r.favorite}`).join("|")
   });
@@ -2201,7 +2246,7 @@ const helpData = [
       ② 下の今日のルート順に並ぶ<br>
       ③ ↑↓で順番変更<br>
       ④ 「この順番でルート作成」を押す<br><br>
-      自動最適化を押すと、近い順ベースに並び替えもできます。
+      10〜18店舗のときは、ルート1 / ルート2 に分けて開けます。
     `
   },
   {
