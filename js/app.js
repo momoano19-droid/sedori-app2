@@ -1255,6 +1255,7 @@ async function editStore(i) {
 4: 成功を増やす
 5: 成功を減らす
 6: デフォルトカテゴリ変更
+7: 利益を修正
 
 番号を入力してください`,
     "1"
@@ -1323,6 +1324,17 @@ async function editStore(i) {
     if (cat !== null) {
       s.defaultCategory = String(cat).trim();
       categoryHistoryDirty = true;
+    }
+  }
+
+  if (menu === "7") {
+    const current = Number(s.profit || 0);
+    const next = prompt("現在の利益を修正\n円で入力してください", String(current));
+    if (next !== null) {
+      const value = clampNonNeg(parseInt(next || "0", 10));
+      const diff = value - current;
+      s.profit = value;
+      if (diff !== 0) addLog(s.id, "profit", diff);
     }
   }
 
@@ -1547,34 +1559,6 @@ function itemsMinus(i) {
     saveAll();
     render();
   });
-}
-
-function profitPlus(i) {
-  const s = stores[i];
-  if (!s) return;
-
-  const d = clampNonNeg(parseInt(prompt("追加する利益（円）", "1000"), 10));
-  if (!d) return;
-
-  s.profit += d;
-  addLog(s.id, "profit", d);
-
-  saveAll();
-  render();
-}
-
-function profitMinus(i) {
-  const s = stores[i];
-  if (!s) return;
-
-  const d = clampNonNeg(parseInt(prompt("減らす利益（円）", "1000"), 10));
-  if (!d) return;
-
-  s.profit = clampNonNeg(s.profit - d);
-  addLog(s.id, "profit", -d);
-
-  saveAll();
-  render();
 }
 
 /* =========================
@@ -1979,8 +1963,8 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
       </div>
 
       <div class="row2 mt8">
-        <button ${makeButtonStyle("#fff0e1", "#ea580c")} onclick="profitPlus(${idx})">利益＋</button>
         <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="navigateToStore(${idx})">ナビ</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="editStore(${idx})">設定</button>
       </div>
     </div>
   `;
@@ -2052,11 +2036,6 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
       <div class="row2 mt8">
         <button ${makeButtonStyle("#e7f0ff", "#2563eb")} onclick="itemsPlus(${idx})">個数＋</button>
         <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="itemsMinus(${idx})">個数−</button>
-      </div>
-
-      <div class="row2 mt8">
-        <button ${makeButtonStyle("#fff0e1", "#ea580c")} onclick="profitPlus(${idx})">利益＋</button>
-        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="profitMinus(${idx})">利益−</button>
       </div>
 
       <div class="row2 mt8">
