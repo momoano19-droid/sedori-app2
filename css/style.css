@@ -94,7 +94,6 @@ textarea:focus{
   box-shadow:0 0 0 3px rgba(57,118,246,.12);
 }
 
-/* checkboxだけ共通input指定から外す */
 input[type="checkbox"]{
   width:auto;
   min-width:0;
@@ -341,7 +340,6 @@ a{
   font-weight:800;
 }
 
-/* 上部フォーム */
 .formGrid{
   display:grid;
   grid-template-columns:1fr;
@@ -377,7 +375,6 @@ a{
   padding:0 10px;
 }
 
-/* 地図 */
 .mapCard{
   overflow:hidden;
 }
@@ -395,7 +392,6 @@ a{
   font:inherit;
 }
 
-/* 今日のルート / 保存済み */
 .routeBar{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -408,7 +404,6 @@ a{
   gap:8px;
 }
 
-/* 店舗一覧直前アクション */
 .storeTopActionsCard{
   padding:12px;
 }
@@ -422,7 +417,6 @@ a{
   grid-template-columns:1fr 1fr;
 }
 
-/* 今日行くチェック */
 .todayCheckLabel{
   display:inline-flex;
   align-items:center;
@@ -449,7 +443,6 @@ a{
   flex:0 0 12px;
 }
 
-/* 使い方モーダル */
 #helpUI{
   position:fixed;
   inset:0;
@@ -496,7 +489,6 @@ a{
   margin-top:14px;
 }
 
-/* 個数・カテゴリ・利益モーダル */
 .qtyCategoryModal{
   position:fixed;
   inset:0;
@@ -825,7 +817,6 @@ a{
   color:#fff;
 }
 
-/* レポート共通 */
 .chipRow{
   display:flex;
   flex-wrap:wrap;
@@ -1042,7 +1033,7 @@ a{
 /* カレンダー */
 .calendarGrid{
   display:grid;
-  grid-template-columns:repeat(7, 1fr);
+  grid-template-columns:repeat(7, minmax(0, 1fr));
   gap:6px;
 }
 
@@ -1055,14 +1046,16 @@ a{
 }
 
 .dayCell{
-  min-height:68px;
-  border-radius:14px;
+  min-height:92px;
+  border-radius:16px;
   background:#fff;
   border:1px solid #e5e7eb;
   padding:8px 6px;
   display:flex;
   flex-direction:column;
   justify-content:space-between;
+  aspect-ratio:1 / 1;
+  overflow:hidden;
 }
 
 .dayCell.empty{
@@ -1094,15 +1087,22 @@ a{
 }
 
 .dayNum{
-  font-size:13px;
+  font-size:14px;
   font-weight:900;
+  line-height:1;
+  color:#1f2340;
 }
 
 .dayValue{
   text-align:right;
-  font-size:11px;
+  font-size:10px;
   font-weight:800;
+  line-height:1;
   color:#4b5563;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:clip;
+  letter-spacing:-0.2px;
 }
 
 #selectedDayBar{
@@ -1124,7 +1124,6 @@ a{
   font-weight:900;
 }
 
-/* モーダル共通 */
 .modal{
   position:fixed;
   inset:0;
@@ -1151,7 +1150,6 @@ a{
   -webkit-overflow-scrolling:touch;
 }
 
-/* iPhone向け */
 @media (max-width: 640px){
   .container{
     padding:10px 10px 32px;
@@ -1217,6 +1215,31 @@ a{
     min-width:11px !important;
     min-height:11px !important;
     flex:0 0 11px;
+  }
+
+  .calendarGrid{
+    gap:4px;
+  }
+
+  .dayCell{
+    min-height:78px;
+    aspect-ratio:1 / 1;
+    padding:7px 5px;
+    border-radius:14px;
+  }
+
+  .dayNum{
+    font-size:13px;
+    line-height:1;
+  }
+
+  .dayValue{
+    font-size:9px;
+    line-height:1;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:clip;
+    letter-spacing:-0.3px;
   }
 
   .qtyCategoryModal{
@@ -1306,14 +1329,5 @@ a{
     grid-column:2;
     text-align:left;
     margin-top:4px;
-  }
-
-  .calendarGrid{
-    gap:4px;
-  }
-
-  .dayCell{
-    min-height:60px;
-    padding:6px 5px;
   }
 }
