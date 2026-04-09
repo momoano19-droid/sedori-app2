@@ -1098,17 +1098,30 @@ a{
 
 .dayValue{
   text-align:center;
-  font-size:8px;
+  font-size:10px;
   font-weight:900;
   line-height:1;
-  color:#4b5563;
+  color:#255ad9;
   white-space:nowrap;
   overflow:visible;
   text-overflow:clip;
-  letter-spacing:-0.1px;
+  letter-spacing:0;
   display:block;
   flex:0 0 auto;
   margin-top:auto;
+}
+
+.dayCell:not(.hasData):not(.bigSuccess) .dayValue{
+  color:#6b7280;
+  font-weight:800;
+}
+
+.dayCell.visitOnly .dayValue{
+  color:#b7791f;
+}
+
+.dayCell.bigSuccess .dayValue{
+  color:#dc2626;
 }
 
 #selectedDayBar{
@@ -1241,13 +1254,13 @@ a{
   }
 
   .dayValue{
-    font-size:7px;
+    font-size:8px;
     line-height:1;
     text-align:center;
     white-space:nowrap;
     overflow:visible;
     text-overflow:clip;
-    letter-spacing:-0.05px;
+    letter-spacing:0;
     margin-top:auto;
   }
 
