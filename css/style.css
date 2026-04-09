@@ -1030,10 +1030,11 @@ a{
   line-height:1.8;
 }
 
+/* カレンダー */
 .calendarGrid{
   display:grid;
   grid-template-columns:repeat(7, minmax(0, 1fr));
-  gap:6px;
+  gap:4px;
 }
 
 .dow{
@@ -1045,15 +1046,15 @@ a{
 }
 
 .dayCell{
-  min-height:92px;
-  border-radius:16px;
+  height:76px;
+  min-height:76px;
+  border-radius:14px;
   background:#fff;
   border:1px solid #e5e7eb;
-  padding:10px 8px 8px;
+  padding:8px 6px 6px;
   display:flex;
   flex-direction:column;
   justify-content:space-between;
-  aspect-ratio:1 / 1;
   overflow:hidden;
 }
 
@@ -1086,7 +1087,7 @@ a{
 }
 
 .dayNum{
-  font-size:14px;
+  font-size:13px;
   font-weight:900;
   line-height:1;
   color:#1f2340;
@@ -1096,7 +1097,7 @@ a{
 
 .dayValue{
   text-align:right;
-  font-size:10px;
+  font-size:9px;
   font-weight:800;
   line-height:1;
   color:#4b5563;
@@ -1226,19 +1227,19 @@ a{
   }
 
   .dayCell{
-    min-height:82px;
-    aspect-ratio:1 / 1;
-    padding:8px 6px 6px;
-    border-radius:14px;
+    height:72px;
+    min-height:72px;
+    padding:7px 5px 5px;
+    border-radius:13px;
   }
 
   .dayNum{
-    font-size:13px;
+    font-size:12px;
     line-height:1;
   }
 
   .dayValue{
-    font-size:9px;
+    font-size:8px;
     line-height:1;
     white-space:nowrap;
     overflow:hidden;
