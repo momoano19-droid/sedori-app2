@@ -2,785 +2,93 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
   <title>分析画面 | せどりGPS管理PRO</title>
 
-  <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#3976f6">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="分析画面">
+  <meta name="apple-mobile-web-app-title" content="せどりGPS管理PRO">
+
+  <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-
-  <style>
-    *{ box-sizing:border-box; }
-
-    html,body{
-      margin:0;
-      padding:0;
-      width:100%;
-      overflow-x:hidden;
-    }
-
-    body{
-      background:#f3f4f6;
-      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-      color:#1f2340;
-      -webkit-text-size-adjust:100%;
-      text-size-adjust:100%;
-    }
-
-    .page{
-      width:100%;
-      max-width:760px;
-      margin:0 auto;
-      padding:12px;
-      overflow-x:hidden;
-    }
-
-    .titleWrap{
-      padding:6px 2px 2px;
-      margin-bottom:10px;
-    }
-
-    .pageTitle{
-      font-size:26px;
-      font-weight:900;
-      margin:0 0 6px;
-      color:#1d2240;
-      line-height:1.25;
-    }
-
-    .sub{
-      font-size:14px;
-      line-height:1.7;
-      color:#6b7280;
-      margin:0;
-    }
-
-    .card{
-      width:100%;
-      background:#fff;
-      border-radius:24px;
-      padding:16px;
-      margin-bottom:16px;
-      box-shadow:0 6px 20px rgba(15,23,42,.06);
-      overflow:hidden;
-    }
-
-    .calendarCard{
-      box-shadow:0 10px 28px rgba(37,60,120,.10);
-    }
-
-    .topButtons,
-    .monthRow{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:12px;
-    }
-
-    button,
-    select{
-      width:100%;
-      min-height:56px;
-      border:none;
-      border-radius:20px;
-      font-size:16px;
-      font-weight:800;
-      outline:none;
-    }
-
-    select{
-      background:#eef1f7;
-      color:#1f2340;
-      padding:0 16px;
-      appearance:none;
-      -webkit-appearance:none;
-      border:1px solid #e5e7eb;
-    }
-
-    button{
-      cursor:pointer;
-      transition:
-        transform .08s ease,
-        filter .08s ease,
-        box-shadow .12s ease,
-        opacity .12s ease;
-      -webkit-tap-highlight-color:transparent;
-      touch-action:manipulation;
-    }
-
-    button:active{
-      transform:scale(.96);
-      filter:brightness(.96);
-    }
-
-    .primaryBtn{
-      background:#4b74ea;
-      color:#fff;
-      box-shadow:0 10px 22px rgba(75,116,234,.18);
-    }
-
-    .ghostBtn{
-      background:#eef1f7;
-      color:#1f2340;
-    }
-
-    .sectionTitle{
-      font-size:22px;
-      font-weight:900;
-      margin:0 0 14px;
-      color:#1d2240;
-      line-height:1.3;
-    }
-
-    .chipRow{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px;
-    }
-
-    .chip{
-      display:inline-flex;
-      align-items:center;
-      min-height:42px;
-      padding:0 14px;
-      border-radius:999px;
-      background:#eef1f7;
-      color:#333a52;
-      font-size:15px;
-      font-weight:700;
-      line-height:1.2;
-    }
-
-    .summarySubTitle{
-      margin-top:14px;
-      margin-bottom:10px;
-      font-size:15px;
-      font-weight:900;
-      color:#1d2240;
-    }
-
-    .chartWrap{
-      background:#fafbfe;
-      border-radius:18px;
-      padding:12px;
-      border:1px solid #eef1f7;
-    }
-
-    .chartCanvasBox{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      min-height:260px;
-    }
-
-    #categoryPieChart{
-      display:block;
-      width:100%;
-      max-width:320px;
-      height:auto;
-    }
-
-    .chartLegend{
-      margin-top:12px;
-      display:grid;
-      grid-template-columns:1fr;
-      gap:6px;
-    }
-
-    .legendItem{
-      display:grid;
-      grid-template-columns:12px 1fr auto auto;
-      gap:8px;
-      align-items:center;
-      font-size:12px;
-      color:#374151;
-      min-width:0;
-      padding:4px 0;
-    }
-
-    .legendColor{
-      width:12px;
-      height:12px;
-      border-radius:999px;
-    }
-
-    .legendName{
-      min-width:0;
-      word-break:break-word;
-      font-weight:700;
-      line-height:1.35;
-    }
-
-    .legendQty{
-      white-space:nowrap;
-      font-weight:900;
-      color:#3f63d8;
-      font-size:12px;
-    }
-
-    .legendRate{
-      white-space:nowrap;
-      font-weight:800;
-      color:#6b7280;
-      font-size:11px;
-    }
-
-    .miniTable{
-      background:#fafbfe;
-      border-radius:12px;
-      overflow:hidden;
-      border:1px solid #eef1f7;
-    }
-
-    .miniTableHead,
-    .miniTableRow{
-      display:grid;
-      grid-template-columns:1fr 52px 52px;
-      align-items:center;
-    }
-
-    .miniTableHead{
-      background:#eef1f7;
-      font-weight:900;
-      color:#1f2340;
-      font-size:11px;
-    }
-
-    .miniTableRow{
-      background:#fff;
-      font-size:11px;
-    }
-
-    .miniTableRow + .miniTableRow{
-      border-top:1px solid #eef1f7;
-    }
-
-    .miniCell{
-      padding:7px 8px;
-    }
-
-    .miniCell.name{
-      font-weight:700;
-      color:#1f2340;
-      word-break:break-word;
-      line-height:1.28;
-    }
-
-    .miniCell.qty,
-    .miniCell.rate{
-      text-align:right;
-      white-space:nowrap;
-    }
-
-    .miniCell.qty{
-      font-weight:900;
-      color:#3f63d8;
-      font-size:11px;
-    }
-
-    .miniCell.rate{
-      font-weight:800;
-      color:#6b7280;
-      font-size:10px;
-    }
-
-    .daySticky{
-      position:sticky;
-      top:8px;
-      z-index:5;
-      margin-bottom:12px;
-      background:rgba(255,255,255,.92);
-      backdrop-filter:blur(8px);
-      border:1px solid #e6ebf5;
-      border-radius:16px;
-      box-shadow:0 6px 18px rgba(56,86,170,.08);
-      padding:10px 12px;
-    }
-
-    .dayStickyLabel{
-      font-size:12px;
-      font-weight:800;
-      color:#6b7280;
-      margin-bottom:4px;
-      line-height:1.2;
-    }
-
-    .dayStickyValue{
-      font-size:18px;
-      font-weight:900;
-      color:#1d2240;
-      line-height:1.2;
-    }
-
-    .dayStickyValue strong{
-      color:#356AE6;
-    }
-
-    .calendarGrid{
-      width:100%;
-      display:grid;
-      grid-template-columns:repeat(7, minmax(0, 1fr));
-      gap:8px;
-      margin-top:10px;
-    }
-
-    .dow{
-      width:100%;
-      aspect-ratio:1 / 1;
-      min-height:44px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      background:#eef1f7;
-      border-radius:12px;
-      font-size:14px;
-      font-weight:800;
-      color:#222;
-      overflow:hidden;
-      box-shadow:inset 0 0 0 1px rgba(215,221,235,.65);
-    }
-
-    .dayCell{
-      width:100%;
-      aspect-ratio:1 / 1.28;
-      border-radius:14px;
-      border:2px solid #d9e0ee;
-      background:#fff;
-      padding:6px 2px 10px;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:flex-start;
-      cursor:pointer;
-      font-weight:800;
-      color:#444;
-      overflow:hidden;
-      transition:transform .08s ease, box-shadow .08s ease, border-color .08s ease, background .08s ease;
-      box-shadow:0 3px 8px rgba(70,90,140,.05);
-    }
-
-    .dayCell:active{
-      transform:scale(.97);
-    }
-
-    .dayCell.empty{
-      visibility:hidden;
-      box-shadow:none;
-    }
-
-    .dayCell.hasData{
-      background:#4b74ea;
-      border-color:#4b74ea;
-      color:#fff;
-      box-shadow:0 6px 14px rgba(75,116,234,.22);
-    }
-
-    .dayCell.bigSuccess{
-      background:#16a34a;
-      border-color:#16a34a;
-      color:#fff;
-      box-shadow:0 6px 16px rgba(22,163,74,.26);
-    }
-
-    .dayCell.visitOnly{
-      background:#eaf3ff;
-      border-color:#9ec5ff;
-      color:#2450a6;
-      box-shadow:0 4px 10px rgba(118,159,230,.14);
-    }
-
-    .dayCell.selected{
-      box-shadow:0 0 0 3px rgba(53,106,230,.18), 0 8px 18px rgba(53,106,230,.14);
-    }
-
-    .dayCell.today{
-      box-shadow:0 0 0 3px rgba(240,169,58,.15) inset;
-    }
-
-    .dayCell.today:not(.hasData):not(.visitOnly):not(.bigSuccess){
-      background:#fff7ea;
-      border-color:#f0a93a;
-      color:#a56a12;
-    }
-
-    .dayCell.visitOnly.today,
-    .dayCell.hasData.today,
-    .dayCell.bigSuccess.today{
-      border-color:#f0a93a;
-    }
-
-    .dayNum{
-      font-size:14px;
-      line-height:1;
-      margin-top:1px;
-      font-weight:900;
-      text-align:center;
-    }
-
-    .dayValue{
-      margin-top:8px;
-      font-size:clamp(7px, 1.9vw, 10px);
-      line-height:1.02;
-      text-align:center;
-      white-space:normal;
-      word-break:keep-all;
-      overflow-wrap:anywhere;
-      width:100%;
-      font-weight:900;
-      letter-spacing:-0.2px;
-      padding:0 1px;
-    }
-
-    .help{
-      font-size:14px;
-      line-height:1.7;
-      color:#6b7280;
-      margin-top:10px;
-    }
-
-    .stack{
-      display:flex;
-      flex-direction:column;
-      gap:12px;
-    }
-
-    .list{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
-
-    .rankItem{
-      display:grid;
-      grid-template-columns:40px minmax(0, 1fr);
-      gap:10px;
-      align-items:start;
-      background:#fafbfe;
-      border-radius:18px;
-      padding:12px;
-    }
-
-    .rankItem > div:nth-child(2){
-      min-width:0;
-    }
-
-    .rankNo{
-      width:40px;
-      height:40px;
-      border-radius:14px;
-      background:#eef1f7;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-weight:900;
-      font-size:16px;
-      color:#333;
-      flex-shrink:0;
-    }
-
-    .rankName{
-      font-size:16px;
-      font-weight:800;
-      color:#1f2340;
-      line-height:1.35;
-      word-break:break-word;
-    }
-
-    .rankSub{
-      font-size:13px;
-      color:#6b7280;
-      margin-top:4px;
-      line-height:1.5;
-      word-break:break-word;
-    }
-
-    .rankValue{
-      margin-top:6px;
-      font-size:15px;
-      font-weight:900;
-      color:#4b74ea;
-      white-space:nowrap;
-      word-break:keep-all;
-      overflow-wrap:normal;
-      line-height:1.3;
-      display:inline-block;
-      max-width:100%;
-    }
-
-    .catList{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
-
-    .catItem{
-      display:grid;
-      grid-template-columns:1fr auto;
-      gap:12px;
-      align-items:center;
-      background:#fafbfe;
-      border-radius:18px;
-      padding:12px 14px;
-    }
-
-    .catName{
-      font-size:15px;
-      font-weight:800;
-      line-height:1.4;
-      min-width:0;
-      word-break:break-word;
-    }
-
-    .catQty{
-      font-size:16px;
-      font-weight:900;
-      color:#4b74ea;
-      white-space:nowrap;
-    }
-
-    .modal{
-      position:fixed;
-      inset:0;
-      background:rgba(15,23,42,.35);
-      display:none;
-      align-items:flex-end;
-      justify-content:center;
-      padding:12px;
-      z-index:1000;
-    }
-
-    .modal.show{
-      display:flex;
-    }
-
-    .sheet{
-      width:min(760px,100%);
-      background:#fff;
-      border-radius:28px 28px 18px 18px;
-      padding:14px;
-      max-height:78vh;
-      overflow:auto;
-      box-shadow:0 12px 30px rgba(0,0,0,.15);
-    }
-
-    .sheetHead{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      margin-bottom:14px;
-    }
-
-    .sheetTitle{
-      font-size:20px;
-      font-weight:900;
-      color:#1d2240;
-      margin:0;
-      line-height:1.3;
-    }
-
-    .closeBtn{
-      width:46px;
-      height:46px;
-      min-height:46px;
-      border-radius:16px;
-      background:#eef1f7;
-      color:#1f2340;
-      font-size:22px;
-      font-weight:900;
-      flex-shrink:0;
-    }
-
-    .detailBlock{
-      background:#fafbfe;
-      border-radius:20px;
-      padding:14px 16px;
-      margin-bottom:12px;
-    }
-
-    .detailTitle{
-      font-size:16px;
-      font-weight:900;
-      margin:0 0 8px;
-      color:#1f2340;
-      line-height:1.4;
-    }
-
-    .detailText{
-      font-size:14px;
-      line-height:1.8;
-      color:#4b5563;
-      word-break:break-word;
-    }
-
-    .emptyText{
-      font-size:15px;
-      color:#6b7280;
-      line-height:1.8;
-    }
-
-    @media (min-width:641px){
-      .page{ padding:14px; }
-      .pageTitle{ font-size:28px; }
-      .sectionTitle{ font-size:26px; }
-      .calendarGrid{ gap:10px; }
-
-      .daySticky{
-        padding:12px 14px;
-      }
-
-      .dayStickyLabel{
-        font-size:13px;
-      }
-
-      .dayStickyValue{
-        font-size:22px;
-      }
-
-      .dow{
-        min-height:56px;
-        font-size:18px;
-        border-radius:14px;
-      }
-
-      .dayCell{
-        border-radius:16px;
-        padding:8px 3px 11px;
-      }
-
-      .dayNum{
-        font-size:20px;
-        line-height:1;
-      }
-
-      .dayValue{
-        font-size:13px;
-        line-height:1.08;
-        margin-top:10px;
-      }
-
-      .rankItem{
-        grid-template-columns:52px minmax(0, 1fr) auto;
-        align-items:center;
-        padding:14px;
-      }
-
-      .rankNo{
-        width:52px;
-        height:52px;
-        font-size:20px;
-      }
-
-      .rankValue{
-        margin-top:0;
-        white-space:nowrap;
-        font-size:22px;
-        margin-left:8px;
-        word-break:keep-all;
-      }
-
-      .catName{ font-size:18px; }
-      .catQty{ font-size:20px; }
-
-      .sheet{ padding:18px; }
-      .sheetTitle{ font-size:24px; }
-      .detailTitle{ font-size:18px; }
-      .detailText{ font-size:15px; }
-
-      .chartLegend{
-        grid-template-columns:1fr 1fr;
-      }
-
-      .miniTableHead,
-      .miniTableRow{
-        grid-template-columns:1fr 60px 60px;
-      }
-
-      .miniTableHead{
-        font-size:12px;
-      }
-
-      .miniTableRow{
-        font-size:12px;
-      }
-
-      .miniCell{
-        padding:8px 10px;
-      }
-
-      .miniCell.qty{
-        font-size:12px;
-      }
-
-      .miniCell.rate{
-        font-size:11px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
-  <div class="page">
-    <div class="titleWrap">
-      <h1 class="pageTitle">📊 分析画面</h1>
-      <p class="sub">月サマリー・月カレンダー・上位店舗・カテゴリ集計を表示します。</p>
-    </div>
-
-    <div class="card">
-      <div class="topButtons">
-        <button class="primaryBtn" onclick="location.href='index.html'">📱 店舗管理へ</button>
-        <button class="ghostBtn" onclick="bootReport()">再表示</button>
+  <div class="container">
+    <!-- ヘッダー -->
+    <header class="appHeader card">
+      <h1 class="appTitle">📊 レポート → 分析画面</h1>
+      <div class="appSub">
+        月ごとの利益・成功率・カテゴリ・都道府県別の傾向を確認できます。
       </div>
-    </div>
 
-    <div class="card">
-      <div class="monthRow">
+      <div class="row2 mt12">
+        <button class="ghostBtn" onclick="location.href='./index.html'">← 店舗管理に戻る</button>
+        <button class="primaryBtn" onclick="goCurrentMonth()">今月へ戻る</button>
+      </div>
+    </header>
+
+    <!-- 月選択 -->
+    <section class="card">
+      <h2 class="sectionTitle">🗓 対象月</h2>
+
+      <div class="filterGrid">
         <select id="monthPicker" onchange="changeReportMonth(this.value)"></select>
-        <button class="ghostBtn" onclick="goCurrentMonth()">今月に戻る</button>
-      </div>
-    </div>
-
-    <div class="card" id="monthSummaryCard"></div>
-
-    <div class="card calendarCard">
-      <h2 class="sectionTitle">🗓 月カレンダー</h2>
-
-      <div id="selectedDayBar" class="daySticky">
-        <div class="dayStickyLabel">日付をタップするとここに表示されます</div>
-        <div class="dayStickyValue">その日の合計利益 <strong>-</strong></div>
+        <button class="ghostBtn" onclick="goCurrentMonth()">今月</button>
       </div>
 
+      <div class="mini mt8">
+        月を切り替えると、その月の利益・カテゴリ・都道府県別分析を確認できます。
+      </div>
+    </section>
+
+    <!-- 月サマリー -->
+    <section class="card" id="monthSummaryCard"></section>
+
+    <!-- 日別カレンダー -->
+    <section class="card">
+      <h2 class="sectionTitle">📅 日別カレンダー</h2>
       <div id="calendarWrap"></div>
-      <div class="help">※ タップで詳細表示</div>
-    </div>
+      <div id="selectedDayBar"></div>
+    </section>
 
-    <div class="card">
-      <h2 class="sectionTitle">🏆 上位店舗</h2>
-      <div id="topStoresWrap" class="stack"></div>
-    </div>
+    <!-- TOP店舗 -->
+    <section id="topStoresWrap"></section>
 
-    <div class="card">
+    <!-- カテゴリ集計 -->
+    <section class="card">
       <h2 class="sectionTitle">📦 カテゴリ集計</h2>
       <div id="categoryWrap"></div>
-    </div>
+    </section>
 
-    <div class="card">
+    <!-- 都道府県別分析 -->
+    <section class="card">
       <h2 class="sectionTitle">🗾 都道府県別分析</h2>
       <div id="prefAnalysisWrap"></div>
-    </div>
+    </section>
   </div>
 
-  <div id="detailModal" class="modal" onclick="closeDetailModal(event)">
-    <div class="sheet" onclick="event.stopPropagation()">
-      <div class="sheetHead">
-        <h3 id="detailTitle" class="sheetTitle">詳細</h3>
-        <button class="closeBtn" onclick="hideDetailModal()">×</button>
+  <!-- 詳細モーダル -->
+  <div
+    id="detailModal"
+    class="modal"
+    onclick="closeDetailModal(event)"
+    aria-hidden="true"
+  >
+    <div class="modalCard">
+      <div class="row2" style="grid-template-columns:1fr auto; align-items:center;">
+        <div id="detailTitle" class="sectionTitle" style="margin-bottom:0;">詳細</div>
+        <button class="ghostBtn" onclick="hideDetailModal()">閉じる</button>
       </div>
-      <div id="detailBody"></div>
+
+      <div id="detailBody" class="mt12"></div>
     </div>
   </div>
 
-  <script src="./js/report.js?v=cal5"></script>
+  <script src="./js/report.js"></script>
 </body>
 </html>
