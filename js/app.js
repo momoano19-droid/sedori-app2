@@ -79,6 +79,11 @@ let qtyCategorySelected = {};
 let qtyCategoryProfit = 0;
 
 /* =========================
+   利益修正モーダル状態
+========================= */
+let profitEditTargetIndex = -1;
+
+/* =========================
    起動
 ========================= */
 window.addEventListener("load", () => {
@@ -1328,14 +1333,8 @@ async function editStore(i) {
   }
 
   if (menu === "7") {
-    const current = Number(s.profit || 0);
-    const next = prompt("現在の利益を修正\n円で入力してください", String(current));
-    if (next !== null) {
-      const value = clampNonNeg(parseInt(next || "0", 10));
-      const diff = value - current;
-      s.profit = value;
-      if (diff !== 0) addLog(s.id, "profit", diff);
-    }
+    openProfitEditModal(i);
+    return;
   }
 
   saveAll();
@@ -2704,6 +2703,159 @@ function closeQtyCategoryModal(result) {
     qtyCategoryModalResolver(result);
     qtyCategoryModalResolver = null;
   }
+}
+
+/* =========================
+   利益修正モーダル
+========================= */
+function ensureProfitEditModal() {
+  if (document.getElementById("profitEditModal")) return;
+
+  const modal = document.createElement("div");
+  modal.id = "profitEditModal";
+  modal.className = "qtyCategoryModal";
+  modal.innerHTML = `
+    <div class="qtyCategoryCard">
+      <div class="qtyCategoryTitle">利益を修正</div>
+      <div class="qtyCategorySub">現在の利益を確認して、新しい利益金額に修正できます</div>
+
+      <div class="qtySelectedBox">
+        現在の利益: <span id="profitEditCurrentValue">0</span>円
+      </div>
+
+      <div class="qtyCategorySectionTitle">よく使う金額</div>
+      <div class="qtyQuickButtons">
+        <button type="button" class="qtyQuickBtn profitEditQuickBtn" data-profit="1000" onclick="setProfitEditValue(1000)">1000</button>
+        <button type="button" class="qtyQuickBtn profitEditQuickBtn" data-profit="3000" onclick="setProfitEditValue(3000)">3000</button>
+        <button type="button" class="qtyQuickBtn profitEditQuickBtn" data-profit="5000" onclick="setProfitEditValue(5000)">5000</button>
+        <button type="button" class="qtyQuickBtn profitEditQuickBtn" data-profit="10000" onclick="setProfitEditValue(10000)">10000</button>
+      </div>
+
+      <div class="qtyCategorySectionTitle">利益を入力</div>
+      <div class="qtyManualRow">
+        <input
+          id="profitEditInput"
+          class="qtyManualInput"
+          type="number"
+          min="0"
+          step="100"
+          value="0"
+          placeholder="利益を入力"
+          oninput="syncProfitEditInput()"
+        >
+        <button type="button" class="qtyManualBtn" onclick="applyProfitEditInput()">反映</button>
+      </div>
+
+      <div class="qtySelectedBox">
+        修正後の利益: <span id="profitEditNextValue">0</span>円
+      </div>
+
+      <div class="categoryPickerActions">
+        <button type="button" class="ghostBtn" onclick="closeProfitEditModal()">キャンセル</button>
+        <button type="button" class="primaryBtn" onclick="saveProfitEditModal()">保存</button>
+      </div>
+    </div>
+  `;
+
+  modal.addEventListener("click", e => {
+    if (e.target === modal) closeProfitEditModal();
+  });
+
+  document.body.appendChild(modal);
+}
+
+function openProfitEditModal(index) {
+  const s = stores[index];
+  if (!s) return;
+
+  ensureProfitEditModal();
+  profitEditTargetIndex = index;
+
+  const current = clampNonNeg(Number(s.profit || 0));
+  const currentEl = document.getElementById("profitEditCurrentValue");
+  const nextEl = document.getElementById("profitEditNextValue");
+  const input = document.getElementById("profitEditInput");
+  const modal = document.getElementById("profitEditModal");
+
+  if (currentEl) currentEl.textContent = current.toLocaleString();
+  if (nextEl) nextEl.textContent = current.toLocaleString();
+  if (input) input.value = String(current);
+
+  updateProfitEditQuickState(current);
+
+  if (modal) modal.classList.add("show");
+}
+
+function closeProfitEditModal() {
+  const modal = document.getElementById("profitEditModal");
+  if (modal) modal.classList.remove("show");
+  profitEditTargetIndex = -1;
+}
+
+function getProfitEditValue() {
+  const input = document.getElementById("profitEditInput");
+  return clampNonNeg(parseInt(input?.value || "0", 10));
+}
+
+function setProfitEditValue(amount) {
+  const value = clampNonNeg(Number(amount || 0));
+  const input = document.getElementById("profitEditInput");
+  const nextEl = document.getElementById("profitEditNextValue");
+
+  if (input) input.value = String(value);
+  if (nextEl) nextEl.textContent = value.toLocaleString();
+
+  updateProfitEditQuickState(value);
+}
+
+function syncProfitEditInput() {
+  const value = getProfitEditValue();
+  const nextEl = document.getElementById("profitEditNextValue");
+  if (nextEl) nextEl.textContent = value.toLocaleString();
+  updateProfitEditQuickState(value);
+}
+
+function applyProfitEditInput() {
+  const input = document.getElementById("profitEditInput");
+  if (!input) return;
+
+  const value = clampNonNeg(parseInt(input.value || "0", 10));
+  input.value = String(value);
+
+  const nextEl = document.getElementById("profitEditNextValue");
+  if (nextEl) nextEl.textContent = value.toLocaleString();
+
+  updateProfitEditQuickState(value);
+}
+
+function updateProfitEditQuickState(value) {
+  document.querySelectorAll(".profitEditQuickBtn").forEach(btn => {
+    const n = Number(btn.getAttribute("data-profit") || "0");
+    btn.classList.toggle("active", n === value);
+  });
+}
+
+function saveProfitEditModal() {
+  if (profitEditTargetIndex < 0) return;
+
+  const s = stores[profitEditTargetIndex];
+  if (!s) {
+    closeProfitEditModal();
+    return;
+  }
+
+  const current = clampNonNeg(Number(s.profit || 0));
+  const next = getProfitEditValue();
+  const diff = next - current;
+
+  s.profit = next;
+  if (diff !== 0) {
+    addLog(s.id, "profit", diff);
+  }
+
+  saveAll();
+  render();
+  closeProfitEditModal();
 }
 
 /* =========================
