@@ -82,7 +82,7 @@ function yen(n) {
 }
 
 function shortMoney(n) {
-  return Number(n || 0).toLocaleString();
+  return String(Number(n || 0));
 }
 
 function safeDivide(a, b) {
