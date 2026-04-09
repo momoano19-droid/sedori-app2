@@ -61,6 +61,7 @@ button{
   cursor:pointer;
   transition:transform .08s ease, opacity .12s ease, box-shadow .12s ease, background .12s ease;
   box-shadow:none;
+  white-space:nowrap;
 }
 
 button:active,
@@ -327,9 +328,7 @@ a{
   font-weight:800;
 }
 
-/* =========================
-   上部フォーム
-========================= */
+/* 上部フォーム */
 .formGrid{
   display:grid;
   grid-template-columns:1fr;
@@ -355,9 +354,17 @@ a{
   gap:8px;
 }
 
-/* =========================
-   地図
-========================= */
+.row2 button,
+.routeBar button,
+.storeTopActions button,
+.formActions button,
+.filterGrid button,
+.routeBar3 button{
+  font-size:13px;
+  padding:0 10px;
+}
+
+/* 地図 */
 .mapCard{
   overflow:hidden;
 }
@@ -375,9 +382,7 @@ a{
   font:inherit;
 }
 
-/* =========================
-   今日のルート / 保存済み
-========================= */
+/* 今日のルート / 保存済み */
 .routeBar{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -390,9 +395,42 @@ a{
   gap:8px;
 }
 
-/* =========================
-   使い方モーダル
-========================= */
+/* 店舗一覧直前アクション */
+.storeTopActionsCard{
+  padding:12px;
+}
+
+.storeTopActions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+
+/* 今日行くチェック */
+.todayCheckLabel{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:13px;
+  font-weight:700;
+  color:#1f2340;
+}
+
+.compactTodayCheck{
+  font-size:14px;
+}
+
+.todayCheckInput.small{
+  width:14px;
+  height:14px;
+  min-width:14px;
+  min-height:14px;
+  margin:0;
+  padding:0;
+  accent-color:#3976f6;
+}
+
+/* 使い方モーダル */
 #helpUI{
   position:fixed;
   inset:0;
@@ -439,9 +477,7 @@ a{
   margin-top:14px;
 }
 
-/* =========================
-   個数・カテゴリ・利益モーダル
-========================= */
+/* 個数・カテゴリ・利益モーダル */
 .qtyCategoryModal{
   position:fixed;
   inset:0;
@@ -770,9 +806,7 @@ a{
   color:#fff;
 }
 
-/* =========================
-   レポート画面系でも使える汎用
-========================= */
+/* レポート共通 */
 .chipRow{
   display:flex;
   flex-wrap:wrap;
@@ -986,9 +1020,7 @@ a{
   line-height:1.8;
 }
 
-/* =========================
-   カレンダー系
-========================= */
+/* カレンダー */
 .calendarGrid{
   display:grid;
   grid-template-columns:repeat(7, 1fr);
@@ -1073,9 +1105,7 @@ a{
   font-weight:900;
 }
 
-/* =========================
-   モーダル共通
-========================= */
+/* モーダル共通 */
 .modal{
   position:fixed;
   inset:0;
@@ -1102,9 +1132,7 @@ a{
   -webkit-overflow-scrolling:touch;
 }
 
-/* =========================
-   iPhone向け微調整
-========================= */
+/* iPhone向け */
 @media (max-width: 640px){
   .container{
     padding:10px 10px 32px;
@@ -1144,6 +1172,24 @@ a{
 
   .mini{
     font-size:12px;
+  }
+
+  .storeTopActions{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .storeTopActions button{
+    min-height:42px;
+    font-size:12px;
+    padding:0 8px;
+    letter-spacing:0;
+  }
+
+  .todayCheckInput.small{
+    width:13px;
+    height:13px;
+    min-width:13px;
+    min-height:13px;
   }
 
   .qtyCategoryModal{
