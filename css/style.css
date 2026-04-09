@@ -1030,7 +1030,6 @@ a{
   line-height:1.8;
 }
 
-/* カレンダー */
 .calendarGrid{
   display:grid;
   grid-template-columns:repeat(7, minmax(0, 1fr));
@@ -1050,7 +1049,7 @@ a{
   border-radius:16px;
   background:#fff;
   border:1px solid #e5e7eb;
-  padding:8px 6px;
+  padding:10px 8px 8px;
   display:flex;
   flex-direction:column;
   justify-content:space-between;
@@ -1091,6 +1090,8 @@ a{
   font-weight:900;
   line-height:1;
   color:#1f2340;
+  display:block;
+  flex:0 0 auto;
 }
 
 .dayValue{
@@ -1103,6 +1104,9 @@ a{
   overflow:hidden;
   text-overflow:clip;
   letter-spacing:-0.2px;
+  display:block;
+  flex:0 0 auto;
+  margin-top:auto;
 }
 
 #selectedDayBar{
@@ -1222,9 +1226,9 @@ a{
   }
 
   .dayCell{
-    min-height:78px;
+    min-height:82px;
     aspect-ratio:1 / 1;
-    padding:7px 5px;
+    padding:8px 6px 6px;
     border-radius:14px;
   }
 
@@ -1239,7 +1243,8 @@ a{
     white-space:nowrap;
     overflow:hidden;
     text-overflow:clip;
-    letter-spacing:-0.3px;
+    letter-spacing:-0.2px;
+    margin-top:auto;
   }
 
   .qtyCategoryModal{
