@@ -402,15 +402,18 @@ a{
 
 .storeTopActions{
   display:grid;
-  grid-template-columns:1fr 1fr;
   gap:8px;
+}
+
+.storeTopActions4{
+  grid-template-columns:1fr 1fr;
 }
 
 /* 今日行くチェック */
 .todayCheckLabel{
   display:inline-flex;
   align-items:center;
-  gap:6px;
+  gap:4px;
   font-size:13px;
   font-weight:700;
   color:#1f2340;
@@ -421,13 +424,15 @@ a{
 }
 
 .todayCheckInput.small{
-  width:14px;
-  height:14px;
-  min-width:14px;
-  min-height:14px;
+  width:7px;
+  height:7px;
+  min-width:7px;
+  min-height:7px;
   margin:0;
   padding:0;
   accent-color:#3976f6;
+  transform:scale(1);
+  transform-origin:center;
 }
 
 /* 使い方モーダル */
@@ -1174,7 +1179,7 @@ a{
     font-size:12px;
   }
 
-  .storeTopActions{
+  .storeTopActions4{
     grid-template-columns:1fr 1fr;
   }
 
@@ -1186,10 +1191,10 @@ a{
   }
 
   .todayCheckInput.small{
-    width:13px;
-    height:13px;
-    min-width:13px;
-    min-height:13px;
+    width:7px;
+    height:7px;
+    min-width:7px;
+    min-height:7px;
   }
 
   .qtyCategoryModal{
