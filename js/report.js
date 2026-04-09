@@ -16,7 +16,7 @@ const LOG_KEYS = [
 
 let selectedMonth = null;
 let selectedDay = null;
-let prefAnalysisMode = "month";
+let selectedPrefMode = "month"; // month | total
 
 /* =========================
    軽量化キャッシュ
@@ -24,6 +24,7 @@ let prefAnalysisMode = "month";
 let cachedStores = null;
 let cachedLogs = null;
 let cachedMonthData = new Map();
+let cachedTotalData = null;
 
 /* =========================
    共通
@@ -59,6 +60,7 @@ function invalidateReportCache() {
   cachedStores = null;
   cachedLogs = null;
   cachedMonthData.clear();
+  cachedTotalData = null;
 }
 
 window.addEventListener("storage", () => {
@@ -147,15 +149,72 @@ function goCurrentMonth() {
 }
 
 /* =========================
-   月データ構築
+   カテゴリ集計
 ========================= */
-function getMonthBundle(stores, logs, targetMonth) {
-  const key = targetMonth;
-  if (cachedMonthData.has(key)) {
-    return cachedMonthData.get(key);
-  }
+function sortCategoryEntries(obj) {
+  return Object.entries(obj)
+    .filter(([, qty]) => Number(qty) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]) || String(a[0]).localeCompare(String(b[0]), "ja"));
+}
 
-  const monthLogs = logs.filter(l => ym(l.date) === targetMonth);
+function buildCategorySummaryFromLogs(logs) {
+  const map = {};
+
+  logs.forEach(log => {
+    if (log.type !== "category") return;
+    const cat = String(log.category || "").trim();
+    if (!cat) return;
+    map[cat] = (map[cat] || 0) + Number(log.delta || 0);
+  });
+
+  Object.keys(map).forEach(cat => {
+    if (map[cat] <= 0) delete map[cat];
+  });
+
+  return sortCategoryEntries(map);
+}
+
+function buildCurrentStoreCategorySummary(stores) {
+  const map = {};
+
+  stores.forEach(store => {
+    const cc = store.categoryCounts || {};
+    let used = false;
+
+    Object.entries(cc).forEach(([name, qty]) => {
+      const key = String(name || "").trim();
+      const n = Number(qty || 0);
+      if (!key || n <= 0) return;
+      used = true;
+      map[key] = (map[key] || 0) + n;
+    });
+
+    const fallback = String(store.defaultCategory || "").trim();
+    const items = Number(store.items || 0);
+    if (!used && fallback && items > 0) {
+      map[fallback] = (map[fallback] || 0) + items;
+    }
+  });
+
+  return sortCategoryEntries(map);
+}
+
+function mergeCategorySummaries(primaryList, fallbackList) {
+  const out = {};
+  primaryList.forEach(([name, qty]) => {
+    out[name] = Number(qty || 0);
+  });
+  fallbackList.forEach(([name, qty]) => {
+    if (!(name in out)) out[name] = Number(qty || 0);
+  });
+  return sortCategoryEntries(out);
+}
+
+/* =========================
+   データ構築
+========================= */
+function buildBundle(stores, logs, label) {
+  const targetLogs = Array.isArray(logs) ? logs : [];
   const storeMap = getStoreMap(stores);
 
   let profit = 0;
@@ -169,14 +228,14 @@ function getMonthBundle(stores, logs, targetMonth) {
   const daily = {};
   const perStore = {};
 
-  monthLogs.forEach(log => {
+  targetLogs.forEach(log => {
     const date = String(log.date || "").slice(0, 10);
     const storeId = String(log.storeId || "").trim();
 
     if (date) activeDates.add(date);
     if (storeId) targetStoreIds.add(storeId);
 
-    if (!daily[date] && date) {
+    if (date && !daily[date]) {
       daily[date] = {
         profit: 0,
         visits: 0,
@@ -243,11 +302,15 @@ function getMonthBundle(stores, logs, targetMonth) {
     }
   });
 
-  const monthCategories = buildMonthlyCategorySummary(monthLogs);
-  const totalCategories = buildTotalCategorySummary(stores);
+  const categoriesFromLogs = buildCategorySummaryFromLogs(targetLogs);
+  const storeCurrentCategories = buildCurrentStoreCategorySummary(stores);
+  const mergedCategories =
+    label === "トータル"
+      ? mergeCategorySummaries(categoriesFromLogs, storeCurrentCategories)
+      : categoriesFromLogs;
 
   const summary = {
-    ym: targetMonth,
+    label,
     registeredStoreCount: stores.length,
     activeStoreCount: targetStoreIds.size,
     activeDayCount: activeDates.size,
@@ -256,7 +319,7 @@ function getMonthBundle(stores, logs, targetMonth) {
     success,
     items,
     rate: visits > 0 ? (success / visits) * 100 : 0,
-    categories: monthCategories,
+    categories: mergedCategories,
     profitPerStore: safeDivide(profit, targetStoreIds.size),
     profitPerVisit: safeDivide(profit, visits),
     profitPerSuccess: safeDivide(profit, success),
@@ -266,91 +329,31 @@ function getMonthBundle(stores, logs, targetMonth) {
   const topLists = buildTopListsFromStoreStats(Object.values(perStore));
   const prefStats = buildPrefStats(stores, perStore);
 
-  const bundle = {
-    monthLogs,
+  return {
+    logs: targetLogs,
     summary,
     daily,
     perStore,
     topLists,
-    monthCategories,
-    totalCategories,
+    categories: mergedCategories,
     prefStats
   };
+}
 
+function getMonthBundle(stores, logs, targetMonth) {
+  const key = targetMonth;
+  if (cachedMonthData.has(key)) return cachedMonthData.get(key);
+
+  const monthLogs = logs.filter(l => ym(l.date) === targetMonth);
+  const bundle = buildBundle(stores, monthLogs, targetMonth);
   cachedMonthData.set(key, bundle);
   return bundle;
 }
 
-/* =========================
-   月間カテゴリ集計
-   → categoryプラスログを優先
-   → items合計に足りない分は未分類で補完
-========================= */
-function buildMonthlyCategorySummary(monthLogs) {
-  const monthMap = {};
-  let monthItemsTotal = 0;
-  let categoryPositiveTotal = 0;
-
-  monthLogs.forEach(log => {
-    const delta = Number(log.delta || 0);
-
-    if (log.type === "items") {
-      monthItemsTotal += delta;
-    }
-
-    if (log.type !== "category") return;
-
-    const name = String(log.category || "").trim();
-    if (!name) return;
-    if (delta <= 0) return;
-
-    monthMap[name] = (monthMap[name] || 0) + delta;
-    categoryPositiveTotal += delta;
-  });
-
-  const normalizedItemsTotal = Math.max(0, monthItemsTotal);
-  const missing = Math.max(0, normalizedItemsTotal - categoryPositiveTotal);
-
-  if (missing > 0) {
-    monthMap["未分類"] = (monthMap["未分類"] || 0) + missing;
-  }
-
-  return Object.entries(monthMap)
-    .filter(([, qty]) => Number(qty) > 0)
-    .sort((a, b) => Number(b[1]) - Number(a[1]));
-}
-
-/* =========================
-   トータルカテゴリ集計
-   → 現在の店舗在庫ベース
-========================= */
-function buildTotalCategorySummary(stores) {
-  const totalMap = {};
-
-  stores.forEach(store => {
-    const cc = store.categoryCounts || {};
-    let hasAny = false;
-
-    Object.entries(cc).forEach(([name, qty]) => {
-      const key = String(name || "").trim();
-      const n = Number(qty || 0);
-      if (!key || n <= 0) return;
-
-      hasAny = true;
-      totalMap[key] = (totalMap[key] || 0) + n;
-    });
-
-    const fallback = String(store.defaultCategory || "").trim();
-    const items = Number(store.items || 0);
-
-    if (!hasAny && fallback && items > 0) {
-      totalMap[fallback] = (totalMap[fallback] || 0) + items;
-    }
-  });
-
-  return Object.entries(totalMap)
-    .filter(([, qty]) => Number(qty) > 0)
-    .sort((a, b) => Number(b[1]) - Number(a[1]));
+function getTotalBundle(stores, logs) {
+  if (cachedTotalData) return cachedTotalData;
+  cachedTotalData = buildBundle(stores, logs, "トータル");
+  return cachedTotalData;
 }
 
 function buildTopListsFromStoreStats(storeStats) {
@@ -378,45 +381,6 @@ function buildTopListsFromStoreStats(storeStats) {
       .sort((a, b) => b.profit - a.profit)
       .slice(0, 10)
   };
-}
-
-function buildStoreStatsFromLogs(stores, logs) {
-  const storeMap = getStoreMap(stores);
-  const perStore = {};
-
-  logs.forEach(log => {
-    const storeId = String(log.storeId || "").trim();
-    if (!storeId) return;
-
-    if (!perStore[storeId]) {
-      perStore[storeId] = {
-        id: storeId,
-        name: storeMap[storeId]?.name || "不明な店舗",
-        pref: String(storeMap[storeId]?.pref || "").trim(),
-        profit: 0,
-        visits: 0,
-        success: 0,
-        items: 0,
-        categories: {}
-      };
-    }
-
-    const delta = Number(log.delta || 0);
-
-    if (log.type === "profit") perStore[storeId].profit += delta;
-    if (log.type === "visit") perStore[storeId].visits += delta;
-    if (log.type === "success") perStore[storeId].success += delta;
-    if (log.type === "items") perStore[storeId].items += delta;
-
-    if (log.type === "category" && log.category) {
-      const cat = String(log.category).trim();
-      if (cat) {
-        perStore[storeId].categories[cat] = (perStore[storeId].categories[cat] || 0) + delta;
-      }
-    }
-  });
-
-  return perStore;
 }
 
 /* =========================
@@ -496,88 +460,73 @@ function buildPrefStats(stores, perStore) {
     .sort((a, b) => b.expected - a.expected || b.profit - a.profit);
 }
 
-function setPrefAnalysisMode(mode) {
-  prefAnalysisMode = mode === "total" ? "total" : "month";
-  bootReport();
+function getCurrentPrefBundle() {
+  const stores = loadStores();
+  const logs = loadLogs();
+  if (selectedPrefMode === "total") {
+    return getTotalBundle(stores, logs);
+  }
+  return getMonthBundle(stores, logs, selectedMonth || currentMonthStr());
 }
 
-function renderPrefAnalysis(monthList, totalList) {
+function renderPrefAnalysis() {
   const el = document.getElementById("prefAnalysisWrap");
   if (!el) return;
 
-  const activeList = prefAnalysisMode === "total" ? totalList : monthList;
+  const bundle = getCurrentPrefBundle();
+  const list = bundle.prefStats || [];
+
+  const modeLabel = selectedPrefMode === "total" ? "トータル" : (selectedMonth || currentMonthStr());
+
+  if (!list.length) {
+    el.innerHTML = `
+      <div class="row2" style="margin-bottom:12px;">
+        <button class="${selectedPrefMode === "month" ? "primaryBtn" : "ghostBtn"}" onclick="changePrefMode('month')">今月</button>
+        <button class="${selectedPrefMode === "total" ? "primaryBtn" : "ghostBtn"}" onclick="changePrefMode('total')">トータル</button>
+      </div>
+      <div class="emptyText">都道府県データがありません。</div>
+    `;
+    return;
+  }
 
   el.innerHTML = `
-    <div class="card" style="margin-bottom:12px;">
-      <h2 class="sectionTitle">🗾 都道府県別分析</h2>
+    <div class="row2" style="margin-bottom:12px;">
+      <button class="${selectedPrefMode === "month" ? "primaryBtn" : "ghostBtn"}" onclick="changePrefMode('month')">今月</button>
+      <button class="${selectedPrefMode === "total" ? "primaryBtn" : "ghostBtn"}" onclick="changePrefMode('total')">トータル</button>
+    </div>
 
-      <div class="row2 mt8">
-        <button
-          type="button"
-          onclick="setPrefAnalysisMode('month')"
-          style="
-            min-height:44px;
-            border:none;
-            border-radius:14px;
-            font-weight:800;
-            background:${prefAnalysisMode === "month" ? "#3976f6" : "#eef1f7"};
-            color:${prefAnalysisMode === "month" ? "#fff" : "#1f2340"};
-          "
-        >今月</button>
+    <div class="mini" style="margin-bottom:10px;">表示対象：${escapeHtml(modeLabel)}</div>
 
-        <button
-          type="button"
-          onclick="setPrefAnalysisMode('total')"
-          style="
-            min-height:44px;
-            border:none;
-            border-radius:14px;
-            font-weight:800;
-            background:${prefAnalysisMode === "total" ? "#3976f6" : "#eef1f7"};
-            color:${prefAnalysisMode === "total" ? "#fff" : "#1f2340"};
-          "
-        >トータル</button>
-      </div>
-
-      ${
-        !activeList.length
-          ? `<div class="emptyText" style="margin-top:12px;">都道府県データがありません。</div>`
-          : `
-            <div class="catList" style="margin-top:12px;">
-              ${activeList.map(item => `
-                <div class="catItem" style="grid-template-columns:1fr; cursor:pointer;" onclick="showPrefDetail('${escapeHtml(item.pref)}', '${prefAnalysisMode}')">
-                  <div class="catName">${escapeHtml(item.pref)}</div>
-                  <div class="detailText" style="margin-top:6px;">
-                    登録店舗 ${item.registeredStoreCount}件 / 対象店舗 ${item.activeStoreCount}件<br>
-                    利益 ${yen(item.profit)} / 訪問 ${item.visits}回 / 成功 ${item.success}回 / 個数 ${item.items}個<br>
-                    成功率 ${item.rate.toFixed(1)}% / 期待値 ${Math.round(item.expected).toLocaleString()}円
-                  </div>
-                </div>
-              `).join("")}
-            </div>
-          `
-      }
+    <div class="catList">
+      ${list.map(item => `
+        <div class="catItem" style="grid-template-columns:1fr; cursor:pointer;" onclick="showPrefDetail('${escapeHtml(item.pref)}')">
+          <div class="catName">${escapeHtml(item.pref)}</div>
+          <div class="detailText" style="margin-top:6px;">
+            登録店舗 ${item.registeredStoreCount}件 / 対象店舗 ${item.activeStoreCount}件<br>
+            利益 ${yen(item.profit)} / 訪問 ${item.visits}回 / 成功 ${item.success}回 / 個数 ${item.items}個<br>
+            成功率 ${item.rate.toFixed(1)}% / 期待値 ${Math.round(item.expected).toLocaleString()}円
+          </div>
+        </div>
+      `).join("")}
     </div>
   `;
 }
 
-function showPrefDetail(prefName, mode = prefAnalysisMode) {
-  const stores = loadStores();
-  const logs = loadLogs();
-  const targetMonth = selectedMonth || currentMonthStr();
+function changePrefMode(mode) {
+  selectedPrefMode = mode === "total" ? "total" : "month";
+  renderPrefAnalysis();
+}
 
-  const monthBundle = getMonthBundle(stores, logs, targetMonth);
-  const totalPerStore = buildStoreStatsFromLogs(stores, logs);
-  const totalPrefStats = buildPrefStats(stores, totalPerStore);
-
-  const sourceList = mode === "total" ? totalPrefStats : monthBundle.prefStats;
-  const pref = sourceList.find(x => x.pref === prefName);
+function showPrefDetail(prefName) {
+  const bundle = getCurrentPrefBundle();
+  const pref = bundle.prefStats.find(x => x.pref === prefName);
 
   const body = document.getElementById("detailBody");
   const title = document.getElementById("detailTitle");
   if (!body || !title) return;
 
-  title.textContent = `${prefName} 詳細（${mode === "total" ? "トータル" : "今月"}）`;
+  const modeLabel = selectedPrefMode === "total" ? "トータル" : (selectedMonth || currentMonthStr());
+  title.textContent = `${prefName} 詳細（${modeLabel}）`;
 
   if (!pref) {
     body.innerHTML = `<div class="emptyText">都道府県データがありません。</div>`;
@@ -782,14 +731,17 @@ function buildMiniCategoryTableHtml(categories) {
 /* =========================
    サマリー
 ========================= */
-function renderMonthSummary(summary) {
+function renderMonthSummary(monthBundle, totalBundle) {
   const el = document.getElementById("monthSummaryCard");
   if (!el) return;
 
-  el.innerHTML = `
-    <h2 class="sectionTitle" style="margin-bottom:16px;">📌 ${escapeHtml(summary.ym)} サマリー</h2>
+  const summary = monthBundle.summary;
+  const totalSummary = totalBundle.summary;
 
-    <div class="chipRow" onclick="showMonthDetail('${escapeHtml(summary.ym)}')" style="cursor:pointer;">
+  el.innerHTML = `
+    <h2 class="sectionTitle" style="margin-bottom:16px;">📌 ${escapeHtml(summary.label)} サマリー</h2>
+
+    <div class="chipRow" onclick="showMonthDetail('${escapeHtml(summary.label)}')" style="cursor:pointer;">
       <div class="chip">現在登録店舗 ${summary.registeredStoreCount}件</div>
       <div class="chip">対象店舗 ${summary.activeStoreCount}件</div>
       <div class="chip">今月利益 ${yen(summary.profit)}</div>
@@ -815,11 +767,14 @@ function renderMonthSummary(summary) {
       </div>
     </div>
 
-    <div class="summarySubTitle">カテゴリ表</div>
+    <div class="summarySubTitle">月間カテゴリ表</div>
     ${buildMiniCategoryTableHtml(summary.categories)}
+
+    <div class="summarySubTitle">トータルカテゴリ表</div>
+    ${buildMiniCategoryTableHtml(totalSummary.categories)}
   `;
 
-  drawCategoryPieChart("categoryPieChart", summary.categories, summary.ym);
+  drawCategoryPieChart("categoryPieChart", summary.categories, summary.label);
 }
 
 /* =========================
@@ -981,24 +936,43 @@ function renderTopStores(topLists) {
 /* =========================
    カテゴリ集計
 ========================= */
-function renderCategorySummary(list) {
+function renderCategorySummary(monthCategories, totalCategories) {
   const el = document.getElementById("categoryWrap");
   if (!el) return;
 
-  if (!list.length) {
+  if (!monthCategories.length && !totalCategories.length) {
     el.innerHTML = `<div class="emptyText">カテゴリデータがありません。</div>`;
     return;
   }
 
   el.innerHTML = `
-    <div class="catList">
-      ${list.map(([name, qty]) => `
-        <div class="catItem">
-          <div class="catName">${escapeHtml(name)}</div>
-          <div class="catQty">${qty}個</div>
-        </div>
-      `).join("")}
-    </div>
+    <div class="summarySubTitle" style="margin-top:0;">月間カテゴリ集計</div>
+    ${
+      monthCategories.length
+        ? `<div class="catList">
+            ${monthCategories.map(([name, qty]) => `
+              <div class="catItem">
+                <div class="catName">${escapeHtml(name)}</div>
+                <div class="catQty">${qty}個</div>
+              </div>
+            `).join("")}
+          </div>`
+        : `<div class="emptyText">今月のカテゴリデータがありません。</div>`
+    }
+
+    <div class="summarySubTitle">トータルカテゴリ集計</div>
+    ${
+      totalCategories.length
+        ? `<div class="catList">
+            ${totalCategories.map(([name, qty]) => `
+              <div class="catItem">
+                <div class="catName">${escapeHtml(name)}</div>
+                <div class="catQty">${qty}個</div>
+              </div>
+            `).join("")}
+          </div>`
+        : `<div class="emptyText">トータルカテゴリデータがありません。</div>`
+    }
   `;
 }
 
@@ -1073,14 +1047,16 @@ function showMonthDetail(targetMonth) {
       .join(" / ");
 
     const rate = Number(x.visits || 0) > 0 ? (Number(x.success || 0) / Number(x.visits || 0)) * 100 : 0;
+    const expected = Number(x.visits || 0) > 0 ? Number(x.profit || 0) / Number(x.visits || 0) : 0;
 
     return `
       <div class="detailBlock">
         <div class="detailTitle">${escapeHtml(x.name)}</div>
         <div class="detailText">
+          ${escapeHtml(x.pref || "都道府県なし")}<br>
           利益：${yen(x.profit)}<br>
           訪問：${x.visits}回 / 成功：${x.success}回 / 個数：${x.items}個<br>
-          成功率：${rate.toFixed(1)}%<br>
+          成功率：${rate.toFixed(1)}% / 期待値：${Math.round(expected).toLocaleString()}円<br>
           ${cats ? `カテゴリ：${cats}` : "カテゴリ：なし"}
         </div>
       </div>
@@ -1185,12 +1161,18 @@ function showDayDetail(dayStr) {
 
 function showDetailModal() {
   const el = document.getElementById("detailModal");
-  if (el) el.classList.add("show");
+  if (el) {
+    el.classList.add("show");
+    el.setAttribute("aria-hidden", "false");
+  }
 }
 
 function hideDetailModal() {
   const el = document.getElementById("detailModal");
-  if (el) el.classList.remove("show");
+  if (el) {
+    el.classList.remove("show");
+    el.setAttribute("aria-hidden", "true");
+  }
 }
 
 function closeDetailModal(e) {
@@ -1207,16 +1189,14 @@ function bootReport() {
   renderMonthPicker(logs);
 
   const targetMonth = selectedMonth || currentMonthStr();
-  const bundle = getMonthBundle(stores, logs, targetMonth);
+  const monthBundle = getMonthBundle(stores, logs, targetMonth);
+  const totalBundle = getTotalBundle(stores, logs);
 
-  const totalPerStore = buildStoreStatsFromLogs(stores, logs);
-  const totalPrefStats = buildPrefStats(stores, totalPerStore);
-
-  renderMonthSummary(bundle.summary);
-  renderCalendar(targetMonth, bundle.daily);
-  renderTopStores(bundle.topLists);
-  renderCategorySummary(bundle.totalCategories);
-  renderPrefAnalysis(bundle.prefStats, totalPrefStats);
+  renderMonthSummary(monthBundle, totalBundle);
+  renderCalendar(targetMonth, monthBundle.daily);
+  renderTopStores(monthBundle.topLists);
+  renderCategorySummary(monthBundle.categories, totalBundle.categories);
+  renderPrefAnalysis();
 }
 
 window.addEventListener("load", bootReport);
@@ -1225,5 +1205,5 @@ window.addEventListener("resize", () => {
   const logs = loadLogs();
   const targetMonth = selectedMonth || currentMonthStr();
   const bundle = getMonthBundle(stores, logs, targetMonth);
-  drawCategoryPieChart("categoryPieChart", bundle.summary.categories || [], bundle.summary.ym || "");
+  drawCategoryPieChart("categoryPieChart", bundle.summary.categories || [], bundle.summary.label || "");
 });
