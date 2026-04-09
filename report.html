@@ -6,12 +6,12 @@
     name="viewport"
     content="width=device-width, initial-scale=1, viewport-fit=cover"
   >
-  <title>分析画面 | せどりGPS管理PRO</title>
+  <title>分析画面 | せどりGPS店舗管理PRO</title>
 
   <meta name="theme-color" content="#3976f6">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="せどりGPS管理PRO">
+  <meta name="apple-mobile-web-app-title" content="せどりGPS店舗管理PRO">
 
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
@@ -19,9 +19,8 @@
 </head>
 <body>
   <div class="container">
-    <!-- ヘッダー -->
     <header class="appHeader card">
-      <h1 class="appTitle">📊 レポート → 分析画面</h1>
+      <h1 class="appTitle">📊 分析画面</h1>
       <div class="appSub">
         月ごとの利益・成功率・カテゴリ・都道府県別の傾向を確認できます。
       </div>
@@ -32,7 +31,6 @@
       </div>
     </header>
 
-    <!-- 月選択 -->
     <section class="card">
       <h2 class="sectionTitle">🗓 対象月</h2>
 
@@ -46,33 +44,27 @@
       </div>
     </section>
 
-    <!-- 月サマリー -->
     <section class="card" id="monthSummaryCard"></section>
 
-    <!-- 日別カレンダー -->
     <section class="card">
       <h2 class="sectionTitle">📅 日別カレンダー</h2>
       <div id="calendarWrap"></div>
       <div id="selectedDayBar"></div>
     </section>
 
-    <!-- TOP店舗 -->
     <section id="topStoresWrap"></section>
 
-    <!-- カテゴリ集計 -->
     <section class="card">
       <h2 class="sectionTitle">📦 カテゴリ集計</h2>
       <div id="categoryWrap"></div>
     </section>
 
-    <!-- 都道府県別分析 -->
     <section class="card">
       <h2 class="sectionTitle">🗾 都道府県別分析</h2>
       <div id="prefAnalysisWrap"></div>
     </section>
   </div>
 
-  <!-- 詳細モーダル -->
   <div
     id="detailModal"
     class="modal"
