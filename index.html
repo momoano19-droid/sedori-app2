@@ -2,200 +2,182 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
   <title>店舗管理 | せどりGPS管理PRO</title>
 
-  <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#3976f6">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="店舗管理">
+  <meta name="apple-mobile-web-app-title" content="せどりGPS管理PRO">
+
+  <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
-  <link rel="stylesheet" href="./css/style.css?v=ui13">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="./css/style.css">
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  >
 </head>
 <body>
-  <div class="page">
-
-    <!-- 上部ナビ -->
-    <div class="topButtons mainTopButtons">
-      <button type="button" class="heroBtn mainBtn" onclick="location.href='report.html'">
-        📊 分析画面へ
-      </button>
-      <button type="button" class="ghostBtn subBtn" onclick="openHelp()">
-        📘 使い方
-      </button>
-    </div>
-
-    <!-- 保存済みルート -->
-    <div class="card">
-      <div class="sectionTitle" style="margin-bottom:6px;">⭐ 保存済みルート</div>
-      <div class="helpText" style="margin-top:0;">
-        よく使うルートを保存して、後から再利用できます。
-      </div>
-      <div id="savedRoutesList" class="helpText" style="margin-top:14px;">保存済みルートはまだありません。</div>
-    </div>
-
-    <!-- 検索・絞り込み -->
-    <div class="card">
-      <div class="sectionTitle" style="margin-bottom:6px;">🔎 店舗検索と絞り込み</div>
-      <div class="helpText" style="margin-top:0;">
-        店舗位置をまとめて確認しながら、条件で絞り込めます。
-      </div>
-
-      <div class="searchGrid" style="margin-top:14px;">
-        <input id="q" placeholder="🔎 店舗検索（店舗名など）" oninput="render()">
-
-        <select id="prefFilter" onchange="render()">
-          <option value="__ALL__">全て（都道府県ごと）</option>
-        </select>
-
-        <select id="sortType" onchange="saveSortType(); render()">
-          <option value="expected">期待値順</option>
-          <option value="rate">成功率順</option>
-          <option value="avgProfit">平均利益順</option>
-          <option value="visits">訪問回数順</option>
-          <option value="route">距離順</option>
-        </select>
-
-        <input id="minExpected" placeholder="期待値 下限（例：2000）" oninput="render()">
-
-        <input id="minRate" placeholder="成功率 下限%（例：20）" oninput="render()">
-
-        <button type="button" class="ghostBtn" onclick="showNoCoordsOnly()">📡 座標なし店舗を見る</button>
+  <div class="container">
+    <!-- ヘッダー -->
+    <header class="appHeader card">
+      <h1 class="appTitle">📱 せどりGPS管理 → 店舗管理</h1>
+      <div class="appSub">
+        店舗ごとの訪問・成功・個数・利益を記録して、期待値や成功率を見やすく管理できます。
       </div>
 
       <div class="row2 mt12">
-        <button type="button" class="ghostBtn" onclick="showNearbyStores()">🚗 現在地で効率更新</button>
-        <button type="button" class="ghostBtn" onclick="refreshAllCoordinates()">📡 座標なし店舗を一括再取得</button>
+        <button class="primaryBtn" onclick="openHelp()">使い方</button>
+        <button class="ghostBtn" onclick="location.href='./report.html'">📊 レポート</button>
       </div>
-
-      <div class="row2 mt12">
-        <button type="button" class="ghostBtn" onclick="document.getElementById('mapWrap').scrollIntoView({ behavior:'smooth' })">🗺️ 地図に移動</button>
-        <button type="button" class="ghostBtn" onclick="moveToCurrentLocation()">📍 現在地へ移動</button>
-      </div>
-    </div>
+    </header>
 
     <!-- 店舗追加 -->
-    <div class="card">
-      <div class="sectionTitle" style="margin-bottom:6px;">➕ 店舗追加</div>
-      <div class="helpText" style="margin-top:0;">
-        店舗名・都道府県・住所・GoogleマップURLから登録できます。
+    <section class="card">
+      <h2 class="sectionTitle">🏪 店舗追加</h2>
+
+      <div class="formGrid">
+        <input id="storeName" type="text" placeholder="店舗名">
+        <input id="prefName" type="text" placeholder="都道府県">
+        <input id="address" type="text" placeholder="住所">
+        <input id="mapUrl" type="text" placeholder="GoogleマップURL（任意）">
       </div>
 
-      <div class="addGrid" style="margin-top:14px;">
-        <input id="storeName" placeholder="店舗名を入力">
-        <input id="prefName" placeholder="都道府県（例：茨城）">
-        <input id="address" class="span2" placeholder="住所（これだけでもOK）">
-        <input id="mapUrl" class="span2" placeholder="Googleマップ共有リンク / 短縮URL / place URL など">
+      <div class="formActions">
+        <button class="primaryBtn" onclick="addStore()">店舗追加</button>
+        <button class="ghostBtn" onclick="refreshAllCoordinates()">座標一括再取得</button>
       </div>
 
-      <button type="button" class="primaryWide" onclick="addStore()">店舗追加</button>
-
-      <div class="helpText">
-        Googleマップの共有リンク、短縮URL、place URL、@緯度経度入りURLなどを読み取れるようにしています。
+      <div class="mini mt8">
+        GoogleマップURLがあれば座標を取りやすくなります。住所だけでも登録できます。
       </div>
-    </div>
-
-    <!-- 表示切替 -->
-    <div class="card">
-      <div class="sectionTitle" style="margin-bottom:10px;">🧭 表示モード</div>
-      <div class="layoutButtons">
-        <button type="button" id="detailLayoutBtn" class="ghostBtn" onclick="setLayoutMode('detail')">詳細</button>
-        <button type="button" id="compactLayoutBtn" class="ghostBtn" onclick="setLayoutMode('compact')">コンパクト</button>
-      </div>
-    </div>
+    </section>
 
     <!-- バックアップ -->
-    <div class="card">
-      <div class="sectionTitle" style="margin-bottom:6px;">💾 バックアップ</div>
-      <div class="helpText" style="margin-top:0;">
-        手動バックアップはJSONを書き出します。自動バックアップは更新のたびに保存されます。
+    <section class="card">
+      <h2 class="sectionTitle">💾 バックアップ</h2>
+
+      <div class="row2">
+        <button class="ghostBtn" onclick="exportBackup()">バックアップ書き出し</button>
+        <button class="ghostBtn" onclick="document.getElementById('backupFile').click()">バックアップ読込</button>
       </div>
 
-      <div class="topButtons" style="margin-top:14px;">
-        <button type="button" class="heroBtn" onclick="exportBackup()">📦 手動バックアップ</button>
-        <button type="button" class="ghostBtn" onclick="restoreAutoBackup()">♻ 自動バックアップ</button>
-      </div>
-
-      <div class="row2 mt12">
-        <button type="button" class="ghostBtn" onclick="document.getElementById('backupFile').click()">📥 バックアップ読込</button>
-        <button type="button" class="ghostBtn" onclick="showAutoBackupInfo()">🕒 自動バックアップ確認</button>
+      <div class="row2 mt8">
+        <button class="ghostBtn" onclick="restoreAutoBackup()">自動バックアップ復元</button>
+        <button class="ghostBtn" onclick="showAutoBackupInfo()">自動バックアップ情報</button>
       </div>
 
       <input
         id="backupFile"
         type="file"
         accept=".json,application/json"
-        style="display:none"
         onchange="importBackup(event)"
+        hidden
       >
-    </div>
+    </section>
+
+    <!-- フィルター -->
+    <section class="card">
+      <h2 class="sectionTitle">🔎 絞り込み / 並び替え</h2>
+
+      <div class="formGrid">
+        <input id="q" type="text" placeholder="店舗名 / 住所 / カテゴリ検索" oninput="render()">
+
+        <div class="filterGrid">
+          <select id="prefFilter" onchange="render()">
+            <option value="__ALL__">全て（都道府県ごと）</option>
+          </select>
+
+          <select id="sortType" onchange="saveSortType(); render()">
+            <option value="expected">期待値順</option>
+            <option value="rate">成功率順</option>
+            <option value="avgProfit">平均利益順</option>
+            <option value="visits">訪問回数順</option>
+            <option value="route">距離順</option>
+          </select>
+        </div>
+
+        <div class="filterGrid">
+          <input id="minExpected" type="number" inputmode="numeric" placeholder="最低期待値" oninput="render()">
+          <input id="minRate" type="number" inputmode="numeric" placeholder="最低成功率" oninput="render()">
+        </div>
+      </div>
+
+      <div class="routeBar mt12">
+        <button class="ghostBtn" onclick="showNearbyStores()">近くの店舗</button>
+        <button class="ghostBtn" onclick="clearNearbyMode(); render()">通常表示に戻す</button>
+      </div>
+
+      <div class="routeBar mt8">
+        <button class="ghostBtn" onclick="moveToCurrentLocation()">現在地へ移動</button>
+        <button class="ghostBtn" onclick="showNoCoordsOnly()">座標なし店舗</button>
+      </div>
+
+      <div class="routeBar mt12">
+        <button id="detailLayoutBtn" class="ghostBtn" onclick="setLayoutMode('detail')">詳細</button>
+        <button id="compactLayoutBtn" class="ghostBtn" onclick="setLayoutMode('compact')">コンパクト</button>
+      </div>
+    </section>
 
     <!-- 地図 -->
-    <div id="mapWrap" class="card mapWrap">
-      <div class="sectionTitle" style="margin-bottom:6px;">🗺️ 店舗MAP</div>
-      <div class="helpText" style="margin-top:0;">
-        店舗位置をまとめて確認できます。
+    <section class="card mapCard">
+      <h2 class="sectionTitle">🗺 店舗MAP</h2>
+      <div id="map"></div>
+      <div class="mini mt8">
+        マーカーをタップすると、期待値・成功率・今日行く・ナビが表示されます。
       </div>
-      <div id="map" style="margin-top:14px;"></div>
-    </div>
+    </section>
 
     <!-- 今日のルート -->
-    <div class="card" style="background:linear-gradient(180deg,#f7fbff 0%, #ffffff 100%); border:1px solid #dce9ff;">
-      <div class="sectionTitle" style="margin-bottom:6px;">🛣 今日のルート</div>
-      <div class="helpText" style="margin-top:0;">
-        今日行くにチェックした店舗が下に並びます。近くの店舗表示や通常表示への切替もここからできます。
+    <section class="card">
+      <h2 class="sectionTitle">🛣 今日のルート</h2>
+
+      <div class="routeBar">
+        <button class="primaryBtn" onclick="buildTodayRoute()">この順番でルート作成</button>
+        <button class="ghostBtn" onclick="autoOptimizeTodayRoute()">自動最適化</button>
       </div>
 
-      <div class="topButtons" style="margin-top:14px;">
-        <button type="button" class="primaryBtn" onclick="buildTodayRoute()">🛣 この順番でルート作成</button>
-        <button type="button" class="ghostBtn" onclick="saveCurrentRoute()">⭐ ルート保存</button>
+      <div class="routeBar mt8">
+        <button class="ghostBtn" onclick="saveCurrentRoute()">ルート保存</button>
+        <button class="ghostBtn" onclick="clearTodayChecks()">今日行くを全解除</button>
       </div>
 
-      <div class="row2 mt12">
-        <button type="button" class="ghostBtn" onclick="showNearbyStores()">📍 近くの店舗（3km）</button>
-        <button type="button" class="ghostBtn" onclick="clearNearbyMode(); render()">通常表示に戻す</button>
-      </div>
+      <div id="todayRouteList" class="mt12"></div>
+    </section>
 
-      <div class="row2 mt12">
-        <button type="button" class="ghostBtn" onclick="autoOptimizeTodayRoute()">🧭 自動最適化</button>
-        <button type="button" class="ghostBtn" onclick="clearTodayChecks()">☑ 今日行くを解除</button>
-      </div>
-
-      <div id="todayRouteList" class="helpText" style="margin-top:14px;"></div>
-    </div>
+    <!-- 保存済みルート -->
+    <section class="card">
+      <h2 class="sectionTitle">⭐ 保存済みルート</h2>
+      <div id="savedRoutesList"></div>
+    </section>
 
     <!-- 店舗一覧 -->
-    <div id="storeList"></div>
+    <section class="card">
+      <h2 class="sectionTitle">🏬 店舗一覧</h2>
+      <div id="storeList"></div>
+    </section>
   </div>
 
   <!-- 使い方モーダル -->
-  <div id="helpUI" class="helpUI" aria-hidden="true">
-    <div class="helpCard" onclick="event.stopPropagation()">
-      <div class="helpHeader">
-        <div id="helpTitle">📘 せどりGPSガイド</div>
-        <button type="button" onclick="closeHelp()">✕</button>
-      </div>
+  <div id="helpUI" aria-hidden="true">
+    <div class="helpCard">
+      <div id="helpTitle"></div>
+      <div id="helpContent"></div>
 
-      <div id="helpContent" class="helpContent"></div>
-
-      <div class="helpFooter">
-        <button type="button" onclick="prevHelp()">← 戻る</button>
-        <button type="button" onclick="nextHelp()">次へ →</button>
+      <div class="helpActions">
+        <button class="ghostBtn" onclick="prevHelp()">戻る</button>
+        <button class="ghostBtn" onclick="closeHelp()">閉じる</button>
+        <button class="primaryBtn" onclick="nextHelp()">次へ</button>
       </div>
     </div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="./js/app.js?v=ui17"></script>
-  <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./service-worker.js").catch(console.error);
-      });
-    }
-  </script>
+  <script src="./js/app.js"></script>
 </body>
 </html>
