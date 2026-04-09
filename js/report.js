@@ -736,7 +736,6 @@ function renderMonthSummary(monthBundle, totalBundle) {
   if (!el) return;
 
   const summary = monthBundle.summary;
-  const totalSummary = totalBundle.summary;
 
   el.innerHTML = `
     <h2 class="sectionTitle" style="margin-bottom:16px;">📌 ${escapeHtml(summary.label)} サマリー</h2>
@@ -766,12 +765,6 @@ function renderMonthSummary(monthBundle, totalBundle) {
         ${buildCategoryLegendHtml(summary.categories)}
       </div>
     </div>
-
-    <div class="summarySubTitle">月間カテゴリ表</div>
-    ${buildMiniCategoryTableHtml(summary.categories)}
-
-    <div class="summarySubTitle">トータルカテゴリ表</div>
-    ${buildMiniCategoryTableHtml(totalSummary.categories)}
   `;
 
   drawCategoryPieChart("categoryPieChart", summary.categories, summary.label);
@@ -1192,8 +1185,8 @@ function bootReport() {
   const monthBundle = getMonthBundle(stores, logs, targetMonth);
   const totalBundle = getTotalBundle(stores, logs);
 
-  renderMonthSummary(monthBundle, totalBundle);
   renderCalendar(targetMonth, monthBundle.daily);
+  renderMonthSummary(monthBundle, totalBundle);
   renderTopStores(monthBundle.topLists);
   renderCategorySummary(monthBundle.categories, totalBundle.categories);
   renderPrefAnalysis();
