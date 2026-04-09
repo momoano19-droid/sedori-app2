@@ -71,11 +71,12 @@ let lastMapRenderSignature = "";
 let mapRenderRafId = null;
 
 /* =========================
-   個数＋カテゴリモーダル状態
+   個数＋カテゴリ＋利益モーダル状態
 ========================= */
 let qtyCategoryModalResolver = null;
 let qtyCategoryCurrentQty = 1;
 let qtyCategorySelected = {};
+let qtyCategoryProfit = 0;
 
 /* =========================
    起動
@@ -1434,6 +1435,7 @@ function itemsPlus(i) {
     const catMap = result.categoryMap && typeof result.categoryMap === "object"
       ? result.categoryMap
       : null;
+    const profit = clampNonNeg(parseInt(result.profit || "0", 10));
 
     if (!n || !catMap) return;
 
@@ -1461,6 +1463,11 @@ function itemsPlus(i) {
       s.categoryCounts[cat] = (s.categoryCounts[cat] || 0) + addQty;
       addLog(s.id, "category", addQty, cat);
     });
+
+    if (profit > 0) {
+      s.profit += profit;
+      addLog(s.id, "profit", profit);
+    }
 
     const firstCat = keys[0];
     if (firstCat) s.defaultCategory = firstCat;
@@ -2222,7 +2229,7 @@ const helpData = [
       ① 店舗を登録する<br>
       ② 店に行ったら「訪問＋」を押す<br>
       ③ 仕入れできたら「個数＋」を押す<br>
-      ④ 利益が分かったら「利益＋」を押す<br><br>
+      ④ 個数＋の中でカテゴリと利益もまとめて入力できる<br><br>
       → これだけで店舗ごとの実績がたまり、自動で分析されます。
     `
   },
@@ -2344,7 +2351,7 @@ window.addEventListener("load", () => {
 });
 
 /* =========================
-   個数＋カテゴリモーダル
+   個数＋カテゴリ＋利益モーダル
 ========================= */
 function ensureQtyCategoryModal() {
   if (document.getElementById("qtyCategoryModal")) return;
@@ -2354,8 +2361,8 @@ function ensureQtyCategoryModal() {
   modal.className = "qtyCategoryModal";
   modal.innerHTML = `
     <div class="qtyCategoryCard">
-      <div class="qtyCategoryTitle">個数とカテゴリを選択</div>
-      <div class="qtyCategorySub">合計個数を決めて、カテゴリごとに個数を調整してください</div>
+      <div class="qtyCategoryTitle">個数・カテゴリ・利益を入力</div>
+      <div class="qtyCategorySub">合計個数、カテゴリごとの個数、利益をまとめて入力できます</div>
 
       <div class="qtyCategorySectionTitle">合計個数を選択</div>
       <div class="qtyQuickButtons">
@@ -2399,6 +2406,33 @@ function ensureQtyCategoryModal() {
         入力合計: <span id="qtyAssignedTotal">0</span> / <span id="qtyAssignedTarget">1</span>個
       </div>
 
+      <div class="qtyCategorySectionTitle">利益入力</div>
+
+      <div class="qtyQuickButtons">
+        <button type="button" class="qtyQuickBtn profitQuickBtn" data-profit="1000" onclick="setQuickProfit(1000)">1000</button>
+        <button type="button" class="qtyQuickBtn profitQuickBtn" data-profit="3000" onclick="setQuickProfit(3000)">3000</button>
+        <button type="button" class="qtyQuickBtn profitQuickBtn" data-profit="5000" onclick="setQuickProfit(5000)">5000</button>
+        <button type="button" class="qtyQuickBtn profitQuickBtn" data-profit="10000" onclick="setQuickProfit(10000)">10000</button>
+      </div>
+
+      <div class="qtyManualRow">
+        <input
+          id="qtyProfitInput"
+          class="qtyManualInput"
+          type="number"
+          min="0"
+          step="100"
+          value="0"
+          placeholder="利益を入力"
+          oninput="syncProfitInput()"
+        >
+        <button type="button" class="qtyManualBtn" onclick="applyManualProfit()">利益反映</button>
+      </div>
+
+      <div class="qtySelectedBox">
+        利益: <span id="qtyProfitValue">0</span>円
+      </div>
+
       <div class="categoryPickerActions">
         <button type="button" class="ghostBtn" onclick="closeQtyCategoryModal(null)">キャンセル</button>
         <button type="button" class="primaryBtn" onclick="confirmQtyCategoryModal()">OK</button>
@@ -2420,9 +2454,11 @@ function openQtyCategoryModal({ history = [], defaultCategory = "" }) {
   const chipWrap = document.getElementById("qtyCategoryChipWrap");
   const manualInput = document.getElementById("qtyManualInput");
   const newCategoryInput = document.getElementById("qtyNewCategoryInput");
+  const profitInput = document.getElementById("qtyProfitInput");
 
   qtyCategoryCurrentQty = 1;
   qtyCategorySelected = {};
+  qtyCategoryProfit = 0;
 
   let categories = [...history];
   if (defaultCategory && !categories.includes(defaultCategory)) {
@@ -2445,12 +2481,14 @@ function openQtyCategoryModal({ history = [], defaultCategory = "" }) {
 
   manualInput.value = "";
   if (newCategoryInput) newCategoryInput.value = "";
+  if (profitInput) profitInput.value = "0";
 
   updateQtySelectedValue();
   renderQtyQuickButtons();
   renderQtyCategoryChipState();
   renderQtyCategoryCountEditor();
   updateQtyAssignedSummary();
+  updateProfitView();
 
   modal.classList.add("show");
 
@@ -2482,6 +2520,44 @@ function applyManualQty() {
   updateQtyAssignedSummary();
 }
 
+function setQuickProfit(amount) {
+  qtyCategoryProfit = clampNonNeg(Number(amount || 0));
+
+  const input = document.getElementById("qtyProfitInput");
+  if (input) input.value = String(qtyCategoryProfit);
+
+  updateProfitView();
+}
+
+function syncProfitInput() {
+  const input = document.getElementById("qtyProfitInput");
+  if (!input) return;
+
+  qtyCategoryProfit = clampNonNeg(parseInt(input.value || "0", 10));
+  updateProfitView();
+}
+
+function applyManualProfit() {
+  const input = document.getElementById("qtyProfitInput");
+  if (!input) return;
+
+  qtyCategoryProfit = clampNonNeg(parseInt(input.value || "0", 10));
+  input.value = String(qtyCategoryProfit);
+  updateProfitView();
+}
+
+function updateProfitView() {
+  const valueEl = document.getElementById("qtyProfitValue");
+  if (valueEl) {
+    valueEl.textContent = String(qtyCategoryProfit.toLocaleString());
+  }
+
+  document.querySelectorAll(".profitQuickBtn").forEach(btn => {
+    const n = Number(btn.getAttribute("data-profit") || "0");
+    btn.classList.toggle("active", n === qtyCategoryProfit);
+  });
+}
+
 function updateQtySelectedValue() {
   const valueEl = document.getElementById("qtySelectedValue");
   const targetEl = document.getElementById("qtyAssignedTarget");
@@ -2491,6 +2567,7 @@ function updateQtySelectedValue() {
 
 function renderQtyQuickButtons() {
   document.querySelectorAll(".qtyQuickBtn").forEach(btn => {
+    if (btn.classList.contains("profitQuickBtn")) return;
     const n = Number(btn.getAttribute("data-qty") || "0");
     btn.classList.toggle("active", n === qtyCategoryCurrentQty);
   });
@@ -2635,7 +2712,8 @@ function confirmQtyCategoryModal() {
 
   closeQtyCategoryModal({
     qty: qtyCategoryCurrentQty,
-    categoryMap: resultMap
+    categoryMap: resultMap,
+    profit: clampNonNeg(qtyCategoryProfit || 0)
   });
 }
 
