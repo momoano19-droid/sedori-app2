@@ -108,11 +108,6 @@
         <button class="ghostBtn" onclick="moveToCurrentLocation()">現在地へ移動</button>
         <button class="ghostBtn" onclick="showNoCoordsOnly()">座標なし店舗</button>
       </div>
-
-      <div class="routeBar mt12">
-        <button id="detailLayoutBtn" class="ghostBtn" onclick="setLayoutMode('detail')">詳細</button>
-        <button id="compactLayoutBtn" class="ghostBtn" onclick="setLayoutMode('compact')">コンパクト</button>
-      </div>
     </section>
 
     <section class="card mapCard">
@@ -145,9 +140,11 @@
     </section>
 
     <section class="card storeTopActionsCard">
-      <div class="storeTopActions">
+      <div class="storeTopActions storeTopActions4">
         <button class="ghostBtn" onclick="showNearbyStores()">近くの店舗</button>
         <button class="ghostBtn" onclick="clearNearbyMode(); render()">通常表示に戻す</button>
+        <button id="detailLayoutBtn" class="ghostBtn" onclick="setLayoutMode('detail')">詳細</button>
+        <button id="compactLayoutBtn" class="ghostBtn" onclick="setLayoutMode('compact')">コンパクト</button>
       </div>
     </section>
 
