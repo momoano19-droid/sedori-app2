@@ -1,57 +1,347 @@
-function escapeHtml(str){
+function ensureId() {
+  return "id_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+}
+
+function escapeHtml(str) {
   return String(str)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
-function clampNonNeg(n){
-  return Math.max(0, Number(n) || 0);
+function escapeJsString(str) {
+  return String(str)
+    .replaceAll("\\", "\\\\")
+    .replaceAll("'", "\\'");
 }
 
-function ensureId(){
-  return (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + "_" + Math.random().toString(16).slice(2));
+function clampNonNeg(n) {
+  const x = Number(n);
+  if (isNaN(x) || x < 0) return 0;
+  return x;
 }
 
-function tokyoDateStr(d=new Date()){
-  const parts = new Intl.DateTimeFormat('ja-JP', {
-    timeZone:'Asia/Tokyo',
-    year:'numeric',
-    month:'2-digit',
-    day:'2-digit'
-  }).formatToParts(d);
-  const y = parts.find(p=>p.type==='year').value;
-  const m = parts.find(p=>p.type==='month').value;
-  const day = parts.find(p=>p.type==='day').value;
+function tokyoDateStr() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
 
-function parseDateLocal(dateStr){
-  if(!dateStr) return null;
-  const parts = String(dateStr).split("-");
-  if(parts.length !== 3) return null;
-  const y = Number(parts[0]);
-  const m = Number(parts[1]);
-  const d = Number(parts[2]);
-  if(!y || !m || !d) return null;
-  return new Date(y, m - 1, d);
+function formatDateTimeText(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${day} ${hh}:${mm}`;
 }
 
-function formatDate(y,m,d){
-  return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+function distanceKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function getWeekdayJa(dateStr){
-  const d = parseDateLocal(dateStr);
-  if(!d) return "";
-  return ["日","月","火","水","木","金","土"][d.getDay()];
+function matchesQuery(s, q) {
+  if (!q) return true;
+  const cats = Object.keys(s.categoryCounts || {}).join(" ");
+  const text = [
+    s.name,
+    s.pref,
+    s.address,
+    s.defaultCategory,
+    cats
+  ].join(" ").toLowerCase();
+  return text.includes(String(q).toLowerCase());
 }
 
-function daysBetween(a, b){
-  const da = parseDateLocal(a);
-  const db = parseDateLocal(b);
-  if(!da || !db) return null;
-  return Math.abs(db - da) / (1000 * 60 * 60 * 24);
+function addLog(storeId, type, delta, category = "") {
+  logs.push({
+    date: tokyoDateStr(),
+    storeId,
+    type,
+    delta: Number(delta || 0),
+    category: String(category || "")
+  });
+  categoryHistoryDirty = true;
+}
+
+function getMetrics(s) {
+  const visits = Number(s.visits || 0);
+  const success = Number(s.buyDays || 0);
+  const items = Number(s.items || 0);
+  const profit = Number(s.profit || 0);
+
+  const rate = visits > 0 ? (success / visits) * 100 : 0;
+  const avgProfit = success > 0 ? profit / success : 0;
+  const avgItems = success > 0 ? items / success : 0;
+  const expected = visits > 0 ? profit / visits : 0;
+  const freq = visits > 0 ? 30 / visits : 0;
+
+  return {
+    visits,
+    success,
+    items,
+    profit,
+    rate,
+    avgProfit,
+    avgItems,
+    expected,
+    freq
+  };
+}
+
+function formatRestockDays(v) {
+  const n = Number(v || 0);
+  if (!n) return "0日";
+  if (Number.isInteger(n)) return `${n}日`;
+  return `${n.toFixed(1).replace(/\.0$/, "")}日`;
+}
+
+function getDaysSinceLastVisit(lastVisitDate) {
+  if (!lastVisitDate) return null;
+  const today = new Date(tokyoDateStr());
+  const last = new Date(lastVisitDate);
+  if (Number.isNaN(last.getTime())) return null;
+  return Math.floor((today - last) / (1000 * 60 * 60 * 24));
+}
+
+function formatDaysSinceLastVisit(lastVisitDate) {
+  const diff = getDaysSinceLastVisit(lastVisitDate);
+  if (diff === null) return "未訪問";
+  if (diff <= 0) return "今日";
+  return `${diff}日`;
+}
+
+function parseCategoryInput(text) {
+  const result = {};
+  const raw = String(text || "").trim();
+  if (!raw) return result;
+
+  raw.split(",").forEach(part => {
+    const item = part.trim();
+    if (!item) return;
+
+    const pair = item.split(":");
+    const name = String(pair[0] || "").trim();
+    const qty = clampNonNeg(parseInt(pair[1] || "0", 10));
+
+    if (!name || !qty) return;
+    result[name] = (result[name] || 0) + qty;
+  });
+
+  return result;
+}
+
+function applyCategoryDelta(store, deltaMap, sign) {
+  Object.entries(deltaMap).forEach(([cat, qty]) => {
+    const current = Number(store.categoryCounts[cat] || 0);
+    const next = sign > 0 ? current + qty : Math.max(0, current - qty);
+    if (next <= 0) {
+      delete store.categoryCounts[cat];
+    } else {
+      store.categoryCounts[cat] = next;
+    }
+  });
+  categoryHistoryDirty = true;
+}
+
+function sumCategoryCounts(categoryCounts) {
+  return Object.values(categoryCounts || {}).reduce((a, b) => a + Number(b || 0), 0);
+}
+
+function hasCoords(s) {
+  return typeof s.lat === "number" && typeof s.lng === "number";
+}
+
+function makeButtonStyle(bg, color = "#fff") {
+  return `style="background:${bg};color:${color};"`;
+}
+
+function renderTodayToggleButton(idx, checked) {
+  return `
+    <label class="todayToggleBtn ${checked ? "checked" : ""}">
+      <input
+        type="checkbox"
+        class="todayToggleNative"
+        ${checked ? "checked" : ""}
+        onchange="toggleToday(${idx}, this.checked)"
+      >
+      <span class="todayToggleBox">✓</span>
+      <span class="todayToggleText">今日行く</span>
+    </label>
+  `;
+}
+
+function getCategoryHistory() {
+  if (!categoryHistoryDirty && Array.isArray(categoryHistoryCache)) {
+    return categoryHistoryCache;
+  }
+
+  const freq = {};
+
+  stores.forEach(s => {
+    Object.entries(s.categoryCounts || {}).forEach(([cat, qty]) => {
+      if (!cat) return;
+      freq[cat] = (freq[cat] || 0) + Number(qty || 0);
+    });
+  });
+
+  logs.forEach(l => {
+    if (l.category) {
+      freq[l.category] = (freq[l.category] || 0) + Math.max(1, Math.abs(Number(l.delta || 0)));
+    }
+  });
+
+  categoryHistoryCache = Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .map(([cat]) => cat)
+    .slice(0, 12);
+
+  categoryHistoryDirty = false;
+  return categoryHistoryCache;
+}
+
+function restoreSortType() {
+  const sel = document.getElementById("sortType");
+  if (!sel) return;
+
+  const saved = localStorage.getItem(SORT_TYPE_STORAGE_KEY);
+  if (!saved) return;
+
+  const exists = [...sel.options].some(opt => opt.value === saved);
+  if (exists) {
+    sel.value = saved;
+  }
+}
+
+function saveSortType() {
+  const sel = document.getElementById("sortType");
+  if (!sel) return;
+  localStorage.setItem(SORT_TYPE_STORAGE_KEY, sel.value || "expected");
+}
+
+function getFilterValues() {
+  return {
+    q: document.getElementById("q")?.value?.trim() || "",
+    prefFilter: document.getElementById("prefFilter")?.value || "__ALL__",
+    minExpected: clampNonNeg(parseFloat(document.getElementById("minExpected")?.value || "0")),
+    minRate: clampNonNeg(parseFloat(document.getElementById("minRate")?.value || "0")),
+    sortType: document.getElementById("sortType")?.value || "expected"
+  };
+}
+
+function getSortLabel(sortType) {
+  if (sortType === "rate") return "成功率順";
+  if (sortType === "avgProfit") return "平均利益順";
+  if (sortType === "visits") return "訪問回数順";
+  if (sortType === "route") return "距離順";
+  return "期待値順";
+}
+
+function getRateClass(rate) {
+  if (rate >= 70) return "rate-good";
+  if (rate >= 30) return "rate-mid";
+  if (rate > 0) return "rate-low";
+  return "rate-bad";
+}
+
+function getExpectedCardClass(expected) {
+  if (expected >= 10000) return "expected-high";
+  if (expected >= 3000) return "expected-mid";
+  return "";
+}
+
+function getStaleCardClass(lastVisitDate) {
+  const diff = getDaysSinceLastVisit(lastVisitDate);
+  if (diff === null) return "";
+  if (diff >= 60) return "stale-60";
+  if (diff >= 30) return "stale-30";
+  return "";
+}
+
+function getRecentStats(storeId) {
+  const visitLogs = logs
+    .filter(l => l.storeId === storeId && l.type === "visit" && l.date)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+  const recentVisitLogs = visitLogs.slice(0, 3);
+  const recentDates = recentVisitLogs.map(l => l.date);
+
+  const recentVisitCount = recentVisitLogs.reduce(
+    (sum, l) => sum + Math.max(1, Number(l.delta || 1)),
+    0
+  );
+
+  const recentSuccess = logs
+    .filter(l =>
+      l.storeId === storeId &&
+      l.type === "success" &&
+      recentDates.includes(l.date) &&
+      Number(l.delta || 0) > 0
+    )
+    .reduce((sum, l) => sum + Number(l.delta || 0), 0);
+
+  const recentRate = recentVisitCount > 0 ? (recentSuccess / recentVisitCount) * 100 : 0;
+
+  return {
+    recentVisitCount,
+    recentSuccess,
+    recentRate
+  };
+}
+
+function getNoSuccessStreak(storeId) {
+  const visitLogs = logs
+    .filter(l => l.storeId === storeId && l.type === "visit" && l.date)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+  let streak = 0;
+
+  for (const v of visitLogs) {
+    const hasSuccess = logs.some(l =>
+      l.storeId === storeId &&
+      l.type === "success" &&
+      l.date === v.date &&
+      Number(l.delta || 0) > 0
+    );
+
+    if (hasSuccess) break;
+    streak += Math.max(1, Number(v.delta || 1));
+  }
+
+  return streak;
+}
+
+function getStoreEvaluationLabel(m) {
+  const visits = m.visits;
+  const expected = m.expected;
+  const rate = m.rate;
+
+  if (visits < 3) {
+    return { label: "🆕 未評価", class: "eval-new" };
+  }
+
+  if (expected >= 3000) {
+    return { label: "🔥 行くべき店舗", class: "eval-good" };
+  }
+
+  if (rate >= 30) {
+    return { label: "⚠️ 様子見店舗", class: "eval-mid" };
+  }
+
+  return { label: "❌ スキップ推奨", class: "eval-bad" };
 }
