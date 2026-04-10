@@ -56,30 +56,38 @@
       </div>
     </section>
 
-    <section class="card backupCard">
-      <h2 class="sectionTitle">💾 バックアップ</h2>
-      <div class="mini backupSub">
-        復元や機種変更用です。普段は使わない時は控えめ表示でも大丈夫です。
-      </div>
+   <section class="card backupCard accordionCard">
+  <button
+    type="button"
+    class="accordionHeader"
+    onclick="toggleBackupAccordion()"
+    aria-expanded="false"
+    id="backupAccordionHeader"
+  >
+    <span class="accordionTitle">💾 バックアップ</span>
+    <span class="accordionChevron" id="backupAccordionChevron">▼</span>
+  </button>
 
-      <div class="row2 mt12">
-        <button class="ghostBtn backupBtn" onclick="exportBackup()">バックアップ書き出し</button>
-        <button class="ghostBtn backupBtn" onclick="document.getElementById('backupFile').click()">バックアップ読込</button>
-      </div>
+  <div id="backupAccordionBody" class="accordionBody" style="display:none;">
+    <div class="row2 mt12">
+      <button class="ghostBtn backupBtn" onclick="exportBackup()">バックアップ書き出し</button>
+      <button class="ghostBtn backupBtn" onclick="document.getElementById('backupFile').click()">バックアップ読込</button>
+    </div>
 
-      <div class="row2 mt8">
-        <button class="warnBtn" onclick="restoreAutoBackup()">自動バックアップ復元</button>
-        <button class="ghostBtn backupBtn" onclick="showAutoBackupInfo()">自動バックアップ情報</button>
-      </div>
+    <div class="row2 mt8">
+      <button class="warnBtn" onclick="restoreAutoBackup()">自動バックアップ復元</button>
+      <button class="ghostBtn backupBtn" onclick="showAutoBackupInfo()">自動バックアップ情報</button>
+    </div>
 
-      <input
-        id="backupFile"
-        type="file"
-        accept=".json,application/json"
-        onchange="importBackup(event)"
-        hidden
-      >
-    </section>
+    <input
+      id="backupFile"
+      type="file"
+      accept=".json,application/json"
+      onchange="importBackup(event)"
+      hidden
+    >
+  </div>
+</section>
 
     <section class="card">
       <h2 class="sectionTitle">🔎 絞り込み / 並び替え</h2>
