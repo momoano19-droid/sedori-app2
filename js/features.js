@@ -158,6 +158,14 @@ function clearSplitRouteCache() {
   splitRouteCache = null;
 }
 
+function chunkRouteStores(routeStores, chunkSize = 9) {
+  const chunks = [];
+  for (let i = 0; i < routeStores.length; i += chunkSize) {
+    chunks.push(routeStores.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
 function moveTodayRouteItem(index, delta) {
   syncTodayRouteOrder();
 
@@ -212,30 +220,32 @@ function buildGoogleMapsRouteUrl(routeStores) {
 }
 
 function setSplitRouteCache(routeStores) {
-  const first = routeStores.slice(0, 9);
-  const second = routeStores.slice(9, 18);
+  const chunks = chunkRouteStores(routeStores, 9);
 
   splitRouteCache = {
-    first,
-    second,
-    firstUrl: buildGoogleMapsRouteUrl(first),
-    secondUrl: buildGoogleMapsRouteUrl(second)
+    parts: chunks.map((storesPart, idx) => ({
+      index: idx + 1,
+      stores: storesPart,
+      url: buildGoogleMapsRouteUrl(storesPart),
+      start: idx * 9 + 1,
+      end: idx * 9 + storesPart.length
+    }))
   };
 }
 
 function openSplitRoutePart(part) {
-  if (!splitRouteCache) {
+  if (!splitRouteCache?.parts?.length) {
     alert("分割ルートがありません。もう一度「この順番でルート作成」を押してください。");
     return;
   }
 
-  const url = part === 2 ? splitRouteCache.secondUrl : splitRouteCache.firstUrl;
-  if (!url) {
+  const target = splitRouteCache.parts.find(p => p.index === part);
+  if (!target || !target.url) {
     alert(`ルート${part}を開けませんでした。`);
     return;
   }
 
-  window.open(url, "_blank");
+  window.open(target.url, "_blank");
 }
 
 function getNearestNeighborRoute(routeStores, startPos = null) {
@@ -301,16 +311,11 @@ function openRouteInGoogleMaps(routeStores) {
     return;
   }
 
-  if (routeStores.length <= 18) {
-    setSplitRouteCache(routeStores);
-    render();
-    alert(`店舗数が ${routeStores.length} 件あるため、ルートを2本に分けました。今日のルート欄の「ルート1を開く」「ルート2を開く」から開いてください。`);
-    return;
-  }
-
-  clearSplitRouteCache();
+  setSplitRouteCache(routeStores);
   render();
-  alert(`店舗数が ${routeStores.length} 件あります。Googleマップで安定して使うため、18件以下に絞ってください。`);
+
+  const parts = splitRouteCache?.parts || [];
+  alert(`店舗数が ${routeStores.length} 件あるため、ルートを ${parts.length} 本に分けました。今日のルート欄の各ルートボタンから開いてください。`);
 }
 
 function autoOptimizeTodayRoute() {
