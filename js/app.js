@@ -61,6 +61,11 @@ let splitRouteCache = null;
 window.lastPos = null;
 
 /* =========================
+   保存済みルートUI状態
+========================= */
+let openSavedRouteId = null;
+
+/* =========================
    軽量化用キャッシュ
 ========================= */
 let categoryHistoryCache = null;
@@ -716,6 +721,20 @@ function sortSavedRoutes() {
   });
 }
 
+function toggleSavedRouteOpen(routeId) {
+  openSavedRouteId = openSavedRouteId === routeId ? null : routeId;
+  renderSavedRoutesList();
+}
+
+function getSavedRoutePreviewText(route, count = 3) {
+  const routeStores = buildSavedRouteStores(route);
+  return routeStores
+    .slice(0, count)
+    .map(s => s?.name || "店舗名なし")
+    .filter(Boolean)
+    .join(" / ");
+}
+
 function saveCurrentRoute() {
   const routeStores = getTodayRouteStores();
   if (!routeStores.length) {
@@ -729,7 +748,7 @@ function saveCurrentRoute() {
 
   const note = prompt("メモ（任意）", "") ?? "";
 
-  savedRoutes.unshift(normalizeRoute({
+  const newRoute = normalizeRoute({
     id: ensureId(),
     name: String(name).trim() || defaultName,
     note: String(note).trim(),
@@ -737,13 +756,16 @@ function saveCurrentRoute() {
     updatedAt: new Date().toISOString(),
     favorite: false,
     storeIds: routeStores.map(s => s.id)
-  }));
+  });
+
+  savedRoutes.unshift(newRoute);
 
   if (savedRoutes.length > 50) {
     savedRoutes = savedRoutes.slice(0, 50);
   }
 
   sortSavedRoutes();
+  openSavedRouteId = newRoute.id;
   saveAll();
   render();
   alert("ルートを保存しました。");
@@ -800,6 +822,7 @@ function toggleFavoriteRoute(routeId) {
   route.updatedAt = new Date().toISOString();
 
   sortSavedRoutes();
+  openSavedRouteId = routeId;
   saveAll();
   render();
 }
@@ -819,6 +842,7 @@ function editSavedRoute(routeId) {
   route.updatedAt = new Date().toISOString();
 
   sortSavedRoutes();
+  openSavedRouteId = routeId;
   saveAll();
   render();
 }
@@ -829,6 +853,9 @@ function deleteSavedRoute(routeId) {
   if (!confirm(`「${route.name}」を削除しますか？`)) return;
 
   savedRoutes = savedRoutes.filter(r => r.id !== routeId);
+  if (openSavedRouteId === routeId) {
+    openSavedRouteId = null;
+  }
   saveAll();
   render();
 }
@@ -847,41 +874,67 @@ function renderSavedRoutesList() {
   el.innerHTML = savedRoutes.map(route => {
     const routeStores = buildSavedRouteStores(route);
     const missingCount = Math.max(0, route.storeIds.length - routeStores.length);
-    const names = routeStores.slice(0, 5).map(s => escapeHtml(s.name)).join(" / ");
+    const preview = getSavedRoutePreviewText(route, 3);
+    const isOpen = openSavedRouteId === route.id;
 
     return `
-      <div class="item" style="margin-top:12px; margin-bottom:0;">
-        <div class="name" style="font-size:18px; margin-bottom:6px;">
-          ${route.favorite ? "⭐ " : ""}${escapeHtml(route.name)}
-        </div>
+      <div class="savedRouteAccordion ${isOpen ? "open" : ""}" style="margin-top:12px;">
+        <button
+          type="button"
+          class="savedRouteSummary"
+          onclick="toggleSavedRouteOpen('${escapeJsString(route.id)}')"
+        >
+          <div class="savedRouteSummaryTop">
+            <div class="savedRouteTitleWrap">
+              <div class="savedRouteTitleRow">
+                <span class="savedRouteTitle">${escapeHtml(route.name)}</span>
+                ${route.favorite ? `<span class="savedRouteFavBadge">★ お気に入り</span>` : ``}
+              </div>
 
-        <div class="mini">
-          作成: ${escapeHtml(formatDateTimeText(route.createdAt))}
-          ${route.updatedAt ? ` / 更新: ${escapeHtml(formatDateTimeText(route.updatedAt))}` : ""}
-        </div>
+              <div class="savedRouteMeta">
+                作成: ${escapeHtml(formatDateTimeText(route.createdAt))}
+                ${route.updatedAt ? ` / 更新: ${escapeHtml(formatDateTimeText(route.updatedAt))}` : ""}
+              </div>
+            </div>
 
-        <div class="mini mt8">
-          店舗数: ${route.storeIds.length}件
-          ${missingCount > 0 ? ` / 削除済み店舗あり: ${missingCount}件` : ""}
-        </div>
+            <div class="savedRouteChevron">${isOpen ? "▲" : "▼"}</div>
+          </div>
 
-        ${route.note ? `<div class="mini mt8">📝 ${escapeHtml(route.note)}</div>` : ""}
+          <div class="savedRouteCompactInfo">
+            <div class="savedRouteCount">
+              店舗数: ${route.storeIds.length}件
+              ${missingCount > 0 ? ` / 削除済み店舗あり: ${missingCount}件` : ""}
+            </div>
 
-        ${names ? `<div class="mini mt8">📍 ${names}${routeStores.length > 5 ? " / ..." : ""}</div>` : ""}
+            ${route.note ? `<div class="savedRoutePreview">📝 ${escapeHtml(route.note)}</div>` : ``}
 
-        <div class="row2 mt8">
-          <button ${makeButtonStyle("#e7f0ff", "#2563eb")} onclick="openSavedRoute('${escapeJsString(route.id)}')">今日に読込</button>
-          <button ${makeButtonStyle("#dff7e8", "#129b52")} onclick="openSavedRouteInMaps('${escapeJsString(route.id)}')">MAPで開く</button>
-        </div>
+            ${preview ? `<div class="savedRoutePreview">📍 ${escapeHtml(preview)}${routeStores.length > 3 ? " / …" : ""}</div>` : ``}
+          </div>
+        </button>
 
-        <div class="row2 mt8">
-          <button ${makeButtonStyle("#fff4d8", "#b7791f")} onclick="toggleFavoriteRoute('${escapeJsString(route.id)}')">${route.favorite ? "★ お気に入り解除" : "☆ お気に入り"}</button>
-          <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="editSavedRoute('${escapeJsString(route.id)}')">編集</button>
-        </div>
+        <div class="savedRouteDetail" style="display:${isOpen ? "block" : "none"};">
+          ${
+            routeStores.length
+              ? `
+                <div class="savedRouteFullList">
+                  ${routeStores.map(s => `
+                    <div class="savedRouteStoreLine">
+                      <span class="savedRouteStoreDot">📍</span>
+                      <span class="savedRouteStoreName">${escapeHtml(s.name)}</span>
+                    </div>
+                  `).join("")}
+                </div>
+              `
+              : `<div class="mini">このルートの店舗が見つかりません。</div>`
+          }
 
-        <div class="row2 mt8">
-          <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="deleteSavedRoute('${escapeJsString(route.id)}')">削除</button>
-          <div></div>
+          <div class="savedRouteActionGrid">
+            <button ${makeButtonStyle("#e7f0ff", "#2563eb")} class="savedRouteActionBtn action-load" onclick="openSavedRoute('${escapeJsString(route.id)}')">今日に読込</button>
+            <button ${makeButtonStyle("#dff7e8", "#129b52")} class="savedRouteActionBtn action-map" onclick="openSavedRouteInMaps('${escapeJsString(route.id)}')">MAPで開く</button>
+            <button ${makeButtonStyle("#fff4d8", "#b7791f")} class="savedRouteActionBtn action-fav" onclick="toggleFavoriteRoute('${escapeJsString(route.id)}')">${route.favorite ? "★ お気に入り解除" : "☆ お気に入り"}</button>
+            <button ${makeButtonStyle("#eef1f7", "#1f2340")} class="savedRouteActionBtn action-edit" onclick="editSavedRoute('${escapeJsString(route.id)}')">編集</button>
+            <button ${makeButtonStyle("#eef1f7", "#1f2340")} class="savedRouteActionBtn action-delete" onclick="deleteSavedRoute('${escapeJsString(route.id)}')">削除</button>
+          </div>
         </div>
       </div>
     `;
@@ -1058,6 +1111,7 @@ function importBackup(event) {
       noCoordsOnlyMode = false;
       nearbyStoreIds = new Set();
       clearSplitRouteCache();
+      openSavedRouteId = null;
 
       syncTodayRouteOrder();
       saveAll();
@@ -1091,6 +1145,7 @@ function restoreAutoBackup() {
   noCoordsOnlyMode = false;
   nearbyStoreIds = new Set();
   clearSplitRouteCache();
+  openSavedRouteId = null;
 
   syncTodayRouteOrder();
   saveAll();
@@ -2163,7 +2218,8 @@ function render() {
     todayRouteOrder,
     splitRouteCacheExists: !!splitRouteCache,
     lastVisitDates: stores.map(s => `${s.id}:${s.lastVisitDate}`),
-    savedRoutes: savedRoutes.map(r => `${r.id}:${r.updatedAt}:${r.favorite}`).join("|")
+    savedRoutes: savedRoutes.map(r => `${r.id}:${r.updatedAt}:${r.favorite}`).join("|"),
+    openSavedRouteId
   });
 
   if (signature !== lastListRenderSignature) {
