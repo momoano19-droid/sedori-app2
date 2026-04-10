@@ -1353,3 +1353,182 @@ a{
     margin-top:4px;
   }
 }
+.savedRouteAccordion{
+  border:1px solid #e6ebf5;
+  border-radius:20px;
+  background:#fff;
+  box-shadow:0 4px 14px rgba(15,23,42,.04);
+  overflow:hidden;
+}
+
+.savedRouteSummary{
+  width:100%;
+  background:#fff;
+  color:#1f2340;
+  border:none;
+  padding:16px 16px 14px;
+  display:block;
+  text-align:left;
+  min-height:auto;
+}
+
+.savedRouteSummary:active{
+  transform:scale(.998);
+}
+
+.savedRouteSummaryTop{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:10px;
+  align-items:start;
+}
+
+.savedRouteTitleWrap{
+  min-width:0;
+}
+
+.savedRouteTitleRow{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+}
+
+.savedRouteTitle{
+  font-size:18px;
+  font-weight:900;
+  line-height:1.4;
+  color:#1f2340;
+}
+
+.savedRouteFavBadge{
+  display:inline-flex;
+  align-items:center;
+  min-height:26px;
+  padding:0 10px;
+  border-radius:999px;
+  background:#fff4d8;
+  color:#b7791f;
+  font-size:12px;
+  font-weight:900;
+}
+
+.savedRouteMeta{
+  margin-top:8px;
+  color:#6b7280;
+  font-size:12px;
+  line-height:1.6;
+}
+
+.savedRouteChevron{
+  font-size:14px;
+  font-weight:900;
+  color:#6b7280;
+  padding-top:2px;
+}
+
+.savedRouteCompactInfo{
+  margin-top:10px;
+}
+
+.savedRouteCount{
+  font-size:13px;
+  font-weight:800;
+  color:#4b5563;
+  line-height:1.6;
+}
+
+.savedRoutePreview{
+  margin-top:8px;
+  color:#6b7280;
+  font-size:13px;
+  line-height:1.7;
+  word-break:break-word;
+}
+
+.savedRouteDetail{
+  border-top:1px solid #eef2f7;
+  padding:14px 16px 16px;
+  background:#fcfdff;
+}
+
+.savedRouteFullList{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-bottom:14px;
+}
+
+.savedRouteStoreLine{
+  display:flex;
+  gap:8px;
+  align-items:flex-start;
+}
+
+.savedRouteStoreDot{
+  flex:0 0 auto;
+  font-size:13px;
+  line-height:1.6;
+}
+
+.savedRouteStoreName{
+  font-size:13px;
+  line-height:1.7;
+  color:#4b5563;
+  word-break:break-word;
+}
+
+.savedRouteActionGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.savedRouteActionBtn{
+  min-height:44px;
+  border:none;
+  border-radius:16px;
+  font-size:14px;
+  font-weight:900;
+  padding:0 12px;
+}
+
+.savedRouteAccordion.open .savedRouteSummary{
+  background:#fff;
+}
+
+@media (max-width: 640px){
+  .savedRouteSummary{
+    padding:14px 14px 12px;
+  }
+
+  .savedRouteTitle{
+    font-size:17px;
+  }
+
+  .savedRouteMeta{
+    font-size:11px;
+  }
+
+  .savedRouteCount,
+  .savedRoutePreview,
+  .savedRouteStoreName{
+    font-size:12px;
+  }
+
+  .savedRouteDetail{
+    padding:12px 14px 14px;
+  }
+
+  .savedRouteActionGrid{
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+
+  .savedRouteActionBtn{
+    min-height:42px;
+    font-size:13px;
+    border-radius:14px;
+    padding:0 10px;
+  }
+}
