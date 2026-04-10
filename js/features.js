@@ -109,3 +109,39 @@ function showAutoBackupInfo() {
 
   alert(`保存日時: ${data.savedAt || "不明"}\n店舗数: ${data.stores.length}件\nログ数: ${data.logs.length}件\n保存ルート数: ${data.savedRoutes.length}件`);
 }
+function syncTodayRouteOrder() {
+  const todayIds = stores.filter(s => s.today).map(s => s.id);
+  const todaySet = new Set(todayIds);
+
+  todayRouteOrder = todayRouteOrder.filter(id => todaySet.has(id));
+
+  todayIds.forEach(id => {
+    if (!todayRouteOrder.includes(id)) {
+      todayRouteOrder.push(id);
+    }
+  });
+}
+
+function getTodayRouteStores() {
+  syncTodayRouteOrder();
+
+  return todayRouteOrder
+    .map(id => stores.find(s => s.id === id))
+    .filter(s => s && s.today)
+    .filter(s => hasCoords(s) || s.address);
+}
+
+function clearSplitRouteCache() {
+  splitRouteCache = null;
+}
+
+function buildTodayRoute() {
+  const routeStores = getTodayRouteStores();
+
+  if (!routeStores.length) {
+    alert("「今日行く」にチェックした店舗がありません。");
+    return;
+  }
+
+  openRouteInGoogleMaps(routeStores);
+}
