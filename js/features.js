@@ -506,3 +506,88 @@ function setLayoutMode(mode) {
   lastListRenderSignature = "";
   render();
 }
+function showNearbyStores() {
+  if (!navigator.geolocation) {
+    alert("この端末では位置情報が使えません。");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      window.lastPos = { lat, lng };
+
+      nearbyStoreIds = new Set();
+      const distances = [];
+
+      stores.forEach(s => {
+        if (!hasCoords(s)) return;
+        const dist = distanceKm(lat, lng, s.lat, s.lng);
+        distances.push({ id: s.id, dist });
+        if (dist <= 3) nearbyStoreIds.add(s.id);
+      });
+
+      if (!distances.length) {
+        alert("座標入りの店舗がありません。");
+        return;
+      }
+
+      if (!nearbyStoreIds.size) {
+        distances.sort((a, b) => a.dist - b.dist);
+        nearbyStoreIds = new Set(distances.map(x => x.id));
+        alert(`3km以内の店舗はありません。最寄りは ${distances[0].dist.toFixed(1)}km です。近い順で表示します。`);
+      }
+
+      nearbyMode = true;
+      noCoordsOnlyMode = false;
+      lastListRenderSignature = "";
+      lastMapRenderSignature = "";
+      render();
+    },
+    () => alert("現在地を取得できませんでした。"),
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+function autoDetectNearbyStores() {
+  if (!navigator.geolocation) return;
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      window.lastPos = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude
+      };
+
+      lastListRenderSignature = "";
+      lastMapRenderSignature = "";
+
+      const sortType = document.getElementById("sortType")?.value || "expected";
+
+      if (sortType === "route" || nearbyMode) {
+        render();
+      } else {
+        scheduleRenderMapMarkers();
+      }
+    },
+    () => {},
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+function moveToCurrentLocation() {
+  if (!map || !navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      window.lastPos = { lat, lng };
+      map.setView([lat, lng], 15);
+      lastListRenderSignature = "";
+      lastMapRenderSignature = "";
+      render();
+    },
+    () => alert("現在地を取得できませんでした。")
+  );
+}
