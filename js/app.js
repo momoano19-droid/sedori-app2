@@ -425,6 +425,21 @@ function makeButtonStyle(bg, color = "#fff") {
   return `style="background:${bg};color:${color};"`;
 }
 
+function renderTodayToggleButton(idx, checked) {
+  return `
+    <label class="todayToggleBtn ${checked ? "checked" : ""}">
+      <input
+        type="checkbox"
+        class="todayToggleNative"
+        ${checked ? "checked" : ""}
+        onchange="toggleToday(${idx}, this.checked)"
+      >
+      <span class="todayToggleBox">✓</span>
+      <span class="todayToggleText">今日行く</span>
+    </label>
+  `;
+}
+
 function getCategoryHistory() {
   if (!categoryHistoryDirty && Array.isArray(categoryHistoryCache)) {
     return categoryHistoryCache;
@@ -2004,11 +2019,8 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
         <span>個数 ${m.items}個</span>
       </div>
 
-      <div class="mt8">
-        <label style="font-size:15px;">
-          <input type="checkbox" ${s.today ? "checked" : ""} onchange="toggleToday(${idx}, this.checked)">
-          今日行く
-        </label>
+      <div class="mt10">
+        ${renderTodayToggleButton(idx, s.today)}
       </div>
 
       <div class="row2 mt8">
@@ -2075,11 +2087,8 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
         ${streak >= 3 ? `<div class="detailLine detailWarn">⚠️ ${streak}回連続成功なし</div>` : ``}
       </div>
 
-      <div class="mt8">
-        <label style="font-size:13px;">
-          <input type="checkbox" ${s.today ? "checked" : ""} onchange="toggleToday(${idx}, this.checked)">
-          今日行く
-        </label>
+      <div class="mt10">
+        ${renderTodayToggleButton(idx, s.today)}
       </div>
 
       <div class="row2 mt8">
