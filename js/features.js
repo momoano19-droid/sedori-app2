@@ -301,3 +301,30 @@ function autoOptimizeTodayRoute() {
   render();
   alert("今日のルートを自動最適化しました。");
 }
+function sortSavedRoutes() {
+  savedRoutes.sort((a, b) => {
+    if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
+    return String(b.updatedAt).localeCompare(String(a.updatedAt));
+  });
+}
+
+function toggleSavedRouteOpen(routeId) {
+  openSavedRouteId = openSavedRouteId === routeId ? null : routeId;
+  renderSavedRoutesList();
+}
+
+function buildSavedRouteStores(route) {
+  const ids = Array.isArray(route?.storeIds) ? route.storeIds : [];
+  return ids
+    .map(id => stores.find(s => s.id === id))
+    .filter(Boolean);
+}
+
+function getSavedRoutePreviewText(route, count = 3) {
+  const routeStores = buildSavedRouteStores(route);
+  return routeStores
+    .slice(0, count)
+    .map(s => s?.name || "店舗名なし")
+    .filter(Boolean)
+    .join(" / ");
+}
