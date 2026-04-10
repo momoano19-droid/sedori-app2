@@ -56,38 +56,38 @@
       </div>
     </section>
 
-   <section class="card backupCard accordionCard">
-  <button
-    type="button"
-    class="accordionHeader"
-    onclick="toggleBackupAccordion()"
-    aria-expanded="false"
-    id="backupAccordionHeader"
-  >
-    <span class="accordionTitle">💾 バックアップ</span>
-    <span class="accordionChevron" id="backupAccordionChevron">▼</span>
-  </button>
+    <section class="card backupCard accordionCard">
+      <button
+        type="button"
+        class="accordionHeader"
+        onclick="toggleBackupAccordion()"
+        aria-expanded="false"
+        id="backupAccordionHeader"
+      >
+        <span class="accordionTitle">💾 バックアップ</span>
+        <span class="accordionChevron" id="backupAccordionChevron">▼</span>
+      </button>
 
-  <div id="backupAccordionBody" class="accordionBody" style="display:none;">
-    <div class="row2 mt12">
-      <button class="ghostBtn backupBtn" onclick="exportBackup()">バックアップ書き出し</button>
-      <button class="ghostBtn backupBtn" onclick="document.getElementById('backupFile').click()">バックアップ読込</button>
-    </div>
+      <div id="backupAccordionBody" class="accordionBody" style="display:none;">
+        <div class="row2 mt12">
+          <button class="ghostBtn backupBtn" onclick="exportBackup()">バックアップ書き出し</button>
+          <button class="ghostBtn backupBtn" onclick="document.getElementById('backupFile').click()">バックアップ読込</button>
+        </div>
 
-    <div class="row2 mt8">
-      <button class="warnBtn" onclick="restoreAutoBackup()">自動バックアップ復元</button>
-      <button class="ghostBtn backupBtn" onclick="showAutoBackupInfo()">自動バックアップ情報</button>
-    </div>
+        <div class="row2 mt8">
+          <button class="warnBtn" onclick="restoreAutoBackup()">自動バックアップ復元</button>
+          <button class="ghostBtn backupBtn" onclick="showAutoBackupInfo()">自動バックアップ情報</button>
+        </div>
 
-    <input
-      id="backupFile"
-      type="file"
-      accept=".json,application/json"
-      onchange="importBackup(event)"
-      hidden
-    >
-  </div>
-</section>
+        <input
+          id="backupFile"
+          type="file"
+          accept=".json,application/json"
+          onchange="importBackup(event)"
+          hidden
+        >
+      </div>
+    </section>
 
     <section class="card">
       <h2 class="sectionTitle">🔎 絞り込み / 並び替え</h2>
@@ -198,6 +198,10 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="./js/app.js"></script>
+  <script src="./js/storage.js"></script>
+  <script src="./js/utils.js"></script>
+  <script src="./js/map.js"></script>
+  <script src="./js/features.js"></script>
+  <script src="./js/app.js"></script>
 </body>
 </html>
