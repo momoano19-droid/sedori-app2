@@ -445,3 +445,64 @@ function deleteSavedRoute(routeId) {
   saveAll();
   render();
 }
+function toggleToday(i, checked) {
+  const s = stores[i];
+  if (!s) return;
+
+  s.today = !!checked;
+
+  if (s.today) {
+    if (!todayRouteOrder.includes(s.id)) {
+      todayRouteOrder.push(s.id);
+    }
+  } else {
+    todayRouteOrder = todayRouteOrder.filter(id => id !== s.id);
+  }
+
+  clearSplitRouteCache();
+  syncTodayRouteOrder();
+  saveAll();
+  render();
+}
+
+function toggleTodayByStoreId(storeId, checked) {
+  const idx = stores.findIndex(s => s.id === storeId);
+  if (idx < 0) return;
+
+  preserveMapViewOnNextRender = true;
+  toggleToday(idx, checked);
+}
+
+function clearTodayChecks() {
+  stores.forEach(s => {
+    s.today = false;
+  });
+  todayRouteOrder = [];
+  clearSplitRouteCache();
+  saveAll();
+  render();
+}
+
+function clearNearbyMode() {
+  nearbyMode = false;
+  noCoordsOnlyMode = false;
+  nearbyStoreIds = new Set();
+  lastListRenderSignature = "";
+  lastMapRenderSignature = "";
+}
+
+function showNoCoordsOnly() {
+  noCoordsOnlyMode = true;
+  nearbyMode = false;
+  lastListRenderSignature = "";
+  lastMapRenderSignature = "";
+  render();
+}
+
+function setLayoutMode(mode) {
+  currentLayoutMode = mode === "compact" ? "compact" : "detail";
+  localStorage.setItem("store_layout_mode", currentLayoutMode);
+  updateLayoutButtons();
+  lastListRenderSignature = "";
+  render();
+}
