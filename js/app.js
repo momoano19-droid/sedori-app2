@@ -358,14 +358,15 @@ function renderTodayRouteList() {
   }
 
   const splitButtonsHtml =
-    splitRouteCache && routeStores.length >= 10 && routeStores.length <= 18
+    splitRouteCache?.parts?.length
       ? `
-        <div class="row2 mt8 routeSplitBtns">
-          <button class="primaryBtn" onclick="openSplitRoutePart(1)">ルート1を開く</button>
-          <button class="primaryBtn" onclick="openSplitRoutePart(2)">ルート2を開く</button>
-        </div>
-        <div class="mini routeSplitSub">
-          ルート1：1〜9店舗目 / ルート2：10〜18店舗目
+        <div class="mt8 routeSplitBtns">
+          ${splitRouteCache.parts.map(part => `
+            <div class="mt8">
+              <button class="primaryBtn" onclick="openSplitRoutePart(${part.index})">ルート${part.index}を開く</button>
+              <div class="mini routeSplitSub">ルート${part.index}：${part.start}〜${part.end}店舗目</div>
+            </div>
+          `).join("")}
         </div>
       `
       : "";
@@ -407,6 +408,7 @@ function renderSavedRoutesList() {
     const missingCount = Math.max(0, route.storeIds.length - routeStores.length);
     const preview = getSavedRoutePreviewText(route, 3);
     const isOpen = openSavedRouteId === route.id;
+    const dueSummary = calcSavedRouteDueSummary(route);
 
     return `
       <div class="savedRouteAccordion ${isOpen ? "open" : ""}" style="margin-top:12px;">
@@ -419,6 +421,7 @@ function renderSavedRoutesList() {
             <div class="savedRouteTitleWrap">
               <div class="savedRouteTitleRow">
                 <span class="savedRouteTitle">${escapeHtml(route.name)}</span>
+                <span class="savedRouteFavBadge">${dueSummary.emoji} ${dueSummary.label}</span>
                 ${route.favorite ? `<span class="savedRouteFavBadge">★ お気に入り</span>` : ``}
               </div>
 
@@ -437,6 +440,11 @@ function renderSavedRoutesList() {
               ${missingCount > 0 ? ` / 削除済み店舗あり: ${missingCount}件` : ""}
             </div>
 
+            <div class="savedRoutePreview">
+              ${dueSummary.emoji} ${dueSummary.label} / 回り頃: ${dueSummary.dueCount}件 / もうすぐ: ${dueSummary.soonCount}件
+              ${dueSummary.avgFreq !== null ? ` / 平均補充頻度: ${formatRestockDays(dueSummary.avgFreq)}` : ""}
+            </div>
+
             ${route.note ? `<div class="savedRoutePreview">📝 ${escapeHtml(route.note)}</div>` : ``}
             ${preview ? `<div class="savedRoutePreview">📍 ${escapeHtml(preview)}${routeStores.length > 3 ? " / …" : ""}</div>` : ``}
           </div>
@@ -447,12 +455,18 @@ function renderSavedRoutesList() {
             routeStores.length
               ? `
                 <div class="savedRouteFullList">
-                  ${routeStores.map(s => `
-                    <div class="savedRouteStoreLine">
-                      <span class="savedRouteStoreDot">📍</span>
-                      <span class="savedRouteStoreName">${escapeHtml(s.name)}</span>
-                    </div>
-                  `).join("")}
+                  ${routeStores.map(s => {
+                    const m = getMetrics(s);
+                    const status = calcStoreDueStatus(s);
+                    return `
+                      <div class="savedRouteStoreLine" style="display:block;">
+                        <div style="font-weight:700;">${status.emoji} ${escapeHtml(s.name)}</div>
+                        <div class="mini" style="margin-top:4px;">
+                          補充頻度: ${formatRestockDays(m.freq)} / 成功率: ${m.rate.toFixed(1)}% / 期待値: ${Math.round(m.expected).toLocaleString()}円
+                        </div>
+                      </div>
+                    `;
+                  }).join("")}
                 </div>
               `
               : `<div class="mini">このルートの店舗が見つかりません。</div>`
@@ -494,6 +508,7 @@ function render() {
     todayMarks: stores.filter(s => s.today).map(s => s.id),
     todayRouteOrder,
     splitRouteCacheExists: !!splitRouteCache,
+    splitRouteParts: splitRouteCache?.parts?.map(p => `${p.index}:${p.start}-${p.end}`).join("|") || "",
     lastVisitDates: stores.map(s => `${s.id}:${s.lastVisitDate}`),
     savedRoutes: savedRoutes.map(r => `${r.id}:${r.updatedAt}:${r.favorite}`).join("|"),
     openSavedRouteId
@@ -565,7 +580,7 @@ const helpData = [
       ② 下の今日のルート順に並ぶ<br>
       ③ ↑↓で順番変更<br>
       ④ 「この順番でルート作成」を押す<br><br>
-      10〜18店舗のときは、ルート1 / ルート2 に分けて開けます。
+      10店舗以上でも自動で複数ルートに分かれます。
     `
   },
   {
@@ -575,7 +590,7 @@ const helpData = [
       ・ルート保存で保存<br>
       ・後から今日のルートに読込可能<br>
       ・お気に入り登録可能<br>
-      ・ルート名やメモも変更できます
+      ・補充頻度から回り頃も確認できます
     `
   },
   {
