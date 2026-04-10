@@ -328,3 +328,120 @@ function getSavedRoutePreviewText(route, count = 3) {
     .filter(Boolean)
     .join(" / ");
 }
+function saveCurrentRoute() {
+  const routeStores = getTodayRouteStores();
+  if (!routeStores.length) {
+    alert("保存できる今日のルートがありません。");
+    return;
+  }
+
+  const defaultName = `ルート ${tokyoDateStr()}`;
+  const name = prompt("保存するルート名", defaultName);
+  if (name === null) return;
+
+  const note = prompt("メモ（任意）", "") ?? "";
+
+  const newRoute = normalizeRoute({
+    id: ensureId(),
+    name: String(name).trim() || defaultName,
+    note: String(note).trim(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    favorite: false,
+    storeIds: routeStores.map(s => s.id)
+  });
+
+  savedRoutes.unshift(newRoute);
+
+  if (savedRoutes.length > 50) {
+    savedRoutes = savedRoutes.slice(0, 50);
+  }
+
+  sortSavedRoutes();
+  openSavedRouteId = newRoute.id;
+  saveAll();
+  render();
+  alert("ルートを保存しました。");
+}
+
+function openSavedRoute(routeId) {
+  const route = savedRoutes.find(r => r.id === routeId);
+  if (!route) return;
+
+  const routeStores = buildSavedRouteStores(route);
+  if (!routeStores.length) {
+    alert("このルートの店舗が見つかりません。");
+    return;
+  }
+
+  stores.forEach(s => {
+    s.today = route.storeIds.includes(s.id);
+  });
+
+  todayRouteOrder = route.storeIds.filter(id => stores.some(s => s.id === id && s.today));
+  clearSplitRouteCache();
+  syncTodayRouteOrder();
+
+  saveAll();
+  render();
+  alert(`「${route.name}」を今日のルートに読み込みました。`);
+}
+
+function openSavedRouteInMaps(routeId) {
+  const route = savedRoutes.find(r => r.id === routeId);
+  if (!route) return;
+
+  const routeStores = buildSavedRouteStores(route).filter(s => hasCoords(s) || s.address);
+  if (!routeStores.length) {
+    alert("このルートの店舗が見つかりません。");
+    return;
+  }
+
+  openRouteInGoogleMaps(routeStores);
+}
+
+function toggleFavoriteRoute(routeId) {
+  const route = savedRoutes.find(r => r.id === routeId);
+  if (!route) return;
+
+  route.favorite = !route.favorite;
+  route.updatedAt = new Date().toISOString();
+
+  sortSavedRoutes();
+  openSavedRouteId = routeId;
+  saveAll();
+  render();
+}
+
+function editSavedRoute(routeId) {
+  const route = savedRoutes.find(r => r.id === routeId);
+  if (!route) return;
+
+  const name = prompt("ルート名を変更", route.name || "");
+  if (name === null) return;
+
+  const note = prompt("メモを変更", route.note || "");
+  if (note === null) return;
+
+  route.name = String(name).trim() || route.name || "保存ルート";
+  route.note = String(note).trim();
+  route.updatedAt = new Date().toISOString();
+
+  sortSavedRoutes();
+  openSavedRouteId = routeId;
+  saveAll();
+  render();
+}
+
+function deleteSavedRoute(routeId) {
+  const route = savedRoutes.find(r => r.id === routeId);
+  if (!route) return;
+  if (!confirm(`「${route.name}」を削除しますか？`)) return;
+
+  savedRoutes = savedRoutes.filter(r => r.id !== routeId);
+  if (openSavedRouteId === routeId) {
+    openSavedRouteId = null;
+  }
+  saveAll();
+  render();
+}
