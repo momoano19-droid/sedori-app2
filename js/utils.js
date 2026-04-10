@@ -79,6 +79,55 @@ function addLog(storeId, type, delta, category = "") {
   categoryHistoryDirty = true;
 }
 
+function getStoreSuccessDates(storeId) {
+  const dates = logs
+    .filter(l =>
+      l.storeId === storeId &&
+      l.type === "success" &&
+      Number(l.delta || 0) > 0 &&
+      l.date
+    )
+    .map(l => l.date);
+
+  return [...new Set(dates)].sort((a, b) => String(a).localeCompare(String(b)));
+}
+
+function calcSuccessRestockCycleDays(storeId) {
+  const dates = getStoreSuccessDates(storeId);
+  if (dates.length < 2) return null;
+
+  const diffs = [];
+
+  for (let i = 1; i < dates.length; i++) {
+    const prev = new Date(dates[i - 1]);
+    const next = new Date(dates[i]);
+
+    if (Number.isNaN(prev.getTime()) || Number.isNaN(next.getTime())) continue;
+
+    const diff = Math.floor((next - prev) / (1000 * 60 * 60 * 24));
+    if (diff > 0) diffs.push(diff);
+  }
+
+  if (!diffs.length) return null;
+
+  return diffs.reduce((a, b) => a + b, 0) / diffs.length;
+}
+
+function calcRateAdjustedRestockCycleDays(storeId, rate) {
+  const baseCycle = calcSuccessRestockCycleDays(storeId);
+  if (baseCycle === null) return null;
+
+  const safeRate = Math.max(5, Math.min(80, Number(rate || 0)));
+
+  // 成功率40%基準。前回より強め補正
+  // 高成功率 → 短め / 低成功率 → 長め
+  const rateAdjust = 1 + ((40 - safeRate) / 100) * 0.9;
+  const clampedAdjust = Math.max(0.7, Math.min(1.35, rateAdjust));
+
+  const adjusted = baseCycle * clampedAdjust;
+  return adjusted > 0 ? adjusted : baseCycle;
+}
+
 function getMetrics(s) {
   const visits = Number(s.visits || 0);
   const success = Number(s.buyDays || 0);
@@ -89,7 +138,8 @@ function getMetrics(s) {
   const avgProfit = success > 0 ? profit / success : 0;
   const avgItems = success > 0 ? items / success : 0;
   const expected = visits > 0 ? profit / visits : 0;
-  const freq = visits > 0 ? 30 / visits : 0;
+
+  const freq = s?.id ? calcRateAdjustedRestockCycleDays(s.id, rate) : null;
 
   return {
     visits,
@@ -105,7 +155,11 @@ function getMetrics(s) {
 }
 
 function formatRestockDays(v) {
-  const n = Number(v || 0);
+  if (v === null || v === undefined || Number.isNaN(Number(v))) {
+    return "算出中";
+  }
+
+  const n = Number(v);
   if (!n) return "0日";
   if (Number.isInteger(n)) return `${n}日`;
   return `${n.toFixed(1).replace(/\.0$/, "")}日`;
@@ -124,6 +178,129 @@ function formatDaysSinceLastVisit(lastVisitDate) {
   if (diff === null) return "未訪問";
   if (diff <= 0) return "今日";
   return `${diff}日`;
+}
+
+function calcStoreDueStatus(store) {
+  const m = getMetrics(store);
+  const freq = m.freq;
+  const daysSince = getDaysSinceLastVisit(store.lastVisitDate);
+
+  if (freq === null || daysSince === null) {
+    return {
+      code: "insufficient",
+      emoji: "📝",
+      label: "データ不足",
+      daysSince,
+      freq,
+      remainingDays: null,
+      isDue: false,
+      isSoon: false
+    };
+  }
+
+  const remainingDays = freq - daysSince;
+
+  if (daysSince >= freq) {
+    return {
+      code: "due",
+      emoji: "🔥",
+      label: "回り頃",
+      daysSince,
+      freq,
+      remainingDays,
+      isDue: true,
+      isSoon: false
+    };
+  }
+
+  if (remainingDays <= 2) {
+    return {
+      code: "soon",
+      emoji: "⏰",
+      label: "もうすぐ",
+      daysSince,
+      freq,
+      remainingDays,
+      isDue: false,
+      isSoon: true
+    };
+  }
+
+  return {
+    code: "early",
+    emoji: "🌱",
+    label: "まだ早い",
+    daysSince,
+    freq,
+    remainingDays,
+    isDue: false,
+    isSoon: false
+  };
+}
+
+function calcSavedRouteDueSummary(route) {
+  const routeStores = buildSavedRouteStores(route);
+
+  if (!routeStores.length) {
+    return {
+      emoji: "📝",
+      label: "データ不足",
+      dueCount: 0,
+      soonCount: 0,
+      earlyCount: 0,
+      insufficientCount: 0,
+      avgFreq: null,
+      totalStores: 0
+    };
+  }
+
+  let dueCount = 0;
+  let soonCount = 0;
+  let earlyCount = 0;
+  let insufficientCount = 0;
+
+  const validFreqs = [];
+
+  routeStores.forEach(store => {
+    const status = calcStoreDueStatus(store);
+    if (status.code === "due") dueCount += 1;
+    else if (status.code === "soon") soonCount += 1;
+    else if (status.code === "early") earlyCount += 1;
+    else insufficientCount += 1;
+
+    if (status.freq !== null && !Number.isNaN(Number(status.freq))) {
+      validFreqs.push(Number(status.freq));
+    }
+  });
+
+  const avgFreq = validFreqs.length
+    ? validFreqs.reduce((a, b) => a + b, 0) / validFreqs.length
+    : null;
+
+  let emoji = "📝";
+  let label = "データ不足";
+
+  if (dueCount > 0) {
+    emoji = "🔥";
+    label = "回り頃";
+  } else if (soonCount > 0) {
+    emoji = "⏰";
+    label = "もうすぐ";
+  } else if (earlyCount > 0) {
+    emoji = "🌱";
+    label = "まだ早い";
+  }
+
+  return {
+    emoji,
+    label,
+    dueCount,
+    soonCount,
+    earlyCount,
+    insufficientCount,
+    avgFreq,
+    totalStores: routeStores.length
+  };
 }
 
 function parseCategoryInput(text) {
