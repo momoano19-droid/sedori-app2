@@ -498,6 +498,62 @@ function getFilterValues() {
   };
 }
 
+function getSortLabel(sortType) {
+  if (sortType === "rate") return "成功率順";
+  if (sortType === "avgProfit") return "平均利益順";
+  if (sortType === "visits") return "訪問回数順";
+  if (sortType === "route") return "距離順";
+  return "期待値順";
+}
+
+function renderActiveFilterChips() {
+  const wrap = document.getElementById("activeFilterChips");
+  if (!wrap) return;
+
+  const { q, prefFilter, minExpected, minRate, sortType } = getFilterValues();
+  const chips = [];
+
+  chips.push(`<span class="activeFilterChip activeSortChip">${escapeHtml(getSortLabel(sortType))}</span>`);
+
+  if (prefFilter && prefFilter !== "__ALL__") {
+    chips.push(`<span class="activeFilterChip">${escapeHtml(prefFilter)}</span>`);
+  }
+
+  if (minExpected > 0) {
+    chips.push(`<span class="activeFilterChip">期待値 ${Math.round(minExpected).toLocaleString()}円以上</span>`);
+  }
+
+  if (minRate > 0) {
+    chips.push(`<span class="activeFilterChip">成功率 ${Number(minRate).toLocaleString()}%以上</span>`);
+  }
+
+  if (q) {
+    chips.push(`<span class="activeFilterChip">検索: ${escapeHtml(q)}</span>`);
+  }
+
+  if (nearbyMode) {
+    chips.push(`<span class="activeFilterChip activeModeChip">近くの店舗</span>`);
+  }
+
+  if (noCoordsOnlyMode) {
+    chips.push(`<span class="activeFilterChip activeModeChip">座標なし店舗</span>`);
+  }
+
+  if (
+    chips.length === 1 &&
+    !q &&
+    prefFilter === "__ALL__" &&
+    minExpected <= 0 &&
+    minRate <= 0 &&
+    !nearbyMode &&
+    !noCoordsOnlyMode
+  ) {
+    chips.push(`<span class="activeFilterChip">全店舗表示</span>`);
+  }
+
+  wrap.innerHTML = chips.join("");
+}
+
 function buildFilteredStoreList() {
   const { q, prefFilter, minExpected, minRate, sortType } = getFilterValues();
 
@@ -944,11 +1000,11 @@ function renderSavedRoutesList() {
           }
 
           <div class="savedRouteActionGrid">
-            <button ${makeButtonStyle("#e7f0ff", "#2563eb")} class="savedRouteActionBtn action-load" onclick="openSavedRoute('${escapeJsString(route.id)}')">今日に読込</button>
-            <button ${makeButtonStyle("#dff7e8", "#129b52")} class="savedRouteActionBtn action-map" onclick="openSavedRouteInMaps('${escapeJsString(route.id)}')">MAPで開く</button>
-            <button ${makeButtonStyle("#fff4d8", "#b7791f")} class="savedRouteActionBtn action-fav" onclick="toggleFavoriteRoute('${escapeJsString(route.id)}')">${route.favorite ? "★ お気に入り解除" : "☆ お気に入り"}</button>
-            <button ${makeButtonStyle("#eef1f7", "#1f2340")} class="savedRouteActionBtn action-edit" onclick="editSavedRoute('${escapeJsString(route.id)}')">編集</button>
-            <button ${makeButtonStyle("#eef1f7", "#1f2340")} class="savedRouteActionBtn action-delete" onclick="deleteSavedRoute('${escapeJsString(route.id)}')">削除</button>
+            <button class="savedRouteActionBtn btnBlue" onclick="openSavedRoute('${escapeJsString(route.id)}')">今日に読込</button>
+            <button class="savedRouteActionBtn btnGreen" onclick="openSavedRouteInMaps('${escapeJsString(route.id)}')">MAPで開く</button>
+            <button class="savedRouteActionBtn btnWarn" onclick="toggleFavoriteRoute('${escapeJsString(route.id)}')">${route.favorite ? "★ お気に入り解除" : "☆ お気に入り"}</button>
+            <button class="savedRouteActionBtn btnSoft" onclick="editSavedRoute('${escapeJsString(route.id)}')">編集</button>
+            <button class="savedRouteActionBtn btnDanger" onclick="deleteSavedRoute('${escapeJsString(route.id)}')">削除</button>
           </div>
         </div>
       </div>
@@ -2164,38 +2220,37 @@ function renderTodayRouteList() {
     .filter(s => s && s.today);
 
   if (!routeStores.length) {
-    el.innerHTML = "チェックした店舗はまだありません。";
+    el.innerHTML = `<div class="mini emptyRouteText">チェックした店舗はまだありません。</div>`;
     return;
   }
 
   const splitButtonsHtml =
     splitRouteCache && routeStores.length >= 10 && routeStores.length <= 18
       ? `
-        <div class="row2 mt8" style="margin-bottom:12px;">
-          <button ${makeButtonStyle("#3976f6", "#fff")} onclick="openSplitRoutePart(1)">ルート1を開く</button>
-          <button ${makeButtonStyle("#3976f6", "#fff")} onclick="openSplitRoutePart(2)">ルート2を開く</button>
+        <div class="row2 mt8 routeSplitBtns">
+          <button class="primaryBtn" onclick="openSplitRoutePart(1)">ルート1を開く</button>
+          <button class="primaryBtn" onclick="openSplitRoutePart(2)">ルート2を開く</button>
         </div>
-        <div class="mini" style="margin-bottom:12px;">
+        <div class="mini routeSplitSub">
           ルート1：1〜9店舗目 / ルート2：10〜18店舗目
         </div>
       `
       : "";
 
   el.innerHTML = `
-    <div style="font-weight:700; margin-bottom:8px;">今日のルート順</div>
     ${splitButtonsHtml}
     ${routeStores.map((s, idx) => `
-      <div class="item" style="margin-bottom:10px; padding:12px 14px;">
-        <div class="name" style="font-size:16px; margin-bottom:6px;">${idx + 1}. ${escapeHtml(s.name)}</div>
+      <div class="item todayRouteItem">
+        <div class="name todayRouteName">${idx + 1}. ${escapeHtml(s.name)}</div>
         <div class="mini">${escapeHtml(s.pref || "")}${s.address ? ` / ${escapeHtml(s.address)}` : ""}</div>
 
         <div class="row2 mt8">
-          <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="moveTodayRouteItem(${idx}, -1)">↑ 上へ</button>
-          <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="moveTodayRouteItem(${idx}, 1)">↓ 下へ</button>
+          <button class="ghostBtn" onclick="moveTodayRouteItem(${idx}, -1)">↑ 上へ</button>
+          <button class="ghostBtn" onclick="moveTodayRouteItem(${idx}, 1)">↓ 下へ</button>
         </div>
 
         <div class="row2 mt8">
-          <button ${makeButtonStyle("#fef2f2", "#dc2626")} onclick="removeTodayRouteItem(${idx})">ルートから外す</button>
+          <button class="dangerBtn" onclick="removeTodayRouteItem(${idx})">ルートから外す</button>
           <div></div>
         </div>
       </div>
@@ -2238,6 +2293,7 @@ function render() {
     lastListRenderSignature = signature;
   }
 
+  renderActiveFilterChips();
   scheduleRenderMapMarkers();
   renderTodayRouteList();
   renderSavedRoutesList();
