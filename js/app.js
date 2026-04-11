@@ -389,9 +389,16 @@ function renderTodayRouteList() {
         <div class="routeSplitBtns">
           ${splitRouteCache.parts.map(part => `
             <div class="routeSplitBlock mt8">
-              <button class="primaryBtn" onclick="openSplitRoutePart(${part.index})">ルート${part.index}を開く</button>
+              <div class="routeSplitRow">
+                <button class="primaryBtn routeSplitOpenBtn" onclick="openSplitRoutePart(${part.index})">
+                  ルート${part.index}を開く
+                </button>
+                <div class="routeSplitEta">
+                  推定 約${formatEstimatedMinutes(part.estimatedMinutes)}
+                </div>
+              </div>
               <div class="mini routeSplitSub">
-                ${part.start}〜${part.end}店舗目 / 推定 約${formatEstimatedMinutes(part.estimatedMinutes)}
+                ${part.start}〜${part.end}店舗目
               </div>
             </div>
           `).join("")}
