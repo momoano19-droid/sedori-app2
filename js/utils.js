@@ -55,6 +55,53 @@ function distanceKm(lat1, lng1, lat2, lng2) {
   return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function estimateRouteMinutes(routeStores, startPos = null, avgSpeedKmh = 30) {
+  if (!Array.isArray(routeStores) || routeStores.length === 0) return null;
+
+  let totalKm = 0;
+  let prevPoint = null;
+
+  if (
+    startPos &&
+    typeof startPos.lat === "number" &&
+    typeof startPos.lng === "number"
+  ) {
+    prevPoint = { lat: startPos.lat, lng: startPos.lng };
+  }
+
+  routeStores.forEach(store => {
+    if (!hasCoords(store)) {
+      prevPoint = null;
+      return;
+    }
+
+    if (prevPoint) {
+      totalKm += distanceKm(prevPoint.lat, prevPoint.lng, store.lat, store.lng);
+    }
+
+    prevPoint = { lat: store.lat, lng: store.lng };
+  });
+
+  if (totalKm <= 0) return null;
+
+  const minutes = (totalKm / avgSpeedKmh) * 60;
+  return Math.max(1, Math.round(minutes));
+}
+
+function formatEstimatedMinutes(minutes) {
+  if (minutes === null || minutes === undefined || Number.isNaN(Number(minutes))) {
+    return "算出中";
+  }
+
+  const n = Math.max(1, Math.round(Number(minutes)));
+  if (n >= 60) {
+    const h = Math.floor(n / 60);
+    const m = n % 60;
+    return m === 0 ? `${h}時間` : `${h}時間${m}分`;
+  }
+  return `${n}分`;
+}
+
 function matchesQuery(s, q) {
   if (!q) return true;
   const cats = Object.keys(s.categoryCounts || {}).join(" ");
@@ -118,9 +165,6 @@ function calcRateAdjustedRestockCycleDays(storeId, rate) {
   if (baseCycle === null) return null;
 
   const safeRate = Math.max(5, Math.min(80, Number(rate || 0)));
-
-  // 成功率40%基準。前回より強め補正
-  // 高成功率 → 短め / 低成功率 → 長め
   const rateAdjust = 1 + ((40 - safeRate) / 100) * 0.9;
   const clampedAdjust = Math.max(0.7, Math.min(1.35, rateAdjust));
 
@@ -235,7 +279,7 @@ function calcStoreDueStatus(store) {
     remainingDays,
     isDue: false,
     isSoon: false
-  };
+    };
 }
 
 function calcSavedRouteDueSummary(route) {
@@ -258,7 +302,6 @@ function calcSavedRouteDueSummary(route) {
   let soonCount = 0;
   let earlyCount = 0;
   let insufficientCount = 0;
-
   const validFreqs = [];
 
   routeStores.forEach(store => {
