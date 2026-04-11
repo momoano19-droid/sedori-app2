@@ -56,37 +56,26 @@
       </div>
     </section>
 
-    <section class="card backupCard accordionCard">
-      <button
-        type="button"
-        class="accordionHeader"
-        onclick="toggleBackupAccordion()"
-        aria-expanded="false"
-        id="backupAccordionHeader"
-      >
-        <span class="accordionTitle">💾 バックアップ</span>
-        <span class="accordionChevron" id="backupAccordionChevron">▼</span>
-      </button>
+    <section class="card">
+      <h2 class="sectionTitle">💾 バックアップ</h2>
 
-      <div id="backupAccordionBody" class="accordionBody" style="display:none;">
-        <div class="row2 mt12">
-          <button class="ghostBtn backupBtn" onclick="exportBackup()">バックアップ書き出し</button>
-          <button class="ghostBtn backupBtn" onclick="document.getElementById('backupFile').click()">バックアップ読込</button>
-        </div>
-
-        <div class="row2 mt8">
-          <button class="warnBtn" onclick="restoreAutoBackup()">自動バックアップ復元</button>
-          <button class="ghostBtn backupBtn" onclick="showAutoBackupInfo()">自動バックアップ情報</button>
-        </div>
-
-        <input
-          id="backupFile"
-          type="file"
-          accept=".json,application/json"
-          onchange="importBackup(event)"
-          hidden
-        >
+      <div class="row2">
+        <button class="ghostBtn" onclick="exportBackup()">バックアップ書き出し</button>
+        <button class="ghostBtn" onclick="document.getElementById('backupFile').click()">バックアップ読込</button>
       </div>
+
+      <div class="row2 mt8">
+        <button class="ghostBtn" onclick="restoreAutoBackup()">自動バックアップ復元</button>
+        <button class="ghostBtn" onclick="showAutoBackupInfo()">自動バックアップ情報</button>
+      </div>
+
+      <input
+        id="backupFile"
+        type="file"
+        accept=".json,application/json"
+        onchange="importBackup(event)"
+        hidden
+      >
     </section>
 
     <section class="card">
@@ -125,32 +114,38 @@
       <h2 class="sectionTitle">🗺 店舗MAP</h2>
       <div id="map"></div>
       <div class="mini mt8">
-        マーカーをタップで詳細・今日行く・ナビ
+        マーカーをタップすると、期待値・成功率・今日行く・ナビが表示されます。
       </div>
     </section>
 
     <section class="card">
       <h2 class="sectionTitle">🛣 今日のルート</h2>
 
-      <div class="routeActionSection">
-        <div class="mini routeSectionSub">ルート作成や保存などの操作</div>
-
-        <div class="routeBar routeActionPrimary mt8">
-          <button class="primaryBtn" onclick="buildTodayRoute()">この順番でルート作成</button>
-          <button class="ghostBtn" onclick="autoOptimizeTodayRoute()">自動最適化</button>
-        </div>
-
-        <div class="routeBar routeActionSecondary mt8">
-          <button class="warnBtn" onclick="saveCurrentRoute()">ルート保存</button>
-          <button class="dangerBtn" onclick="clearTodayChecks()">今日行くを全解除</button>
-        </div>
+      <div class="routeBar">
+        <button class="primaryBtn" onclick="buildTodayRoute()">この順番でルート作成</button>
+        <button class="ghostBtn" onclick="autoOptimizeTodayRoute()">自動最適化</button>
       </div>
 
-      <div class="sectionDivider"></div>
+      <div class="routeBar mt8">
+        <button class="ghostBtn" onclick="saveCurrentRoute()">ルート保存</button>
+        <button class="ghostBtn" onclick="clearTodayChecks()">今日行くを全解除</button>
+      </div>
 
-      <div class="routeListSection">
-        <div class="mini routeSectionSub">ルート順一覧</div>
-        <div id="todayRouteList" class="mt12"></div>
+      <div class="todayRouteAccordion mt12">
+        <button
+          type="button"
+          class="todayRouteAccordionHeader"
+          onclick="toggleTodayRouteAccordion()"
+          aria-expanded="true"
+          id="todayRouteAccordionHeader"
+        >
+          <span class="todayRouteAccordionTitle">ルート順一覧</span>
+          <span class="todayRouteAccordionChevron" id="todayRouteAccordionChevron">▲</span>
+        </button>
+
+        <div id="todayRouteAccordionBody" class="todayRouteAccordionBody">
+          <div id="todayRouteList" class="mt12"></div>
+        </div>
       </div>
     </section>
 
@@ -160,27 +155,17 @@
     </section>
 
     <section class="card storeTopActionsCard">
-      <div class="storeTopBlock">
-        <div class="mini modeBlockTitle">表示範囲</div>
-        <div class="storeTopActions storeTopActions2">
-          <button class="ghostBtn" onclick="showNearbyStores()">近くの店舗</button>
-          <button class="ghostBtn" onclick="clearNearbyMode(); render()">通常表示に戻す</button>
-        </div>
-      </div>
-
-      <div class="storeTopBlock mt12">
-        <div class="mini modeBlockTitle">表示モード</div>
-        <div class="layoutSwitchRow">
-          <button id="detailLayoutBtn" class="ghostBtn" onclick="setLayoutMode('detail')">詳細</button>
-          <button id="compactLayoutBtn" class="ghostBtn" onclick="setLayoutMode('compact')">コンパクト</button>
-        </div>
+      <div class="storeTopActions storeTopActions4">
+        <button class="ghostBtn" onclick="showNearbyStores()">近くの店舗</button>
+        <button class="ghostBtn" onclick="clearNearbyMode(); render()">通常表示に戻す</button>
+        <button id="detailLayoutBtn" class="ghostBtn" onclick="setLayoutMode('detail')">詳細</button>
+        <button id="compactLayoutBtn" class="ghostBtn" onclick="setLayoutMode('compact')">コンパクト</button>
       </div>
     </section>
 
     <section class="card">
       <h2 class="sectionTitle">🏬 店舗一覧</h2>
-      <div id="activeFilterChips" class="activeFilterChips mt8"></div>
-      <div id="storeList" class="mt12"></div>
+      <div id="storeList"></div>
     </section>
   </div>
 
