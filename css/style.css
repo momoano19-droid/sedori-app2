@@ -1794,3 +1794,49 @@ a{
     grid-template-columns:1fr 1fr;
   }
 }
+/* 今日のルート一覧アコーディオン */
+.todayRouteAccordion{
+  margin-top:12px;
+}
+
+.todayRouteAccordionHeader{
+  width:100%;
+  background:#fff;
+  color:#1f2340;
+  border:none;
+  min-height:42px;
+  padding:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  text-align:left;
+  box-shadow:none;
+}
+
+.todayRouteAccordionHeader:active{
+  transform:scale(.998);
+}
+
+.todayRouteAccordionTitle{
+  font-size:15px;
+  font-weight:900;
+  line-height:1.4;
+}
+
+.todayRouteAccordionChevron{
+  font-size:14px;
+  font-weight:900;
+  color:#6b7280;
+}
+
+.todayRouteAccordionBody{
+  display:block;
+}
+
+.routeSplitBlock .primaryBtn{
+  width:100%;
+}
+
+.routeSplitSub{
+  margin-top:6px;
+}
