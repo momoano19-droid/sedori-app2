@@ -31,9 +31,26 @@ let qtyCategoryProfit = 0;
 
 let profitEditTargetIndex = -1;
 
-/* =========================
-   フィルタ / 描画
-========================= */
+let todayRouteAccordionOpen = true;
+
+function toggleTodayRouteAccordion(forceOpen = null) {
+  const body = document.getElementById("todayRouteAccordionBody");
+  const header = document.getElementById("todayRouteAccordionHeader");
+  const chevron = document.getElementById("todayRouteAccordionChevron");
+  if (!body || !header || !chevron) return;
+
+  const willOpen = forceOpen === null ? !todayRouteAccordionOpen : !!forceOpen;
+  todayRouteAccordionOpen = willOpen;
+
+  body.style.display = willOpen ? "block" : "none";
+  header.setAttribute("aria-expanded", willOpen ? "true" : "false");
+  chevron.textContent = willOpen ? "▲" : "▼";
+}
+
+function syncTodayRouteAccordionUI() {
+  toggleTodayRouteAccordion(todayRouteAccordionOpen);
+}
+
 function buildFilteredStoreList() {
   const { q, prefFilter, minExpected, minRate, sortType } = getFilterValues();
 
@@ -75,54 +92,6 @@ function buildFilteredStoreList() {
   return list;
 }
 
-function renderActiveFilterChips() {
-  const wrap = document.getElementById("activeFilterChips");
-  if (!wrap) return;
-
-  const { q, prefFilter, minExpected, minRate, sortType } = getFilterValues();
-  const chips = [];
-
-  chips.push(`<span class="activeFilterChip activeSortChip">${escapeHtml(getSortLabel(sortType))}</span>`);
-
-  if (prefFilter && prefFilter !== "__ALL__") {
-    chips.push(`<span class="activeFilterChip">${escapeHtml(prefFilter)}</span>`);
-  }
-
-  if (minExpected > 0) {
-    chips.push(`<span class="activeFilterChip">期待値 ${Math.round(minExpected).toLocaleString()}円以上</span>`);
-  }
-
-  if (minRate > 0) {
-    chips.push(`<span class="activeFilterChip">成功率 ${Number(minRate).toLocaleString()}%以上</span>`);
-  }
-
-  if (q) {
-    chips.push(`<span class="activeFilterChip">検索: ${escapeHtml(q)}</span>`);
-  }
-
-  if (nearbyMode) {
-    chips.push(`<span class="activeFilterChip activeModeChip">近くの店舗</span>`);
-  }
-
-  if (noCoordsOnlyMode) {
-    chips.push(`<span class="activeFilterChip activeModeChip">座標なし店舗</span>`);
-  }
-
-  if (
-    chips.length === 1 &&
-    !q &&
-    prefFilter === "__ALL__" &&
-    minExpected <= 0 &&
-    minRate <= 0 &&
-    !nearbyMode &&
-    !noCoordsOnlyMode
-  ) {
-    chips.push(`<span class="activeFilterChip">全店舗表示</span>`);
-  }
-
-  wrap.innerHTML = chips.join("");
-}
-
 function buildPrefFilter() {
   const prefs = [...new Set(stores.map(s => s.pref).filter(Boolean))].sort((a, b) =>
     a.localeCompare(b, "ja")
@@ -146,38 +115,25 @@ function updateLayoutButtons() {
   const compactBtn = document.getElementById("compactLayoutBtn");
 
   if (detailBtn) {
+    detailBtn.classList.toggle("primaryBtn", currentLayoutMode === "detail");
+    detailBtn.classList.toggle("ghostBtn", currentLayoutMode !== "detail");
     detailBtn.classList.toggle("activeLayout", currentLayoutMode === "detail");
-    if (currentLayoutMode === "detail") {
-      detailBtn.classList.remove("ghostBtn");
-      detailBtn.classList.add("primaryBtn");
-    } else {
-      detailBtn.classList.remove("primaryBtn");
-      detailBtn.classList.add("ghostBtn");
-    }
   }
 
   if (compactBtn) {
+    compactBtn.classList.toggle("primaryBtn", currentLayoutMode === "compact");
+    compactBtn.classList.toggle("ghostBtn", currentLayoutMode !== "compact");
     compactBtn.classList.toggle("activeLayout", currentLayoutMode === "compact");
-    if (currentLayoutMode === "compact") {
-      compactBtn.classList.remove("ghostBtn");
-      compactBtn.classList.add("primaryBtn");
-    } else {
-      compactBtn.classList.remove("primaryBtn");
-      compactBtn.classList.add("ghostBtn");
-    }
   }
 }
 
-/* =========================
-   店舗カード描画
-========================= */
 function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedClass, staleClass) {
   const expectedHighClass = m.expected >= 10000 ? "high" : "";
   const compactBadges = [
     `<span class="badge">${escapeHtml(s.pref || "未設定")}</span>`,
     typeof dist === "number" ? `<span class="badge near">📍 ${dist.toFixed(1)}km</span>` : ``,
     s.mapUrl ? `<span class="badge map">🗺 MAPあり</span>` : ``,
-    hasCoords(s) ? `<span class="badge" style="background:#eef8ff;color:#2563eb;">📡 座標あり</span>` : ``,
+    hasCoords(s) ? `<span class="badge">📡 座標あり</span>` : ``,
     `<span class="badge freq">補充頻度 ${formatRestockDays(m.freq)}</span>`
   ].filter(Boolean).join("");
 
@@ -189,7 +145,7 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
 
       <div class="name">${escapeHtml(s.name)}</div>
 
-      <div style="margin-top:6px;">
+      <div class="mt8">
         ${compactBadges}
       </div>
 
@@ -240,11 +196,11 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
 
       <div class="name">${escapeHtml(s.name)}</div>
 
-      <div style="margin-top:6px;">
+      <div class="mt8">
         <span class="badge">${escapeHtml(s.pref || "未設定")}</span>
         ${typeof dist === "number" ? `<span class="badge near">📍 ${dist.toFixed(1)}km</span>` : ``}
         ${s.mapUrl ? `<span class="badge map">🗺 MAPあり</span>` : ``}
-        ${hasCoords(s) ? `<span class="badge" style="background:#eef8ff;color:#2563eb;">📡 座標あり</span>` : ``}
+        ${hasCoords(s) ? `<span class="badge">📡 座標あり</span>` : ``}
         <span class="badge freq">補充頻度 ${formatRestockDays(m.freq)}</span>
       </div>
 
@@ -317,79 +273,6 @@ function renderStoreCard(s, idx) {
   }
 
   return renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedClass, staleClass);
-}
-
-/* =========================
-   補助表示
-========================= */
-function showEmptyDataGuide() {
-  const list = document.getElementById("storeList");
-  if (!list) return;
-  if (stores.length > 0) return;
-
-  list.innerHTML = `
-    <div class="card">
-      <div class="sectionTitle">データが見つかりません</div>
-      <div class="mini" style="font-size:14px; line-height:1.7; color:#444;">
-        iPhoneでは、Safariとホーム画面アプリで保存領域が分かれることがあります。<br>
-        backup.json / sedori-backup-xxxx.json を読み込むと復元できます。
-      </div>
-      <div class="row2 mt8">
-        <button onclick="document.getElementById('backupFile').click()">📥 バックアップ読込</button>
-        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="restoreAutoBackup()">♻ 自動バックアップ復元</button>
-      </div>
-    </div>
-  `;
-}
-
-function renderTodayRouteList() {
-  const el = document.getElementById("todayRouteList");
-  if (!el) return;
-
-  syncTodayRouteOrder();
-
-  const routeStores = todayRouteOrder
-    .map(id => stores.find(s => s.id === id))
-    .filter(s => s && s.today);
-
-  if (!routeStores.length) {
-    el.innerHTML = `<div class="mini emptyRouteText">チェックした店舗はまだありません。</div>`;
-    return;
-  }
-
-  const splitButtonsHtml =
-    splitRouteCache?.parts?.length
-      ? `
-        <div class="mt8 routeSplitBtns">
-          ${splitRouteCache.parts.map(part => `
-            <div class="mt8">
-              <button class="primaryBtn" onclick="openSplitRoutePart(${part.index})">ルート${part.index}を開く</button>
-              <div class="mini routeSplitSub">ルート${part.index}：${part.start}〜${part.end}店舗目</div>
-            </div>
-          `).join("")}
-        </div>
-      `
-      : "";
-
-  el.innerHTML = `
-    ${splitButtonsHtml}
-    ${routeStores.map((s, idx) => `
-      <div class="item todayRouteItem">
-        <div class="name todayRouteName">${idx + 1}. ${escapeHtml(s.name)}</div>
-        <div class="mini">${escapeHtml(s.pref || "")}${s.address ? ` / ${escapeHtml(s.address)}` : ""}</div>
-
-        <div class="row2 mt8">
-          <button class="ghostBtn" onclick="moveTodayRouteItem(${idx}, -1)">↑ 上へ</button>
-          <button class="ghostBtn" onclick="moveTodayRouteItem(${idx}, 1)">↓ 下へ</button>
-        </div>
-
-        <div class="row2 mt8">
-          <button class="dangerBtn" onclick="removeTodayRouteItem(${idx})">ルートから外す</button>
-          <div></div>
-        </div>
-      </div>
-    `).join("")}
-  `;
 }
 
 function renderSavedRoutesList() {
@@ -473,16 +356,68 @@ function renderSavedRoutesList() {
           }
 
           <div class="savedRouteActionGrid">
-            <button class="savedRouteActionBtn btnBlue" onclick="openSavedRoute('${escapeJsString(route.id)}')">今日に読込</button>
-            <button class="savedRouteActionBtn btnGreen" onclick="openSavedRouteInMaps('${escapeJsString(route.id)}')">MAPで開く</button>
-            <button class="savedRouteActionBtn btnWarn" onclick="toggleFavoriteRoute('${escapeJsString(route.id)}')">${route.favorite ? "★ お気に入り解除" : "☆ お気に入り"}</button>
-            <button class="savedRouteActionBtn btnSoft" onclick="editSavedRoute('${escapeJsString(route.id)}')">編集</button>
-            <button class="savedRouteActionBtn btnDanger" onclick="deleteSavedRoute('${escapeJsString(route.id)}')">削除</button>
+            <button ${makeButtonStyle("#e7f0ff", "#2563eb")} class="savedRouteActionBtn" onclick="openSavedRoute('${escapeJsString(route.id)}')">今日に読込</button>
+            <button ${makeButtonStyle("#dff7e8", "#129b52")} class="savedRouteActionBtn" onclick="openSavedRouteInMaps('${escapeJsString(route.id)}')">MAPで開く</button>
+            <button ${makeButtonStyle("#fff4d8", "#b7791f")} class="savedRouteActionBtn" onclick="toggleFavoriteRoute('${escapeJsString(route.id)}')">${route.favorite ? "★ お気に入り解除" : "☆ お気に入り"}</button>
+            <button ${makeButtonStyle("#eef1f7", "#1f2340")} class="savedRouteActionBtn" onclick="editSavedRoute('${escapeJsString(route.id)}')">編集</button>
+            <button ${makeButtonStyle("#fef2f2", "#dc2626")} class="savedRouteActionBtn" onclick="deleteSavedRoute('${escapeJsString(route.id)}')">削除</button>
           </div>
         </div>
       </div>
     `;
   }).join("");
+}
+
+function renderTodayRouteList() {
+  const el = document.getElementById("todayRouteList");
+  if (!el) return;
+
+  syncTodayRouteOrder();
+
+  const routeStores = todayRouteOrder
+    .map(id => stores.find(s => s.id === id))
+    .filter(s => s && s.today);
+
+  if (!routeStores.length) {
+    el.innerHTML = `<div class="mini emptyRouteText">チェックした店舗はまだありません。</div>`;
+    return;
+  }
+
+  const splitButtonsHtml =
+    splitRouteCache?.parts?.length
+      ? `
+        <div class="routeSplitBtns">
+          ${splitRouteCache.parts.map(part => `
+            <div class="routeSplitBlock mt8">
+              <button class="primaryBtn" onclick="openSplitRoutePart(${part.index})">ルート${part.index}を開く</button>
+              <div class="mini routeSplitSub">
+                ${part.start}〜${part.end}店舗目 / 推定 約${formatEstimatedMinutes(part.estimatedMinutes)}
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `
+      : "";
+
+  el.innerHTML = `
+    ${splitButtonsHtml}
+    ${routeStores.map((s, idx) => `
+      <div class="item todayRouteItem">
+        <div class="name todayRouteName">${idx + 1}. ${escapeHtml(s.name)}</div>
+        <div class="mini">${escapeHtml(s.pref || "")}${s.address ? ` / ${escapeHtml(s.address)}` : ""}</div>
+
+        <div class="row2 mt8">
+          <button class="ghostBtn" onclick="moveTodayRouteItem(${idx}, -1)">↑ 上へ</button>
+          <button class="ghostBtn" onclick="moveTodayRouteItem(${idx}, 1)">↓ 下へ</button>
+        </div>
+
+        <div class="row2 mt8">
+          <button class="dangerBtn" onclick="removeTodayRouteItem(${idx})">ルートから外す</button>
+          <div></div>
+        </div>
+      </div>
+    `).join("")}
+  `;
 }
 
 function render() {
@@ -508,10 +443,11 @@ function render() {
     todayMarks: stores.filter(s => s.today).map(s => s.id),
     todayRouteOrder,
     splitRouteCacheExists: !!splitRouteCache,
-    splitRouteParts: splitRouteCache?.parts?.map(p => `${p.index}:${p.start}-${p.end}`).join("|") || "",
+    splitRouteParts: splitRouteCache?.parts?.map(p => `${p.index}:${p.start}-${p.end}:${p.estimatedMinutes}`).join("|") || "",
     lastVisitDates: stores.map(s => `${s.id}:${s.lastVisitDate}`),
     savedRoutes: savedRoutes.map(r => `${r.id}:${r.updatedAt}:${r.favorite}`).join("|"),
-    openSavedRouteId
+    openSavedRouteId,
+    todayRouteAccordionOpen
   });
 
   if (signature !== lastListRenderSignature) {
@@ -521,19 +457,12 @@ function render() {
     lastListRenderSignature = signature;
   }
 
-  renderActiveFilterChips();
-  scheduleRenderMapMarkers();
-  renderTodayRouteList();
   renderSavedRoutesList();
-
-  if (!stores.length) {
-    showEmptyDataGuide();
-  }
+  renderTodayRouteList();
+  scheduleRenderMapMarkers();
+  syncTodayRouteAccordionUI();
 }
 
-/* =========================
-   使い方ガイド
-========================= */
 let helpStep = 0;
 
 const helpData = [
@@ -558,57 +487,6 @@ const helpData = [
       ③ 仕入れできたら「個数＋」を押す<br>
       ④ 個数＋の中でカテゴリと利益もまとめて入力できる<br><br>
       → これだけで店舗ごとの実績がたまり、自動で分析されます。
-    `
-  },
-  {
-    title: "🏪 店舗登録のやり方",
-    content: `
-      <b>登録時は次の4つを入れます。</b><br><br>
-      ・店舗名<br>
-      ・都道府県<br>
-      ・住所<br>
-      ・GoogleマップURL（あれば便利）<br><br>
-      ・住所だけでも登録できます<br>
-      ・GoogleマップURLがあると座標を取りやすくなります
-    `
-  },
-  {
-    title: "🛣 今日のルート機能",
-    content: `
-      <b>今日行く店舗をまとめてルート化できます。</b><br><br>
-      ① 店舗カードの「今日行く」にチェック<br>
-      ② 下の今日のルート順に並ぶ<br>
-      ③ ↑↓で順番変更<br>
-      ④ 「この順番でルート作成」を押す<br><br>
-      10店舗以上でも自動で複数ルートに分かれます。
-    `
-  },
-  {
-    title: "⭐ 保存済みルート",
-    content: `
-      <b>よく使うルートを保存できます。</b><br><br>
-      ・ルート保存で保存<br>
-      ・後から今日のルートに読込可能<br>
-      ・お気に入り登録可能<br>
-      ・補充頻度から回り頃も確認できます
-    `
-  },
-  {
-    title: "📍 近くの店舗機能",
-    content: `
-      <b>現在地を使って近くの店舗を探せます。</b><br><br>
-      ・近くの店舗（3km）で現在地近くを表示<br>
-      ・3km以内が無い時は近い順で表示<br>
-      ・現在地へ移動で地図を今いる位置へ移動できます
-    `
-  },
-  {
-    title: "💾 バックアップ",
-    content: `
-      <b>バックアップはかなり重要です。</b><br><br>
-      ・手動バックアップでJSON保存<br>
-      ・バックアップ読込で復元<br>
-      ・自動バックアップも保存されます
     `
   }
 ];
@@ -661,9 +539,6 @@ function prevHelp() {
   }
 }
 
-/* =========================
-   ボタン押下エフェクト
-========================= */
 function setupButtonPressEffect() {
   const getButton = target => target?.closest?.("button");
   if (!document.body.dataset.pressReady) {
@@ -689,9 +564,6 @@ function setupButtonPressEffect() {
   }
 }
 
-/* =========================
-   起動
-========================= */
 window.addEventListener("load", () => {
   syncTodayRouteOrder();
   initMap();
