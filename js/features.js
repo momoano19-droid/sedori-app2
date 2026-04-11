@@ -1,6 +1,3 @@
-/* =========================
-   バックアップ
-========================= */
 function toggleBackupAccordion(forceOpen = null) {
   const body = document.getElementById("backupAccordionBody");
   const header = document.getElementById("backupAccordionHeader");
@@ -129,9 +126,6 @@ function showAutoBackupInfo() {
   );
 }
 
-/* =========================
-   今日ルート順序 / ルート
-========================= */
 function syncTodayRouteOrder() {
   const todayIds = stores.filter(s => s.today).map(s => s.id);
   const todaySet = new Set(todayIds);
@@ -228,7 +222,11 @@ function setSplitRouteCache(routeStores) {
       stores: storesPart,
       url: buildGoogleMapsRouteUrl(storesPart),
       start: idx * 9 + 1,
-      end: idx * 9 + storesPart.length
+      end: idx * 9 + storesPart.length,
+      estimatedMinutes: estimateRouteMinutes(
+        storesPart,
+        idx === 0 ? window.lastPos : null
+      )
     }))
   };
 }
@@ -345,9 +343,6 @@ function buildTodayRoute() {
   openRouteInGoogleMaps(routeStores);
 }
 
-/* =========================
-   保存済みルート
-========================= */
 function sortSavedRoutes() {
   savedRoutes.sort((a, b) => {
     if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
@@ -499,9 +494,6 @@ function deleteSavedRoute(routeId) {
   render();
 }
 
-/* =========================
-   店舗CRUD
-========================= */
 async function addStore() {
   const name = document.getElementById("storeName")?.value?.trim() || "";
   const pref = document.getElementById("prefName")?.value?.trim() || "";
@@ -707,9 +699,6 @@ async function refreshAllCoordinates() {
   alert("座標再取得が完了しました。");
 }
 
-/* =========================
-   数値更新
-========================= */
 function visit(i) {
   const s = stores[i];
   if (!s) return;
@@ -863,9 +852,6 @@ function itemsMinus(i) {
   });
 }
 
-/* =========================
-   今日行く / 表示範囲
-========================= */
 function toggleToday(i, checked) {
   const s = stores[i];
   if (!s) return;
@@ -995,8 +981,7 @@ function moveToCurrentLocation() {
       lastMapRenderSignature = "";
       render();
     },
-    () => alert("現在地を取得できませんでした。")
-  );
+    () => alert("現在地を取得できませんでした。"))
 }
 
 function showNoCoordsOnly() {
@@ -1015,9 +1000,6 @@ function setLayoutMode(mode) {
   render();
 }
 
-/* =========================
-   個数＋カテゴリ＋利益モーダル
-========================= */
 function ensureQtyCategoryModal() {
   if (document.getElementById("qtyCategoryModal")) return;
 
@@ -1392,9 +1374,6 @@ function closeQtyCategoryModal(result) {
   }
 }
 
-/* =========================
-   利益修正モーダル
-========================= */
 function ensureProfitEditModal() {
   if (document.getElementById("profitEditModal")) return;
 
