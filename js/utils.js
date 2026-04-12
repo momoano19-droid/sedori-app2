@@ -58,13 +58,9 @@ function distanceKm(lat1, lng1, lat2, lng2) {
 function estimateRouteMinutes(routeStores, startPos = null) {
   if (!Array.isArray(routeStores) || routeStores.length === 0) return null;
 
-  const AVG_SPEED_KMH = 32;
-  const ROAD_FACTOR_BASE = 1.12;
-  const ROAD_FACTOR_PER_STOP = 0.004;
-  const ROAD_FACTOR_MAX_ADD = 0.04;
-
-  const FIRST_STOP_EXTRA_MIN = 1;
-  const PER_STORE_STOP_MIN = 1;
+  const AVG_SPEED_KMH = 38;
+  const ROAD_FACTOR = 1.05;
+  const PER_STORE_STOP_MIN = 0;
 
   let totalStraightKm = 0;
   let prevPoint = null;
@@ -100,17 +96,9 @@ function estimateRouteMinutes(routeStores, startPos = null) {
 
   if (validStopCount === 0) return null;
 
-  const roadFactor =
-    ROAD_FACTOR_BASE +
-    Math.min(validStopCount * ROAD_FACTOR_PER_STOP, ROAD_FACTOR_MAX_ADD);
-
-  const adjustedRoadKm = totalStraightKm * roadFactor;
+  const adjustedRoadKm = totalStraightKm * ROAD_FACTOR;
   const driveMinutes = (adjustedRoadKm / AVG_SPEED_KMH) * 60;
-
-  const stopMinutes =
-    validStopCount > 0
-      ? FIRST_STOP_EXTRA_MIN + (validStopCount * PER_STORE_STOP_MIN)
-      : 0;
+  const stopMinutes = validStopCount * PER_STORE_STOP_MIN;
 
   const totalMinutes = driveMinutes + stopMinutes;
 
