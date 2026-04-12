@@ -1987,3 +1987,16 @@ a{
   background:#ffffff;
   box-shadow:0 0 0 2px #2563eb;
 }
+.todayRouteItemVisited{
+  opacity:.68;
+  background:#f8fafc;
+  border-color:#dbe3ee;
+}
+
+.todayRouteItemVisited .todayRouteName{
+  color:#6b7280;
+}
+
+.todayRouteItemVisited .mini{
+  color:#94a3b8;
+}
