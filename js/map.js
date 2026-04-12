@@ -35,6 +35,39 @@ function makeMarkerIcon(color) {
   });
 }
 
+function renderCurrentLocationMarker() {
+  if (!map || !window.lastPos) return;
+
+  const { lat, lng } = window.lastPos;
+  if (typeof lat !== "number" || typeof lng !== "number") return;
+
+  const currentLocationIcon = L.divIcon({
+    className: "current-location-marker-wrap",
+    html: `
+      <div class="current-location-nav-marker">
+        <div class="current-location-nav-ring"></div>
+        <div class="current-location-nav-arrow"></div>
+        <div class="current-location-nav-dot"></div>
+      </div>
+    `,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15]
+  });
+
+  if (currentLocationMarker) {
+    currentLocationMarker.setLatLng([lat, lng]);
+    currentLocationMarker.setIcon(currentLocationIcon);
+    return;
+  }
+
+  currentLocationMarker = L.marker([lat, lng], {
+    icon: currentLocationIcon,
+    zIndexOffset: 1000
+  }).addTo(map);
+
+  currentLocationMarker.bindPopup("現在地");
+}
+
 function renderMapMarkersNow() {
   if (!mapInitialized || !map) return;
 
@@ -48,7 +81,8 @@ function renderMapMarkersNow() {
     prefFilter: filterValues.prefFilter,
     minExpected: filterValues.minExpected,
     minRate: filterValues.minRate,
-    todayMarks: stores.filter(s => s.today).map(s => s.id)
+    todayMarks: stores.filter(s => s.today).map(s => s.id),
+    currentPos: window.lastPos ? `${window.lastPos.lat},${window.lastPos.lng}` : ""
   });
 
   if (signature === lastMapRenderSignature) return;
@@ -61,6 +95,7 @@ function renderMapMarkersNow() {
   clearMapMarkers();
 
   if (noCoordsOnlyMode || !list.length) {
+    renderCurrentLocationMarker();
     preserveMapViewOnNextRender = false;
     return;
   }
@@ -148,8 +183,13 @@ function renderMapMarkersNow() {
     bounds.push([s.lat, s.lng]);
   });
 
+  renderCurrentLocationMarker();
+
   if (shouldPreserveView && currentCenter && typeof currentZoom === "number") {
     map.setView(currentCenter, currentZoom);
+  } else if (window.lastPos && bounds.length) {
+    const allBounds = [...bounds, [window.lastPos.lat, window.lastPos.lng]];
+    map.fitBounds(allBounds, { padding: [20, 20] });
   } else if (bounds.length === 1) {
     map.setView(bounds[0], 15);
   } else {
