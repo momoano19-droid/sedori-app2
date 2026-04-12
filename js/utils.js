@@ -58,13 +58,13 @@ function distanceKm(lat1, lng1, lat2, lng2) {
 function estimateRouteMinutes(routeStores, startPos = null) {
   if (!Array.isArray(routeStores) || routeStores.length === 0) return null;
 
-  const AVG_SPEED_KMH = 22;
-  const ROAD_FACTOR_BASE = 1.45;
-  const ROAD_FACTOR_PER_STOP = 0.015;
-  const ROAD_FACTOR_MAX_ADD = 0.18;
+  const AVG_SPEED_KMH = 32;
+  const ROAD_FACTOR_BASE = 1.12;
+  const ROAD_FACTOR_PER_STOP = 0.004;
+  const ROAD_FACTOR_MAX_ADD = 0.04;
 
-  const FIRST_STOP_EXTRA_MIN = 5;
-  const PER_STORE_STOP_MIN = 5;
+  const FIRST_STOP_EXTRA_MIN = 1;
+  const PER_STORE_STOP_MIN = 1;
 
   let totalStraightKm = 0;
   let prevPoint = null;
