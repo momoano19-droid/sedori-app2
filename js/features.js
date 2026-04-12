@@ -232,18 +232,39 @@ function buildGoogleMapsRouteUrl(routeStores) {
 function setSplitRouteCache(routeStores) {
   const chunks = chunkRouteStores(routeStores, 9);
 
+  let carryStartPos =
+    window.lastPos &&
+    typeof window.lastPos.lat === "number" &&
+    typeof window.lastPos.lng === "number"
+      ? { lat: window.lastPos.lat, lng: window.lastPos.lng }
+      : null;
+
   splitRouteCache = {
-    parts: chunks.map((storesPart, idx) => ({
-      index: idx + 1,
-      stores: storesPart,
-      url: buildGoogleMapsRouteUrl(storesPart),
-      start: idx * 9 + 1,
-      end: idx * 9 + storesPart.length,
-      estimatedMinutes: estimateRouteMinutes(
-        storesPart,
-        idx === 0 ? window.lastPos : null
-      )
-    }))
+    parts: chunks.map((storesPart, idx) => {
+      const estimatedMinutes = estimateRouteMinutes(storesPart, carryStartPos);
+
+      const lastStoreWithCoords = [...storesPart]
+        .reverse()
+        .find(store => hasCoords(store));
+
+      if (lastStoreWithCoords) {
+        carryStartPos = {
+          lat: lastStoreWithCoords.lat,
+          lng: lastStoreWithCoords.lng
+        };
+      } else {
+        carryStartPos = null;
+      }
+
+      return {
+        index: idx + 1,
+        stores: storesPart,
+        url: buildGoogleMapsRouteUrl(storesPart),
+        start: idx * 9 + 1,
+        end: idx * 9 + storesPart.length,
+        estimatedMinutes
+      };
+    })
   };
 }
 
