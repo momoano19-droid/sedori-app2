@@ -34,6 +34,27 @@ let profitEditTargetIndex = -1;
 
 let todayRouteAccordionOpen = true;
 
+const TODAY_ROUTE_VISITED_KEY = "today_route_visited_ids";
+
+function loadTodayRouteVisitedIds() {
+  try {
+    const raw = localStorage.getItem(TODAY_ROUTE_VISITED_KEY);
+    const arr = JSON.parse(raw || "[]");
+    return Array.isArray(arr) ? arr.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveTodayRouteVisitedIds() {
+  localStorage.setItem(
+    TODAY_ROUTE_VISITED_KEY,
+    JSON.stringify(todayRouteVisitedIds)
+  );
+}
+
+let todayRouteVisitedIds = loadTodayRouteVisitedIds();
+
 function toggleTodayRouteAccordion(forceOpen = null) {
   const body = document.getElementById("todayRouteAccordionBody");
   const header = document.getElementById("todayRouteAccordionHeader");
@@ -50,6 +71,30 @@ function toggleTodayRouteAccordion(forceOpen = null) {
 
 function syncTodayRouteAccordionUI() {
   toggleTodayRouteAccordion(todayRouteAccordionOpen);
+}
+
+function isTodayRouteVisited(storeId) {
+  return todayRouteVisitedIds.includes(storeId);
+}
+
+function markTodayRouteVisited(storeId) {
+  if (!storeId) return;
+  if (!todayRouteVisitedIds.includes(storeId)) {
+    todayRouteVisitedIds.push(storeId);
+    saveTodayRouteVisitedIds();
+  }
+}
+
+function unmarkTodayRouteVisited(storeId) {
+  todayRouteVisitedIds = todayRouteVisitedIds.filter(id => id !== storeId);
+  saveTodayRouteVisitedIds();
+}
+
+function syncTodayRouteVisitedIds() {
+  const todayIds = stores.filter(s => s.today).map(s => s.id);
+  const todaySet = new Set(todayIds);
+  todayRouteVisitedIds = todayRouteVisitedIds.filter(id => todaySet.has(id));
+  saveTodayRouteVisitedIds();
 }
 
 function buildFilteredStoreList() {
@@ -374,6 +419,7 @@ function renderTodayRouteList() {
   if (!el) return;
 
   syncTodayRouteOrder();
+  syncTodayRouteVisitedIds();
 
   const routeStores = todayRouteOrder
     .map(id => stores.find(s => s.id === id))
@@ -409,22 +455,32 @@ function renderTodayRouteList() {
 
   el.innerHTML = `
     ${splitButtonsHtml}
-    ${routeStores.map((s, idx) => `
-      <div class="item todayRouteItem">
-        <div class="name todayRouteName">${idx + 1}. ${escapeHtml(s.name)}</div>
-        <div class="mini">${escapeHtml(s.pref || "")}${s.address ? ` / ${escapeHtml(s.address)}` : ""}</div>
+    ${routeStores.map((s, idx) => {
+      const visited = isTodayRouteVisited(s.id);
 
-        <div class="row2 mt8">
-          <button class="ghostBtn" onclick="moveTodayRouteItem(${idx}, -1)">↑ 上へ</button>
-          <button class="ghostBtn" onclick="moveTodayRouteItem(${idx}, 1)">↓ 下へ</button>
-        </div>
+      return `
+        <div class="item todayRouteItem ${visited ? "todayRouteItemVisited" : ""}">
+          <div class="name todayRouteName">
+            ${idx + 1}. ${escapeHtml(s.name)}
+            ${visited ? `<span class="badge" style="margin-left:8px;">訪問済み</span>` : ``}
+          </div>
 
-        <div class="row2 mt8">
-          <button class="dangerBtn" onclick="removeTodayRouteItem(${idx})">ルートから外す</button>
-          <div></div>
+          <div class="mini">
+            ${escapeHtml(s.pref || "")}${s.address ? ` / ${escapeHtml(s.address)}` : ""}
+          </div>
+
+          <div class="row2 mt8">
+            <button class="ghostBtn" onclick="moveTodayRouteItem(${idx}, -1)">↑ 上へ</button>
+            <button class="ghostBtn" onclick="moveTodayRouteItem(${idx}, 1)">↓ 下へ</button>
+          </div>
+
+          <div class="row2 mt8">
+            <button class="dangerBtn" onclick="removeTodayRouteItem(${idx})">ルートから外す</button>
+            <button class="ghostBtn" onclick="unmarkTodayRouteVisited('${escapeJsString(s.id)}')">訪問済み解除</button>
+          </div>
         </div>
-      </div>
-    `).join("")}
+      `;
+    }).join("")}
   `;
 }
 
@@ -432,6 +488,7 @@ function render() {
   updateLayoutButtons();
   buildPrefFilter();
   syncTodayRouteOrder();
+  syncTodayRouteVisitedIds();
 
   const list = buildFilteredStoreList();
   const wrap = document.getElementById("storeList");
@@ -450,6 +507,7 @@ function render() {
     layout: currentLayoutMode,
     todayMarks: stores.filter(s => s.today).map(s => s.id),
     todayRouteOrder,
+    todayRouteVisitedIds,
     splitRouteCacheExists: !!splitRouteCache,
     splitRouteParts: splitRouteCache?.parts?.map(p => `${p.index}:${p.start}-${p.end}:${p.estimatedMinutes}`).join("|") || "",
     lastVisitDates: stores.map(s => `${s.id}:${s.lastVisitDate}`),
@@ -576,6 +634,7 @@ function setupButtonPressEffect() {
 
 window.addEventListener("load", () => {
   syncTodayRouteOrder();
+  syncTodayRouteVisitedIds();
   initMap();
   updateLayoutButtons();
   restoreSortType();
