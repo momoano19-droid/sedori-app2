@@ -55,11 +55,20 @@ function distanceKm(lat1, lng1, lat2, lng2) {
   return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function estimateRouteMinutes(routeStores, startPos = null, avgSpeedKmh = 30) {
+function estimateRouteMinutes(routeStores, startPos = null) {
   if (!Array.isArray(routeStores) || routeStores.length === 0) return null;
 
-  let totalKm = 0;
+  const AVG_SPEED_KMH = 22;
+  const ROAD_FACTOR_BASE = 1.45;
+  const ROAD_FACTOR_PER_STOP = 0.015;
+  const ROAD_FACTOR_MAX_ADD = 0.18;
+
+  const FIRST_STOP_EXTRA_MIN = 5;
+  const PER_STORE_STOP_MIN = 5;
+
+  let totalStraightKm = 0;
   let prevPoint = null;
+  let validStopCount = 0;
 
   if (
     startPos &&
@@ -75,17 +84,37 @@ function estimateRouteMinutes(routeStores, startPos = null, avgSpeedKmh = 30) {
       return;
     }
 
+    validStopCount += 1;
+
     if (prevPoint) {
-      totalKm += distanceKm(prevPoint.lat, prevPoint.lng, store.lat, store.lng);
+      totalStraightKm += distanceKm(
+        prevPoint.lat,
+        prevPoint.lng,
+        store.lat,
+        store.lng
+      );
     }
 
     prevPoint = { lat: store.lat, lng: store.lng };
   });
 
-  if (totalKm <= 0) return null;
+  if (validStopCount === 0) return null;
 
-  const minutes = (totalKm / avgSpeedKmh) * 60;
-  return Math.max(1, Math.round(minutes));
+  const roadFactor =
+    ROAD_FACTOR_BASE +
+    Math.min(validStopCount * ROAD_FACTOR_PER_STOP, ROAD_FACTOR_MAX_ADD);
+
+  const adjustedRoadKm = totalStraightKm * roadFactor;
+  const driveMinutes = (adjustedRoadKm / AVG_SPEED_KMH) * 60;
+
+  const stopMinutes =
+    validStopCount > 0
+      ? FIRST_STOP_EXTRA_MIN + (validStopCount * PER_STORE_STOP_MIN)
+      : 0;
+
+  const totalMinutes = driveMinutes + stopMinutes;
+
+  return Math.max(1, Math.round(totalMinutes));
 }
 
 function formatEstimatedMinutes(minutes) {
