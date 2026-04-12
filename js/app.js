@@ -13,6 +13,7 @@ let mapMarkers = [];
 let mapInitialized = false;
 let preserveMapViewOnNextRender = false;
 let splitRouteCache = null;
+let currentLocationMarker = null;
 window.lastPos = null;
 
 let openSavedRouteId = null;
@@ -398,7 +399,7 @@ function renderTodayRouteList() {
                 </div>
               </div>
               <div class="mini routeSplitSub">
-                ${part.start}〜${part.end}店舗目
+                対象: ${part.start}〜${part.end}店舗目
               </div>
             </div>
           `).join("")}
@@ -454,7 +455,8 @@ function render() {
     lastVisitDates: stores.map(s => `${s.id}:${s.lastVisitDate}`),
     savedRoutes: savedRoutes.map(r => `${r.id}:${r.updatedAt}:${r.favorite}`).join("|"),
     openSavedRouteId,
-    todayRouteAccordionOpen
+    todayRouteAccordionOpen,
+    currentLocation: window.lastPos ? `${window.lastPos.lat},${window.lastPos.lng}` : ""
   });
 
   if (signature !== lastListRenderSignature) {
@@ -467,6 +469,7 @@ function render() {
   renderSavedRoutesList();
   renderTodayRouteList();
   scheduleRenderMapMarkers();
+  renderCurrentLocationMarker();
   syncTodayRouteAccordionUI();
 }
 
