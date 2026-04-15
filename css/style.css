@@ -2000,3 +2000,38 @@ a{
 .todayRouteItemVisited .mini{
   color:#94a3b8;
 }
+.dayCell{
+  position:relative;
+  padding-top:4px;
+  padding-bottom:18px;
+}
+
+.dayNum{
+  position:relative;
+  z-index:2;
+}
+
+.dayMark{
+  position:absolute;
+  left:50%;
+  top:42%;
+  transform:translate(-50%, -50%);
+  font-size:14px;
+  line-height:1;
+  pointer-events:none;
+  z-index:1;
+}
+
+.dayMark.party{
+  transform:translate(-50%, -50%);
+}
+
+.dayMark.trophy{
+  transform:translate(-50%, -50%);
+}
+
+.dayValue{
+  position:relative;
+  z-index:2;
+  margin-top:12px;
+}
