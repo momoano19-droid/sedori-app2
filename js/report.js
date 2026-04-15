@@ -372,14 +372,14 @@ function buildTopListsFromStoreStats(storeStats) {
   return {
     expected: [...normalized]
       .sort((a, b) => b.expected - a.expected)
-      .slice(0, 10),
+      .slice(0, 5),
     rate: [...normalized]
       .filter(x => Number(x.visits || 0) > 0)
       .sort((a, b) => b.rate - a.rate || b.success - a.success)
-      .slice(0, 10),
+      .slice(0, 5),
     profit: [...normalized]
       .sort((a, b) => b.profit - a.profit)
-      .slice(0, 10)
+      .slice(0, 5)
   };
 }
 
@@ -832,14 +832,15 @@ function renderCalendar(targetMonth, dailyStats) {
     const success = Number(info.success || 0);
     const items = Number(info.items || 0);
 
-    const isBigSuccess = profit >= 100000;
+    const isTrophy = profit >= 100000;
+    const isParty = profit >= 50000 && profit < 100000;
     const hasProfit = profit > 0;
     const hasVisitOnly = !hasProfit && (visits > 0 || success > 0 || items > 0);
     const isToday = ds === today;
     const isSelected = ds === selectedDay;
 
     let cls = "dayCell";
-    if (isBigSuccess) cls += " hasData bigSuccess";
+    if (isTrophy) cls += " hasData bigSuccess";
     else if (hasProfit) cls += " hasData";
     else if (hasVisitOnly) cls += " visitOnly";
     if (isToday) cls += " today";
@@ -849,9 +850,16 @@ function renderCalendar(targetMonth, dailyStats) {
     if (hasProfit) valueText = shortMoney(profit);
     else if (hasVisitOnly) valueText = "0";
 
+    const markHtml = isTrophy
+      ? `<div class="dayMark trophy">🏆</div>`
+      : isParty
+        ? `<div class="dayMark party">🎉</div>`
+        : "";
+
     html += `
       <div class="${cls}" onclick="handleDayTap('${ds}')">
         <div class="dayNum">${day}</div>
+        ${markHtml}
         <div class="dayValue">${escapeHtml(valueText)}</div>
       </div>
     `;
@@ -920,9 +928,9 @@ function renderTopStores(topLists) {
   if (!el) return;
 
   el.innerHTML = `
-    ${renderOneTopList("🏆 期待値TOP10", topLists.expected, "expected")}
-    ${renderOneTopList("🎯 成功率TOP10", topLists.rate, "rate")}
-    ${renderOneTopList("💰 利益TOP10", topLists.profit, "profit")}
+    ${renderOneTopList("🏆 期待値TOP5", topLists.expected, "expected")}
+    ${renderOneTopList("🎯 成功率TOP5", topLists.rate, "rate")}
+    ${renderOneTopList("💰 利益TOP5", topLists.profit, "profit")}
   `;
 }
 
