@@ -2205,3 +2205,117 @@ a{
   font-size:12px;
   color:#475569;
 }
+.badgeMiniCard{
+  background:linear-gradient(135deg, #eef4ff 0%, #f8fbff 100%);
+  border:2px solid #bfd5ff;
+  border-radius:18px;
+  padding:16px 16px 14px;
+  margin:12px 0;
+  box-shadow:0 8px 22px rgba(57,118,246,.10);
+}
+
+.badgeMiniTitle{
+  font-size:15px;
+  font-weight:900;
+  color:#1f2340;
+  margin-bottom:6px;
+}
+
+.badgeMiniProgress{
+  font-size:20px;
+  font-weight:900;
+  color:#2563eb;
+  margin-bottom:8px;
+  line-height:1.2;
+}
+
+.badgeMiniLatest,
+.badgeMiniNext{
+  font-size:14px;
+  line-height:1.6;
+  color:#334155;
+  font-weight:700;
+}
+
+.badgeAccordionHeader{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  background:linear-gradient(135deg, #e9f1ff 0%, #f4f8ff 100%);
+  border:2px solid #bfd5ff;
+  border-radius:18px;
+  padding:16px 18px;
+  color:#1f2340;
+  font-weight:900;
+  box-shadow:0 6px 18px rgba(57,118,246,.08);
+}
+
+.badgeAccordionHeader .sectionTitle{
+  font-size:17px;
+  font-weight:900;
+}
+
+.badgeAccordionChevron{
+  font-size:24px;
+  line-height:1;
+  color:#3976f6;
+}
+
+.badgeItem{
+  border:2px solid #d7e5ff;
+  border-radius:16px;
+  padding:14px;
+  background:#fff;
+  box-shadow:0 4px 12px rgba(15,23,42,.04);
+}
+
+.badgeItem.unlocked{
+  border-color:#aecdff;
+  background:linear-gradient(135deg, #f7fbff 0%, #ffffff 100%);
+}
+
+.badgeItem.locked{
+  opacity:.82;
+  background:#f8fafc;
+}
+
+.badgeIcon{
+  font-size:26px;
+  line-height:1;
+}
+
+.badgeName{
+  font-size:15px;
+  font-weight:900;
+  color:#1f2340;
+}
+
+.badgeDesc{
+  font-size:13px;
+  color:#64748b;
+  margin-top:3px;
+  line-height:1.5;
+}
+
+.badgeState{
+  font-size:13px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+.badgeState.unlocked{
+  color:#2563eb;
+}
+
+.badgeState.locked{
+  color:#94a3b8;
+}
+
+.badgeProgress{
+  margin-top:10px;
+  font-size:13px;
+  color:#475569;
+  font-weight:700;
+}
