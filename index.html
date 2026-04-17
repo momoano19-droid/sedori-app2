@@ -88,9 +88,21 @@
     </section>
     
 　　<section class="card">
- 　　　 <h2 class="sectionTitle">🏅 実績一覧</h2>
- 　　　 <div id="badgeListWrap"></div>
-　　</section>
+  <button
+    type="button"
+    class="badgeAccordionHeader"
+    onclick="toggleBadgeAccordion()"
+    aria-expanded="true"
+    id="badgeAccordionHeader"
+  >
+    <span class="sectionTitle" style="margin:0;">🏅 実績一覧</span>
+    <span class="badgeAccordionChevron" id="badgeAccordionChevron">▲</span>
+  </button>
+
+  <div id="badgeAccordionBody" class="badgeAccordionBody">
+    <div id="badgeListWrap" class="mt12"></div>
+  </div>
+</section>
     
     <section class="card">
       <h2 class="sectionTitle">🔎 絞り込み / 並び替え</h2>
