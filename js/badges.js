@@ -622,7 +622,7 @@ function renderBadgesIfExists() {
   renderBadgeList();
   toggleBadgeAccordion(badgeAccordionOpen);
 }
-let badgeAccordionOpen = true;
+let badgeAccordionOpen = false;
 
 function syncBadgeAccordionUI() {
   const body = document.getElementById("badgeAccordionBody");
