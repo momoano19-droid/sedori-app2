@@ -529,7 +529,7 @@ renderTodayRouteList();
 scheduleRenderMapMarkers();
 renderCurrentLocationMarker();
 syncTodayRouteAccordionUI();
-renderBadgeMiniCardIfExists();
+renderBadgesIfExists();
 }
 
 let helpStep = 0;
@@ -640,7 +640,7 @@ window.addEventListener("load", () => {
   updateLayoutButtons();
   restoreSortType();
   render();
-  renderBadgeMiniCardIfExists();
+  renderBadgesIfExists();
   setTimeout(() => autoDetectNearbyStores(), 800);
   setupButtonPressEffect();
 });
