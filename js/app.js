@@ -524,11 +524,12 @@ function render() {
     lastListRenderSignature = signature;
   }
 
-  renderSavedRoutesList();
-  renderTodayRouteList();
-  scheduleRenderMapMarkers();
-  renderCurrentLocationMarker();
-  syncTodayRouteAccordionUI();
+renderSavedRoutesList();
+renderTodayRouteList();
+scheduleRenderMapMarkers();
+renderCurrentLocationMarker();
+syncTodayRouteAccordionUI();
+renderBadgeMiniCardIfExists();
 }
 
 let helpStep = 0;
@@ -639,6 +640,7 @@ window.addEventListener("load", () => {
   updateLayoutButtons();
   restoreSortType();
   render();
+  renderBadgeMiniCardIfExists();
   setTimeout(() => autoDetectNearbyStores(), 800);
   setupButtonPressEffect();
 });
