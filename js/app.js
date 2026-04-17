@@ -72,7 +72,22 @@ function toggleTodayRouteAccordion(forceOpen = null) {
 function syncTodayRouteAccordionUI() {
   toggleTodayRouteAccordion(todayRouteAccordionOpen);
 }
+function scrollToStoreList() {
+  const target = document.getElementById("storeList");
+  if (!target) return;
 
+  target.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+}
+
+function scrollToTopArea() {
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth"
+  });
+}
 function isTodayRouteVisited(storeId) {
   return todayRouteVisitedIds.includes(storeId);
 }
