@@ -236,7 +236,12 @@ function saveBadgeUnlockedHistory(list) {
 
 function getBadgeStores() {
   try {
+    if (typeof stores !== "undefined" && Array.isArray(stores)) return stores;
+  } catch {}
+  try {
     if (Array.isArray(window.stores)) return window.stores;
+  } catch {}
+  try {
     if (typeof loadStores === "function") return loadStores();
   } catch {}
   return [];
@@ -244,7 +249,12 @@ function getBadgeStores() {
 
 function getBadgeLogs() {
   try {
+    if (typeof logs !== "undefined" && Array.isArray(logs)) return logs;
+  } catch {}
+  try {
     if (Array.isArray(window.logs)) return window.logs;
+  } catch {}
+  try {
     if (typeof loadLogs === "function") return loadLogs();
   } catch {}
   return [];
@@ -268,15 +278,15 @@ function getBadgeMetricsForStore(store) {
 }
 
 function getBadgeStats() {
-  const stores = getBadgeStores();
-  const logs = getBadgeLogs();
+  const storesList = getBadgeStores();
+  const logsList = getBadgeLogs();
 
   let totalVisits = 0;
   let totalSuccess = 0;
   let totalItems = 0;
   let totalProfit = 0;
 
-  logs.forEach(log => {
+  logsList.forEach(log => {
     const delta = badgeSafeNumber(log?.delta);
 
     if (log?.type === "visit") totalVisits += delta;
@@ -289,12 +299,12 @@ function getBadgeStats() {
   totalSuccess = Math.max(0, totalSuccess);
   totalItems = Math.max(0, totalItems);
 
-  const highExpectedStoreCount = stores.filter(store => {
+  const highExpectedStoreCount = storesList.filter(store => {
     const m = getBadgeMetricsForStore(store);
     return m.expected >= 3000;
   }).length;
 
-  const stableStoreCount = stores.filter(store => {
+  const stableStoreCount = storesList.filter(store => {
     const m = getBadgeMetricsForStore(store);
     return m.visits > 0 && m.rate >= 30;
   }).length;
@@ -309,7 +319,7 @@ function getBadgeStats() {
     highExpectedStoreCount,
     stableStoreCount,
     completedRouteCount,
-    totalStoreCount: stores.length
+    totalStoreCount: storesList.length
   };
 }
 
@@ -399,6 +409,7 @@ function syncUnlockedBadgeHistory() {
   const unlocked = getUnlockedBadges();
   const history = loadBadgeUnlockedHistory();
   const existingMap = {};
+
   history.forEach(item => {
     if (item?.id) existingMap[item.id] = item;
   });
@@ -482,23 +493,38 @@ function getBadgeListViewData() {
       unlocked,
       current,
       unlockedAt: historyMap[badge.id] || "",
-      progressText: unlocked
-        ? "達成済み"
-        : getBadgeProgressText(badge, current)
+      progressText: unlocked ? "達成済み" : getBadgeProgressText(badge, current)
     };
   });
 }
 
 function getCompletedTodayRouteCount() {
-  const todayIds = Array.isArray(window.todayRouteOrder) ? window.todayRouteOrder : [];
-  const visitedIds = Array.isArray(window.todayRouteVisitedIds) ? window.todayRouteVisitedIds : [];
+  let todayIds = [];
+  let visitedIds = [];
+
+  try {
+    if (typeof todayRouteOrder !== "undefined" && Array.isArray(todayRouteOrder)) {
+      todayIds = todayRouteOrder;
+    } else if (Array.isArray(window.todayRouteOrder)) {
+      todayIds = window.todayRouteOrder;
+    }
+  } catch {}
+
+  try {
+    if (typeof todayRouteVisitedIds !== "undefined" && Array.isArray(todayRouteVisitedIds)) {
+      visitedIds = todayRouteVisitedIds;
+    } else if (Array.isArray(window.todayRouteVisitedIds)) {
+      visitedIds = window.todayRouteVisitedIds;
+    }
+  } catch {}
+
   const todaySet = new Set(todayIds);
   return visitedIds.filter(id => todaySet.has(id)).length;
 }
 
 function getTodayRouteTotalCount() {
-  const stores = getBadgeStores();
-  return stores.filter(store => !!store.today).length;
+  const storesList = getBadgeStores();
+  return storesList.filter(store => !!store.today).length;
 }
 
 function checkAndCountCompletedRoute() {
@@ -542,35 +568,51 @@ function renderBadgeList() {
   const el = document.getElementById("badgeListWrap");
   if (!el) return;
 
-  const list = getBadgeListViewData();
+  let list = [];
+  try {
+    list = getBadgeListViewData();
+  } catch (e) {
+    console.error("renderBadgeList error:", e);
+    el.innerHTML = `<div class="emptyText">実績一覧の読み込みに失敗しました。</div>`;
+    return;
+  }
 
   if (!Array.isArray(list) || !list.length) {
     el.innerHTML = `<div class="emptyText">実績データがありません。</div>`;
     return;
   }
 
+  const unlocked = list.filter(b => b.unlocked);
+  const locked = list.filter(b => !b.unlocked);
+  const ordered = [...unlocked, ...locked];
+
   el.innerHTML = `
     <div class="badgeListWrap">
-      ${list.map(badge => `
-        <div class="badgeItem ${badge.unlocked ? "unlocked" : "locked"}">
-          <div class="badgeRowTop">
-            <div class="badgeMain">
-              <div class="badgeIcon">${badge.icon}</div>
-              <div>
-                <div class="badgeName">${escapeHtml(badge.name)}</div>
-                <div class="badgeDesc">${escapeHtml(badge.description || "")}</div>
+      ${ordered.map(badge => {
+        const stateText = badge.unlocked ? "達成" : "未達成";
+        const progressText = badge.unlocked
+          ? "解除済み"
+          : (badge.progressText || "");
+
+        return `
+          <div class="badgeItem ${badge.unlocked ? "unlocked" : "locked"}">
+            <div class="badgeRowTop">
+              <div class="badgeMain">
+                <div class="badgeIcon">${badge.icon || "🏅"}</div>
+                <div>
+                  <div class="badgeName">${escapeHtml(badge.name || "実績")}</div>
+                  <div class="badgeDesc">${escapeHtml(badge.description || "")}</div>
+                </div>
+              </div>
+              <div class="badgeState ${badge.unlocked ? "unlocked" : "locked"}">
+                ${stateText}
               </div>
             </div>
-            <div class="badgeState ${badge.unlocked ? "unlocked" : "locked"}">
-              ${badge.unlocked ? "達成" : "未達成"}
-            </div>
-          </div>
 
-          <div class="badgeProgress">
-            ${badge.unlocked ? "解除済み" : escapeHtml(badge.progressText || "")}
+            <div class="badgeProgress">${escapeHtml(progressText)}</div>
           </div>
-        </div>
-      `).join("")}
+        `;
+      }).join("")}
     </div>
   `;
 }
