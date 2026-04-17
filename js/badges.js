@@ -4,6 +4,7 @@ const BADGE_DEFINITIONS = [
     icon: "👣",
     name: "はじめの一歩",
     category: "visit",
+    tier: "初級",
     description: "訪問1回達成",
     condition: stats => stats.totalVisits >= 1,
     progress: stats => stats.totalVisits,
@@ -14,6 +15,7 @@ const BADGE_DEFINITIONS = [
     icon: "👣",
     name: "巡回スタート",
     category: "visit",
+    tier: "初級",
     description: "訪問10回達成",
     condition: stats => stats.totalVisits >= 10,
     progress: stats => stats.totalVisits,
@@ -24,6 +26,7 @@ const BADGE_DEFINITIONS = [
     icon: "👣",
     name: "巡回職人",
     category: "visit",
+    tier: "中級",
     description: "訪問50回達成",
     condition: stats => stats.totalVisits >= 50,
     progress: stats => stats.totalVisits,
@@ -34,10 +37,33 @@ const BADGE_DEFINITIONS = [
     icon: "👣",
     name: "遠征マスター",
     category: "visit",
+    tier: "中級",
     description: "訪問100回達成",
     condition: stats => stats.totalVisits >= 100,
     progress: stats => stats.totalVisits,
     target: 100
+  },
+  {
+    id: "visit_200",
+    icon: "👣",
+    name: "巡回ベテラン",
+    category: "visit",
+    tier: "上級",
+    description: "訪問200回達成",
+    condition: stats => stats.totalVisits >= 200,
+    progress: stats => stats.totalVisits,
+    target: 200
+  },
+  {
+    id: "visit_500",
+    icon: "👣",
+    name: "巡回レジェンド",
+    category: "visit",
+    tier: "上級",
+    description: "訪問500回達成",
+    condition: stats => stats.totalVisits >= 500,
+    progress: stats => stats.totalVisits,
+    target: 500
   },
 
   {
@@ -45,6 +71,7 @@ const BADGE_DEFINITIONS = [
     icon: "🎯",
     name: "初仕入れ",
     category: "success",
+    tier: "初級",
     description: "成功1回達成",
     condition: stats => stats.totalSuccess >= 1,
     progress: stats => stats.totalSuccess,
@@ -55,6 +82,7 @@ const BADGE_DEFINITIONS = [
     icon: "🎯",
     name: "仕入れ上昇中",
     category: "success",
+    tier: "初級",
     description: "成功10回達成",
     condition: stats => stats.totalSuccess >= 10,
     progress: stats => stats.totalSuccess,
@@ -65,6 +93,7 @@ const BADGE_DEFINITIONS = [
     icon: "🎯",
     name: "仕入れ名人",
     category: "success",
+    tier: "中級",
     description: "成功30回達成",
     condition: stats => stats.totalSuccess >= 30,
     progress: stats => stats.totalSuccess,
@@ -75,10 +104,33 @@ const BADGE_DEFINITIONS = [
     icon: "🎯",
     name: "爆仕入れ職人",
     category: "success",
+    tier: "中級",
     description: "成功50回達成",
     condition: stats => stats.totalSuccess >= 50,
     progress: stats => stats.totalSuccess,
     target: 50
+  },
+  {
+    id: "success_100",
+    icon: "🎯",
+    name: "仕入れ達人",
+    category: "success",
+    tier: "上級",
+    description: "成功100回達成",
+    condition: stats => stats.totalSuccess >= 100,
+    progress: stats => stats.totalSuccess,
+    target: 100
+  },
+  {
+    id: "success_200",
+    icon: "🎯",
+    name: "仕入れレジェンド",
+    category: "success",
+    tier: "上級",
+    description: "成功200回達成",
+    condition: stats => stats.totalSuccess >= 200,
+    progress: stats => stats.totalSuccess,
+    target: 200
   },
 
   {
@@ -86,6 +138,7 @@ const BADGE_DEFINITIONS = [
     icon: "💰",
     name: "初利益達成",
     category: "profit",
+    tier: "初級",
     description: "累計利益1万円達成",
     condition: stats => stats.totalProfit >= 10000,
     progress: stats => stats.totalProfit,
@@ -96,6 +149,7 @@ const BADGE_DEFINITIONS = [
     icon: "💰",
     name: "利益職人",
     category: "profit",
+    tier: "初級",
     description: "累計利益10万円達成",
     condition: stats => stats.totalProfit >= 100000,
     progress: stats => stats.totalProfit,
@@ -106,6 +160,7 @@ const BADGE_DEFINITIONS = [
     icon: "💰",
     name: "月間エース級",
     category: "profit",
+    tier: "中級",
     description: "累計利益50万円達成",
     condition: stats => stats.totalProfit >= 500000,
     progress: stats => stats.totalProfit,
@@ -116,10 +171,33 @@ const BADGE_DEFINITIONS = [
     icon: "💰",
     name: "伝説級プレイヤー",
     category: "profit",
+    tier: "中級",
     description: "累計利益100万円達成",
     condition: stats => stats.totalProfit >= 1000000,
     progress: stats => stats.totalProfit,
     target: 1000000
+  },
+  {
+    id: "profit_3000k",
+    icon: "💰",
+    name: "利益王への道",
+    category: "profit",
+    tier: "上級",
+    description: "累計利益300万円達成",
+    condition: stats => stats.totalProfit >= 3000000,
+    progress: stats => stats.totalProfit,
+    target: 3000000
+  },
+  {
+    id: "profit_5000k",
+    icon: "💰",
+    name: "利益王",
+    category: "profit",
+    tier: "上級",
+    description: "累計利益500万円達成",
+    condition: stats => stats.totalProfit >= 5000000,
+    progress: stats => stats.totalProfit,
+    target: 5000000
   },
 
   {
@@ -127,6 +205,7 @@ const BADGE_DEFINITIONS = [
     icon: "📦",
     name: "収集家",
     category: "items",
+    tier: "初級",
     description: "累計個数10個達成",
     condition: stats => stats.totalItems >= 10,
     progress: stats => stats.totalItems,
@@ -137,6 +216,7 @@ const BADGE_DEFINITIONS = [
     icon: "📦",
     name: "大量仕入れ",
     category: "items",
+    tier: "初級",
     description: "累計個数50個達成",
     condition: stats => stats.totalItems >= 50,
     progress: stats => stats.totalItems,
@@ -147,10 +227,22 @@ const BADGE_DEFINITIONS = [
     icon: "📦",
     name: "在庫マスター",
     category: "items",
+    tier: "中級",
     description: "累計個数100個達成",
     condition: stats => stats.totalItems >= 100,
     progress: stats => stats.totalItems,
     target: 100
+  },
+  {
+    id: "items_300",
+    icon: "📦",
+    name: "在庫キング",
+    category: "items",
+    tier: "上級",
+    description: "累計個数300個達成",
+    condition: stats => stats.totalItems >= 300,
+    progress: stats => stats.totalItems,
+    target: 300
   },
 
   {
@@ -158,6 +250,7 @@ const BADGE_DEFINITIONS = [
     icon: "🏪",
     name: "高期待値発見",
     category: "store",
+    tier: "初級",
     description: "期待値3000円以上の店舗を1件作成",
     condition: stats => stats.highExpectedStoreCount >= 1,
     progress: stats => stats.highExpectedStoreCount,
@@ -168,20 +261,44 @@ const BADGE_DEFINITIONS = [
     icon: "🏪",
     name: "優良店舗ハンター",
     category: "store",
+    tier: "中級",
     description: "期待値3000円以上の店舗を3件作成",
     condition: stats => stats.highExpectedStoreCount >= 3,
     progress: stats => stats.highExpectedStoreCount,
     target: 3
   },
   {
+    id: "high_expected_5",
+    icon: "🏪",
+    name: "高期待値コレクター",
+    category: "store",
+    tier: "上級",
+    description: "期待値3000円以上の店舗を5件作成",
+    condition: stats => stats.highExpectedStoreCount >= 5,
+    progress: stats => stats.highExpectedStoreCount,
+    target: 5
+  },
+  {
     id: "stable_store_3",
     icon: "🏪",
     name: "安定運用中",
     category: "store",
+    tier: "中級",
     description: "成功率30%以上の店舗を3件作成",
     condition: stats => stats.stableStoreCount >= 3,
     progress: stats => stats.stableStoreCount,
     target: 3
+  },
+  {
+    id: "stable_store_10",
+    icon: "🏪",
+    name: "安定店舗マスター",
+    category: "store",
+    tier: "上級",
+    description: "成功率30%以上の店舗を10件作成",
+    condition: stats => stats.stableStoreCount >= 10,
+    progress: stats => stats.stableStoreCount,
+    target: 10
   },
 
   {
@@ -189,6 +306,7 @@ const BADGE_DEFINITIONS = [
     icon: "🗺",
     name: "ルート初制覇",
     category: "route",
+    tier: "初級",
     description: "今日のルートを1回すべて訪問",
     condition: stats => stats.completedRouteCount >= 1,
     progress: stats => stats.completedRouteCount,
@@ -199,10 +317,22 @@ const BADGE_DEFINITIONS = [
     icon: "🗺",
     name: "ルートマスター",
     category: "route",
+    tier: "中級",
     description: "今日のルートを5回すべて訪問",
     condition: stats => stats.completedRouteCount >= 5,
     progress: stats => stats.completedRouteCount,
     target: 5
+  },
+  {
+    id: "route_complete_20",
+    icon: "🗺",
+    name: "ルート覇者",
+    category: "route",
+    tier: "上級",
+    description: "今日のルートを20回すべて訪問",
+    condition: stats => stats.completedRouteCount >= 20,
+    progress: stats => stats.completedRouteCount,
+    target: 20
   }
 ];
 
@@ -582,39 +712,55 @@ function renderBadgeList() {
     return;
   }
 
-  const unlocked = list.filter(b => b.unlocked);
-  const locked = list.filter(b => !b.unlocked);
-  const ordered = [...unlocked, ...locked];
+  const tiers = ["初級", "中級", "上級"];
 
-  el.innerHTML = `
-    <div class="badgeListWrap">
-      ${ordered.map(badge => {
-        const stateText = badge.unlocked ? "達成" : "未達成";
-        const progressText = badge.unlocked
-          ? "解除済み"
-          : (badge.progressText || "");
+  const sectionHtml = tiers.map(tier => {
+    const tierList = list.filter(b => (b.tier || "初級") === tier);
+    const unlocked = tierList.filter(b => b.unlocked);
+    const locked = tierList.filter(b => !b.unlocked);
+    const ordered = [...unlocked, ...locked];
 
-        return `
-          <div class="badgeItem ${badge.unlocked ? "unlocked" : "locked"}">
-            <div class="badgeRowTop">
-              <div class="badgeMain">
-                <div class="badgeIcon">${badge.icon || "🏅"}</div>
-                <div>
-                  <div class="badgeName">${escapeHtml(badge.name || "実績")}</div>
-                  <div class="badgeDesc">${escapeHtml(badge.description || "")}</div>
+    if (!ordered.length) return "";
+
+    return `
+      <div class="badgeTierSection">
+        <div class="badgeTierHeader">
+          <span class="badgeTierTitle">${tier}</span>
+          <span class="badgeTierCount">${unlocked.length} / ${ordered.length} 達成</span>
+        </div>
+
+        <div class="badgeListWrap">
+          ${ordered.map(badge => {
+            const stateText = badge.unlocked ? "達成" : "未達成";
+            const progressText = badge.unlocked
+              ? "解除済み"
+              : (badge.progressText || "");
+
+            return `
+              <div class="badgeItem ${badge.unlocked ? "unlocked" : "locked"}">
+                <div class="badgeRowTop">
+                  <div class="badgeMain">
+                    <div class="badgeIcon">${badge.icon || "🏅"}</div>
+                    <div>
+                      <div class="badgeName">${escapeHtml(badge.name || "実績")}</div>
+                      <div class="badgeDesc">${escapeHtml(badge.description || "")}</div>
+                    </div>
+                  </div>
+                  <div class="badgeState ${badge.unlocked ? "unlocked" : "locked"}">
+                    ${stateText}
+                  </div>
                 </div>
-              </div>
-              <div class="badgeState ${badge.unlocked ? "unlocked" : "locked"}">
-                ${stateText}
-              </div>
-            </div>
 
-            <div class="badgeProgress">${escapeHtml(progressText)}</div>
-          </div>
-        `;
-      }).join("")}
-    </div>
-  `;
+                <div class="badgeProgress">${escapeHtml(progressText)}</div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  el.innerHTML = sectionHtml || `<div class="emptyText">実績データがありません。</div>`;
 }
 
 function renderBadgesIfExists() {
