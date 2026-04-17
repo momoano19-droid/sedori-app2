@@ -2035,3 +2035,76 @@ a{
   z-index:2;
   margin-top:20px;
 }
+.badgeListWrap{
+  display:grid;
+  gap:10px;
+}
+
+.badgeItem{
+  border:1px solid #dbe5f0;
+  border-radius:14px;
+  padding:12px;
+  background:#fff;
+}
+
+.badgeItem.unlocked{
+  border-color:#b9d7ff;
+  background:#f8fbff;
+}
+
+.badgeItem.locked{
+  opacity:.72;
+  background:#f8fafc;
+}
+
+.badgeRowTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.badgeMain{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+
+.badgeIcon{
+  font-size:22px;
+  line-height:1;
+}
+
+.badgeName{
+  font-size:14px;
+  font-weight:800;
+  color:#1f2340;
+}
+
+.badgeDesc{
+  font-size:12px;
+  color:#64748b;
+  margin-top:2px;
+  line-height:1.4;
+}
+
+.badgeState{
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+.badgeState.unlocked{
+  color:#2563eb;
+}
+
+.badgeState.locked{
+  color:#94a3b8;
+}
+
+.badgeProgress{
+  margin-top:8px;
+  font-size:12px;
+  color:#475569;
+}
