@@ -1252,7 +1252,7 @@ function applyManualQty() {
 }
 
 function setQuickProfit(amount) {
-  qtyCategoryProfit = clampNonNeg(Number(amount || 0));
+  qtyCategoryProfit += clampNonNeg(Number(amount || 0));
 
   const input = document.getElementById("qtyProfitInput");
   if (input) input.value = String(qtyCategoryProfit);
@@ -1284,8 +1284,7 @@ function updateProfitView() {
   }
 
   document.querySelectorAll(".profitQuickBtn").forEach(btn => {
-    const n = Number(btn.getAttribute("data-profit") || "0");
-    btn.classList.toggle("active", n === qtyCategoryProfit);
+    btn.classList.remove("active");
   });
 }
 
