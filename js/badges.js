@@ -620,4 +620,20 @@ function renderBadgeList() {
 function renderBadgesIfExists() {
   renderBadgeMiniCardIfExists();
   renderBadgeList();
+  toggleBadgeAccordion(badgeAccordionOpen);
+}
+let badgeAccordionOpen = true;
+
+function toggleBadgeAccordion(forceOpen = null) {
+  const body = document.getElementById("badgeAccordionBody");
+  const header = document.getElementById("badgeAccordionHeader");
+  const chevron = document.getElementById("badgeAccordionChevron");
+  if (!body || !header || !chevron) return;
+
+  const willOpen = forceOpen === null ? !badgeAccordionOpen : !!forceOpen;
+  badgeAccordionOpen = willOpen;
+
+  body.style.display = willOpen ? "block" : "none";
+  header.setAttribute("aria-expanded", willOpen ? "true" : "false");
+  chevron.textContent = willOpen ? "▲" : "▼";
 }
