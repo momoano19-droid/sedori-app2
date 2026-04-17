@@ -537,3 +537,47 @@ function renderBadgeMiniCardIfExists() {
     renderBadgeMiniCard();
   }
 }
+
+function renderBadgeList() {
+  const el = document.getElementById("badgeListWrap");
+  if (!el) return;
+
+  const list = getBadgeListViewData();
+
+  if (!list.length) {
+    el.innerHTML = `<div class="emptyText">実績データがありません。</div>`;
+    return;
+  }
+
+  el.className = "badgeListWrap";
+
+  el.innerHTML = list.map(badge => `
+    <div class="badgeItem ${badge.unlocked ? "unlocked" : "locked"}">
+      <div class="badgeRowTop">
+        <div class="badgeMain">
+          <div class="badgeIcon">${badge.icon}</div>
+          <div>
+            <div class="badgeName">${escapeHtml(badge.name)}</div>
+            <div class="badgeDesc">${escapeHtml(badge.description)}</div>
+          </div>
+        </div>
+        <div class="badgeState ${badge.unlocked ? "unlocked" : "locked"}">
+          ${badge.unlocked ? "達成" : "未達成"}
+        </div>
+      </div>
+
+      <div class="badgeProgress">
+        ${
+          badge.unlocked
+            ? `解除済み`
+            : `${escapeHtml(badge.progressText)}`
+        }
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderBadgesIfExists() {
+  renderBadgeMiniCardIfExists();
+  renderBadgeList();
+}
