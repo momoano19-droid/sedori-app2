@@ -755,6 +755,9 @@ function visit(i) {
   }
 
   addLog(s.id, "visit", 1);
+
+  checkAndCountCompletedRoute();
+
   saveAll();
   render();
 }
