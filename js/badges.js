@@ -793,3 +793,127 @@ function renderBadgesIfExists() {
   renderBadgeList();
   syncBadgeAccordionUI();
 }
+function getBadgeEvolutionState() {
+  const unlocked = getUnlockedBadges();
+  const totalUnlocked = unlocked.length;
+
+  const advancedUnlocked = unlocked.filter(b => b.tier === "上級").length;
+  const intermediateUnlocked = unlocked.filter(b => b.tier === "中級").length;
+
+  let rank = 1;
+  let title = "見習い";
+  let theme = "basic";
+
+  if (totalUnlocked >= 3) {
+    rank = 2;
+    title = "巡回員";
+    theme = "blue";
+  }
+
+  if (totalUnlocked >= 8) {
+    rank = 3;
+    title = "仕入れ職人";
+    theme = "purple";
+  }
+
+  if (totalUnlocked >= 15) {
+    rank = 4;
+    title = "ベテラン";
+    theme = "gold";
+  }
+
+  if (totalUnlocked >= 22) {
+    rank = 5;
+    title = "ルートマスター";
+    theme = "master";
+  }
+
+  if (advancedUnlocked >= 3) {
+    rank = 6;
+    title = "覇者級";
+    theme = "legend";
+  }
+
+  return {
+    rank,
+    title,
+    theme,
+    totalUnlocked,
+    intermediateUnlocked,
+    advancedUnlocked
+  };
+}
+
+function getNextEvolutionGoal() {
+  const evo = getBadgeEvolutionState();
+
+  if (evo.theme === "legend") {
+    return {
+      label: "最終進化済み",
+      remain: 0
+    };
+  }
+
+  if (evo.theme === "basic") {
+    return {
+      label: "巡回員まで",
+      remain: Math.max(0, 3 - evo.totalUnlocked)
+    };
+  }
+
+  if (evo.theme === "blue") {
+    return {
+      label: "仕入れ職人まで",
+      remain: Math.max(0, 8 - evo.totalUnlocked)
+    };
+  }
+
+  if (evo.theme === "purple") {
+    return {
+      label: "ベテランまで",
+      remain: Math.max(0, 15 - evo.totalUnlocked)
+    };
+  }
+
+  if (evo.theme === "gold") {
+    return {
+      label: "ルートマスターまで",
+      remain: Math.max(0, 22 - evo.totalUnlocked)
+    };
+  }
+
+  if (evo.theme === "master") {
+    return {
+      label: "覇者級まで",
+      remain: Math.max(0, 3 - evo.advancedUnlocked)
+    };
+  }
+
+  return {
+    label: "進化中",
+    remain: 0
+  };
+}
+
+function applyBadgeEvolutionTheme() {
+  const card = document.getElementById("badgeMiniCard");
+  if (!card) return;
+
+  const evo = getBadgeEvolutionState();
+
+  card.classList.remove(
+    "badgeThemeBasic",
+    "badgeThemeBlue",
+    "badgeThemePurple",
+    "badgeThemeGold",
+    "badgeThemeMaster",
+    "badgeThemeLegend"
+  );
+
+  if (evo.theme === "basic") card.classList.add("badgeThemeBasic");
+  if (evo.theme === "blue") card.classList.add("badgeThemeBlue");
+  if (evo.theme === "purple") card.classList.add("badgeThemePurple");
+  if (evo.theme === "gold") card.classList.add("badgeThemeGold");
+  if (evo.theme === "master") card.classList.add("badgeThemeMaster");
+  if (evo.theme === "legend") card.classList.add("badgeThemeLegend");
+}
