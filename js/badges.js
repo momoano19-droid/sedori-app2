@@ -624,16 +624,26 @@ function renderBadgesIfExists() {
 }
 let badgeAccordionOpen = true;
 
-function toggleBadgeAccordion(forceOpen = null) {
+function syncBadgeAccordionUI() {
   const body = document.getElementById("badgeAccordionBody");
   const header = document.getElementById("badgeAccordionHeader");
   const chevron = document.getElementById("badgeAccordionChevron");
   if (!body || !header || !chevron) return;
 
-  const willOpen = forceOpen === null ? !badgeAccordionOpen : !!forceOpen;
-  badgeAccordionOpen = willOpen;
+  body.style.display = badgeAccordionOpen ? "block" : "none";
+  header.setAttribute("aria-expanded", badgeAccordionOpen ? "true" : "false");
+  chevron.textContent = badgeAccordionOpen ? "▲" : "▼";
+}
 
-  body.style.display = willOpen ? "block" : "none";
-  header.setAttribute("aria-expanded", willOpen ? "true" : "false");
-  chevron.textContent = willOpen ? "▲" : "▼";
+function toggleBadgeAccordion(forceOpen = null) {
+  badgeAccordionOpen =
+    forceOpen === null ? !badgeAccordionOpen : !!forceOpen;
+
+  syncBadgeAccordionUI();
+}
+
+function renderBadgesIfExists() {
+  renderBadgeMiniCardIfExists();
+  renderBadgeList();
+  syncBadgeAccordionUI();
 }
