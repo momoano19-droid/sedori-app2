@@ -586,6 +586,8 @@ function renderBadgeMiniCard() {
   const total = BADGE_DEFINITIONS.length;
   const latest = getLatestUnlockedBadge();
   const next = getNextBadge();
+  const evo = getBadgeEvolutionState();
+  const nextEvolution = getNextEvolutionGoal();
 
   const latestText = latest
     ? `${latest.icon} ${latest.name}`
@@ -595,12 +597,29 @@ function renderBadgeMiniCard() {
     ? `${next.icon} ${next.name} ${getBadgeProgressText(next, next.current)}`
     : "全実績解除済み";
 
+  const evolutionText =
+    nextEvolution.remain > 0
+      ? `${nextEvolution.label} あと${nextEvolution.remain}${evo.theme === "master" ? "個" : "個"}`
+      : nextEvolution.label;
+
   el.innerHTML = `
-    <div class="badgeMiniTitle">🏅 実績</div>
+    <div class="badgeMiniTopRow">
+      <div class="badgeMiniTitle">🏅 実績</div>
+      <div class="badgeMiniRank">Rank ${evo.rank}</div>
+    </div>
+
     <div class="badgeMiniProgress">${unlocked.length} / ${total} 解除</div>
+
+    <div class="badgeMiniTitleLine">
+      現在称号：<span class="badgeMiniRankName">${escapeHtml(evo.title)}</span>
+    </div>
+
     <div class="badgeMiniLatest">最新：${escapeHtml(latestText)}</div>
     <div class="badgeMiniNext">次：${escapeHtml(nextText)}</div>
+    <div class="badgeMiniEvolution">進化：${escapeHtml(evolutionText)}</div>
   `;
+
+  applyBadgeEvolutionTheme();
 }
 
 function getBadgeListViewData() {
