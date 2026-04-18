@@ -936,3 +936,31 @@ function applyBadgeEvolutionTheme() {
   if (evo.theme === "master") card.classList.add("badgeThemeMaster");
   if (evo.theme === "legend") card.classList.add("badgeThemeLegend");
 }
+function renderAppRankBadge() {
+  const el = document.getElementById("appRankBadge");
+  if (!el) return;
+
+  const evo = getBadgeEvolutionState();
+
+  el.innerHTML = `
+    <div class="appRankLabel">現在ランク</div>
+    <div class="appRankValue">Rank ${evo.rank}</div>
+    <div class="appRankTitle">${escapeHtml(evo.title)}</div>
+  `;
+
+  el.classList.remove(
+    "appRankThemeBasic",
+    "appRankThemeBlue",
+    "appRankThemePurple",
+    "appRankThemeGold",
+    "appRankThemeMaster",
+    "appRankThemeLegend"
+  );
+
+  if (evo.theme === "basic") el.classList.add("appRankThemeBasic");
+  if (evo.theme === "blue") el.classList.add("appRankThemeBlue");
+  if (evo.theme === "purple") el.classList.add("appRankThemePurple");
+  if (evo.theme === "gold") el.classList.add("appRankThemeGold");
+  if (evo.theme === "master") el.classList.add("appRankThemeMaster");
+  if (evo.theme === "legend") el.classList.add("appRankThemeLegend");
+}
