@@ -25,16 +25,26 @@
 <body>
   <div class="container">
     <header class="appHeader card">
+  <div class="appHeaderTop">
+    <div>
       <h1 class="appTitle">📱 せどりGPS店舗管理PRO</h1>
       <div class="appSub">
         店舗ごとの訪問・成功・個数・利益を記録して、期待値や成功率を見やすく管理できます。
       </div>
+    </div>
 
-      <div class="row2 mt12">
-        <button class="primaryBtn" onclick="openHelp()">使い方</button>
-        <button class="ghostBtn" onclick="location.href='./report.html'">📊 レポート</button>
-      </div>
-    </header>
+    <div id="appRankBadge" class="appRankBadge">
+      <div class="appRankLabel">現在ランク</div>
+      <div class="appRankValue">Rank 1</div>
+      <div class="appRankTitle">見習い</div>
+    </div>
+  </div>
+
+  <div class="row2 mt12">
+    <button class="primaryBtn" onclick="openHelp()">使い方</button>
+    <button class="ghostBtn" onclick="location.href='./report.html'">📊 レポート</button>
+  </div>
+</header>
 
     <section class="card">
       <h2 class="sectionTitle">🏪 店舗追加</h2>
