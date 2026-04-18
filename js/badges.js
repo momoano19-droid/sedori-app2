@@ -808,6 +808,7 @@ function toggleBadgeAccordion(forceOpen = null) {
 }
 
 function renderBadgesIfExists() {
+  renderAppRankBadge();
   renderBadgeMiniCardIfExists();
   renderBadgeList();
   syncBadgeAccordionUI();
