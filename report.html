@@ -6,7 +6,7 @@
     name="viewport"
     content="width=device-width, initial-scale=1, viewport-fit=cover"
   >
-  <title>分析画面 | せどりGPS店舗管理PRO</title>
+  <title>せどりGPS店舗管理PRO - レポート</title>
 
   <meta name="theme-color" content="#3976f6">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -20,35 +20,35 @@
 <body>
   <div class="container">
     <header class="appHeader card">
-      <h1 class="appTitle">📊 分析画面</h1>
+      <h1 class="appTitle">📊 レポート</h1>
       <div class="appSub">
-        月ごとの利益・成功率・カテゴリ・都道府県別の傾向を確認できます。
+        利益・訪問・成功・個数を、月別や期間別で振り返れます。
       </div>
 
       <div class="row2 mt12">
-        <button class="ghostBtn" onclick="location.href='./index.html'">← 店舗管理に戻る</button>
-        <button class="primaryBtn" onclick="goCurrentMonth()">今月へ戻る</button>
+        <button class="ghostBtn" onclick="location.href='./index.html'">← アプリに戻る</button>
       </div>
     </header>
 
     <section class="card">
-      <h2 class="sectionTitle">🗓 対象月</h2>
+      <h2 class="sectionTitle">🗓 対象月 / 集計期間</h2>
 
-      <div class="filterGrid">
-        <select id="monthPicker" onchange="changeReportMonth(this.value)"></select>
-        <button class="ghostBtn" onclick="goCurrentMonth()">今月</button>
+      <div id="monthPickerWrap">
+        <div class="row2" style="margin-bottom:12px;">
+          <select id="monthPicker" onchange="changeReportMonth(this.value)"></select>
+          <button class="ghostBtn" onclick="goCurrentMonth()">今月</button>
+        </div>
       </div>
 
-      <div class="mini mt8">
-        月を切り替えると、その月の利益・カテゴリ・都道府県別分析を確認できます。
+      <div id="selectedDayBar" class="selectedDayBar">
+        <div class="dayStickyLabel">日付をタップするとここに表示されます</div>
+        <div class="dayStickyValue">その日の合計利益 <strong>-</strong></div>
       </div>
     </section>
 
-    <!-- 日別カレンダーを一番上へ -->
     <section class="card">
-      <h2 class="sectionTitle">📅 日別カレンダー</h2>
+      <h2 class="sectionTitle">📅 カレンダー</h2>
       <div id="calendarWrap"></div>
-      <div id="selectedDayBar"></div>
     </section>
 
     <section class="card" id="monthSummaryCard"></section>
@@ -68,17 +68,16 @@
 
   <div
     id="detailModal"
-    class="modal"
-    onclick="closeDetailModal(event)"
+    class="detailModal"
     aria-hidden="true"
+    onclick="closeDetailModal(event)"
   >
-    <div class="modalCard">
-      <div class="row2" style="grid-template-columns:1fr auto; align-items:center;">
-        <div id="detailTitle" class="sectionTitle" style="margin-bottom:0;">詳細</div>
-        <button class="ghostBtn" onclick="hideDetailModal()">閉じる</button>
+    <div class="detailModalCard">
+      <div class="detailModalHeader">
+        <div id="detailTitle" class="detailModalTitle">詳細</div>
+        <button type="button" class="ghostBtn" onclick="hideDetailModal()">閉じる</button>
       </div>
-
-      <div id="detailBody" class="mt12"></div>
+      <div id="detailBody" class="detailModalBody"></div>
     </div>
   </div>
 
