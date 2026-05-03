@@ -137,17 +137,41 @@ function getAvailableMonths(logs) {
 }
 
 function renderMonthPicker(logs) {
-  const el = document.getElementById("monthPicker");
-  if (!el) return;
+  const selectEl = document.getElementById("monthPicker");
+  const wrap = document.getElementById("monthPickerWrap");
+  if (!selectEl) return;
 
   const months = getAvailableMonths(logs);
   if (!selectedMonth) selectedMonth = months[0] || currentMonthStr();
 
-  el.innerHTML = months
+  if (wrap) {
+    wrap.innerHTML = `
+      <div class="row2" style="margin-bottom:12px;">
+        <select id="monthPicker" onchange="changeReportMonth(this.value)">
+          ${months.map(m => `
+            <option value="${escapeHtml(m)}" ${m === selectedMonth ? "selected" : ""}>
+              ${escapeHtml(m)}
+            </option>
+          `).join("")}
+        </select>
+        <button class="ghostBtn" onclick="goCurrentMonth()">今月</button>
+      </div>
+
+      <div class="row2" style="margin-bottom:12px;">
+        <button class="${selectedRangeMode === "month" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('month')">単月</button>
+        <button class="${selectedRangeMode === "3m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('3m')">3か月</button>
+        <button class="${selectedRangeMode === "6m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('6m')">半年</button>
+        <button class="${selectedRangeMode === "12m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('12m')">1年</button>
+        <button class="${selectedRangeMode === "total" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('total')">トータル</button>
+      </div>
+    `;
+    return;
+  }
+
+  selectEl.innerHTML = months
     .map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`)
     .join("");
-
-  el.value = selectedMonth;
+  selectEl.value = selectedMonth;
 }
 
 function changeReportMonth(month) {
@@ -523,27 +547,15 @@ function renderPrefAnalysis() {
   const list = bundle.prefStats || [];
   const modeLabel = getRangeLabel(selectedRangeMode, selectedMonth || currentMonthStr());
 
-  const rangeButtons = `
-    <div class="row2" style="margin-bottom:12px;">
-      <button class="${selectedRangeMode === "month" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('month')">単月</button>
-      <button class="${selectedRangeMode === "3m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('3m')">3か月</button>
-      <button class="${selectedRangeMode === "6m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('6m')">半年</button>
-      <button class="${selectedRangeMode === "12m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('12m')">1年</button>
-      <button class="${selectedRangeMode === "total" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('total')">トータル</button>
-    </div>
-  `;
-
   if (!list.length) {
     el.innerHTML = `
-      ${rangeButtons}
+      <div class="mini" style="margin-bottom:10px;">表示対象：${escapeHtml(modeLabel)}</div>
       <div class="emptyText">都道府県データがありません。</div>
     `;
     return;
   }
 
   el.innerHTML = `
-    ${rangeButtons}
-
     <div class="mini" style="margin-bottom:10px;">表示対象：${escapeHtml(modeLabel)}</div>
 
     <div class="catList">
