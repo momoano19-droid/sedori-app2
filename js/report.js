@@ -139,33 +139,27 @@ function getAvailableMonths(logs) {
 function renderMonthPicker(logs) {
   const selectEl = document.getElementById("monthPicker");
   const wrap = document.getElementById("monthPickerWrap");
+  const rangeWrap = document.getElementById("reportRangeButtons");
   if (!selectEl) return;
 
   const months = getAvailableMonths(logs);
   if (!selectedMonth) selectedMonth = months[0] || currentMonthStr();
 
-  if (wrap) {
-    wrap.innerHTML = `
-      <div class="row2" style="margin-bottom:12px;">
-        <select id="monthPicker" onchange="changeReportMonth(this.value)">
-          ${months.map(m => `
-            <option value="${escapeHtml(m)}" ${m === selectedMonth ? "selected" : ""}>
-              ${escapeHtml(m)}
-            </option>
-          `).join("")}
-        </select>
-        <button class="ghostBtn" onclick="goCurrentMonth()">今月</button>
-      </div>
+  selectEl.innerHTML = months
+    .map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`)
+    .join("");
 
-      <div class="row2" style="margin-bottom:12px;">
-  <button class="${selectedRangeMode === "3m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('3m')">3か月</button>
-  <button class="${selectedRangeMode === "6m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('6m')">半年</button>
-  <button class="${selectedRangeMode === "12m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('12m')">1年</button>
-  <button class="${selectedRangeMode === "total" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('total')">トータル</button>
-</div>
+  selectEl.value = selectedMonth;
+
+  if (rangeWrap) {
+    rangeWrap.innerHTML = `
+      <button class="${selectedRangeMode === "3m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('3m')">3か月</button>
+      <button class="${selectedRangeMode === "6m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('6m')">半年</button>
+      <button class="${selectedRangeMode === "12m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('12m')">1年</button>
+      <button class="${selectedRangeMode === "total" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('total')">トータル</button>
     `;
-    return;
   }
+}
 
   selectEl.innerHTML = months
     .map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`)
