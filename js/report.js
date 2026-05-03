@@ -139,6 +139,7 @@ function getAvailableMonths(logs) {
 function renderMonthPicker(logs) {
   const selectEl = document.getElementById("monthPicker");
   const rangeWrap = document.getElementById("reportRangeButtons");
+  const currentMonthBtn = document.getElementById("goCurrentMonthBtn");
   if (!selectEl) return;
 
   const months = getAvailableMonths(logs);
@@ -149,6 +150,11 @@ function renderMonthPicker(logs) {
     .join("");
 
   selectEl.value = selectedMonth;
+
+  if (currentMonthBtn) {
+    const isCurrentMonth = selectedMonth === currentMonthStr() && selectedRangeMode === "month";
+    currentMonthBtn.className = isCurrentMonth ? "primaryBtn" : "ghostBtn";
+  }
 
   if (rangeWrap) {
     rangeWrap.innerHTML = `
