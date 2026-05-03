@@ -385,6 +385,16 @@ function renderSavedRoutesList() {
         </button>
 
         <div class="savedRouteDetail" style="display:${isOpen ? "block" : "none"};">
+          <div class="detailBlock" style="margin-bottom:12px;">
+            <div class="detailTitle">ルート情報</div>
+            <div class="detailText">
+              ${dueSummary.emoji} ${escapeHtml(dueSummary.label)}<br>
+              回り頃: ${dueSummary.dueCount}件 / もうすぐ: ${dueSummary.soonCount}件<br>
+              平均補充頻度: ${dueSummary.avgFreq !== null ? escapeHtml(formatRestockDays(dueSummary.avgFreq)) : "データなし"}
+              ${route.note ? `<br>メモ: ${escapeHtml(route.note)}` : ""}
+            </div>
+          </div>
+
           ${
             routeStores.length
               ? `
