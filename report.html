@@ -31,20 +31,22 @@
     </header>
 
     <section class="card">
-      <h2 class="sectionTitle">🗓 対象月 / 集計期間</h2>
+  <h2 class="sectionTitle">🗓 対象月 / 集計期間</h2>
 
-      <div id="monthPickerWrap">
-        <div class="row2" style="margin-bottom:12px;">
-          <select id="monthPicker" onchange="changeReportMonth(this.value)"></select>
-          <button class="ghostBtn" onclick="goCurrentMonth()">今月</button>
-        </div>
-      </div>
+  <div id="monthPickerWrap">
+    <div class="row2" style="margin-bottom:12px;">
+      <select id="monthPicker" onchange="changeReportMonth(this.value)"></select>
+      <button type="button" id="goCurrentMonthBtn" class="ghostBtn" onclick="goCurrentMonth()">今月</button>
+    </div>
+  </div>
 
-      <div id="selectedDayBar" class="selectedDayBar">
-        <div class="dayStickyLabel">日付をタップするとここに表示されます</div>
-        <div class="dayStickyValue">その日の合計利益 <strong>-</strong></div>
-      </div>
-    </section>
+  <div id="reportRangeButtons" class="row2" style="margin-bottom:12px;"></div>
+
+  <div id="selectedDayBar" class="selectedDayBar">
+    <div class="dayStickyLabel">日付をタップするとここに表示されます</div>
+    <div class="dayStickyValue">その日の合計利益 <strong>-</strong></div>
+  </div>
+</section>
 
     <section class="card">
       <h2 class="sectionTitle">📅 カレンダー</h2>
