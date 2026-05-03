@@ -138,7 +138,6 @@ function getAvailableMonths(logs) {
 
 function renderMonthPicker(logs) {
   const selectEl = document.getElementById("monthPicker");
-  const wrap = document.getElementById("monthPickerWrap");
   const rangeWrap = document.getElementById("reportRangeButtons");
   if (!selectEl) return;
 
@@ -161,21 +160,17 @@ function renderMonthPicker(logs) {
   }
 }
 
-  selectEl.innerHTML = months
-    .map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`)
-    .join("");
-  selectEl.value = selectedMonth;
-}
-
 function changeReportMonth(month) {
   selectedMonth = month;
   selectedDay = null;
+  selectedRangeMode = "month";
   bootReport();
 }
 
 function goCurrentMonth() {
   selectedMonth = currentMonthStr();
   selectedDay = null;
+  selectedRangeMode = "month";
   bootReport();
 }
 
@@ -184,6 +179,14 @@ function changeReportRange(mode) {
   selectedRangeMode = allowed.includes(mode) ? mode : "month";
   selectedDay = null;
   bootReport();
+}
+
+function getRangeLabel(mode, baseMonth) {
+  if (mode === "3m") return `直近3か月（〜${baseMonth}）`;
+  if (mode === "6m") return `直近6か月（〜${baseMonth}）`;
+  if (mode === "12m") return `直近1年（〜${baseMonth}）`;
+  if (mode === "total") return "トータル";
+  return baseMonth;
 }
 
 /* =========================
@@ -392,14 +395,6 @@ function getTotalBundle(stores, logs) {
   if (cachedTotalData) return cachedTotalData;
   cachedTotalData = buildBundle(stores, logs, "トータル");
   return cachedTotalData;
-}
-
-function getRangeLabel(mode, baseMonth) {
-  if (mode === "3m") return `直近3か月（〜${baseMonth}）`;
-  if (mode === "6m") return `直近6か月（〜${baseMonth}）`;
-  if (mode === "12m") return `直近1年（〜${baseMonth}）`;
-  if (mode === "total") return "トータル";
-  return baseMonth;
 }
 
 function getRangeBundle(stores, logs, mode, baseMonth) {
@@ -738,43 +733,6 @@ function buildCategoryLegendHtml(categories) {
       </div>
     `;
   }).join("");
-}
-
-function buildMiniCategoryTableHtml(categories) {
-  const top = categories.slice(0, 10);
-  const total = top.reduce((sum, [, qty]) => sum + Number(qty || 0), 0);
-
-  if (!top.length) {
-    return `
-      <div class="miniTable">
-        <div class="miniTableRow">
-          <div class="miniCell name" style="color:#6b7280;">カテゴリデータなし</div>
-          <div class="miniCell qty">-</div>
-          <div class="miniCell rate">-</div>
-        </div>
-      </div>
-    `;
-  }
-
-  return `
-    <div class="miniTable">
-      <div class="miniTableHead">
-        <div class="miniCell">カテゴリ</div>
-        <div class="miniCell qty">個数</div>
-        <div class="miniCell rate">割合</div>
-      </div>
-      ${top.map(([name, qty]) => {
-        const rate = total > 0 ? ((Number(qty || 0) / total) * 100).toFixed(1) : "0.0";
-        return `
-          <div class="miniTableRow">
-            <div class="miniCell name">${escapeHtml(name)}</div>
-            <div class="miniCell qty">${qty}個</div>
-            <div class="miniCell rate">${rate}%</div>
-          </div>
-        `;
-      }).join("")}
-    </div>
-  `;
 }
 
 /* =========================
@@ -1242,10 +1200,11 @@ function bootReport() {
   renderMonthPicker(logs);
 
   const baseMonth = selectedMonth || currentMonthStr();
+  const monthBundle = getMonthBundle(stores, logs, baseMonth);
   const currentBundle = getRangeBundle(stores, logs, selectedRangeMode, baseMonth);
   const totalBundle = getTotalBundle(stores, logs);
 
-  renderCalendar(baseMonth, getMonthBundle(stores, logs, baseMonth).daily);
+  renderCalendar(baseMonth, monthBundle.daily);
   renderMonthSummary(currentBundle, totalBundle);
   renderTopStores(currentBundle.topLists);
   renderCategorySummary(currentBundle.categories, totalBundle.categories);
