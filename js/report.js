@@ -158,12 +158,11 @@ function renderMonthPicker(logs) {
       </div>
 
       <div class="row2" style="margin-bottom:12px;">
-        <button class="${selectedRangeMode === "month" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('month')">単月</button>
-        <button class="${selectedRangeMode === "3m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('3m')">3か月</button>
-        <button class="${selectedRangeMode === "6m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('6m')">半年</button>
-        <button class="${selectedRangeMode === "12m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('12m')">1年</button>
-        <button class="${selectedRangeMode === "total" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('total')">トータル</button>
-      </div>
+  <button class="${selectedRangeMode === "3m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('3m')">3か月</button>
+  <button class="${selectedRangeMode === "6m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('6m')">半年</button>
+  <button class="${selectedRangeMode === "12m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('12m')">1年</button>
+  <button class="${selectedRangeMode === "total" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('total')">トータル</button>
+</div>
     `;
     return;
   }
