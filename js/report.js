@@ -16,7 +16,7 @@ const LOG_KEYS = [
 
 let selectedMonth = null;
 let selectedDay = null;
-let selectedPrefMode = "month"; // month | total
+let selectedRangeMode = "month"; // month | 3m | 6m | 12m | total
 
 /* =========================
    軽量化キャッシュ
@@ -107,6 +107,20 @@ function currentMonthStr() {
   return todayStr().slice(0, 7);
 }
 
+function shiftMonth(monthStr, offset) {
+  const [y, m] = String(monthStr || currentMonthStr()).split("-").map(Number);
+  const d = new Date(y, (m - 1) + offset, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getMonthsInRange(endMonth, count) {
+  const months = [];
+  for (let i = count - 1; i >= 0; i--) {
+    months.push(shiftMonth(endMonth, -i));
+  }
+  return months;
+}
+
 function getStoreMap(stores) {
   const map = {};
   stores.forEach(s => {
@@ -144,6 +158,13 @@ function changeReportMonth(month) {
 
 function goCurrentMonth() {
   selectedMonth = currentMonthStr();
+  selectedDay = null;
+  bootReport();
+}
+
+function changeReportRange(mode) {
+  const allowed = ["month", "3m", "6m", "12m", "total"];
+  selectedRangeMode = allowed.includes(mode) ? mode : "month";
   selectedDay = null;
   bootReport();
 }
@@ -356,6 +377,33 @@ function getTotalBundle(stores, logs) {
   return cachedTotalData;
 }
 
+function getRangeLabel(mode, baseMonth) {
+  if (mode === "3m") return `直近3か月（〜${baseMonth}）`;
+  if (mode === "6m") return `直近6か月（〜${baseMonth}）`;
+  if (mode === "12m") return `直近1年（〜${baseMonth}）`;
+  if (mode === "total") return "トータル";
+  return baseMonth;
+}
+
+function getRangeBundle(stores, logs, mode, baseMonth) {
+  if (mode === "total") {
+    return getTotalBundle(stores, logs);
+  }
+
+  if (mode === "month") {
+    return getMonthBundle(stores, logs, baseMonth);
+  }
+
+  let count = 1;
+  if (mode === "3m") count = 3;
+  if (mode === "6m") count = 6;
+  if (mode === "12m") count = 12;
+
+  const months = getMonthsInRange(baseMonth, count);
+  const filteredLogs = logs.filter(l => months.includes(ym(l.date)));
+  return buildBundle(stores, filteredLogs, getRangeLabel(mode, baseMonth));
+}
+
 function buildTopListsFromStoreStats(storeStats) {
   const normalized = storeStats.map(stat => {
     const visits = Number(stat.visits || 0);
@@ -463,10 +511,8 @@ function buildPrefStats(stores, perStore) {
 function getCurrentPrefBundle() {
   const stores = loadStores();
   const logs = loadLogs();
-  if (selectedPrefMode === "total") {
-    return getTotalBundle(stores, logs);
-  }
-  return getMonthBundle(stores, logs, selectedMonth || currentMonthStr());
+  const baseMonth = selectedMonth || currentMonthStr();
+  return getRangeBundle(stores, logs, selectedRangeMode, baseMonth);
 }
 
 function renderPrefAnalysis() {
@@ -475,25 +521,28 @@ function renderPrefAnalysis() {
 
   const bundle = getCurrentPrefBundle();
   const list = bundle.prefStats || [];
+  const modeLabel = getRangeLabel(selectedRangeMode, selectedMonth || currentMonthStr());
 
-  const modeLabel = selectedPrefMode === "total" ? "トータル" : (selectedMonth || currentMonthStr());
+  const rangeButtons = `
+    <div class="row2" style="margin-bottom:12px;">
+      <button class="${selectedRangeMode === "month" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('month')">単月</button>
+      <button class="${selectedRangeMode === "3m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('3m')">3か月</button>
+      <button class="${selectedRangeMode === "6m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('6m')">半年</button>
+      <button class="${selectedRangeMode === "12m" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('12m')">1年</button>
+      <button class="${selectedRangeMode === "total" ? "primaryBtn" : "ghostBtn"}" onclick="changeReportRange('total')">トータル</button>
+    </div>
+  `;
 
   if (!list.length) {
     el.innerHTML = `
-      <div class="row2" style="margin-bottom:12px;">
-        <button class="${selectedPrefMode === "month" ? "primaryBtn" : "ghostBtn"}" onclick="changePrefMode('month')">今月</button>
-        <button class="${selectedPrefMode === "total" ? "primaryBtn" : "ghostBtn"}" onclick="changePrefMode('total')">トータル</button>
-      </div>
+      ${rangeButtons}
       <div class="emptyText">都道府県データがありません。</div>
     `;
     return;
   }
 
   el.innerHTML = `
-    <div class="row2" style="margin-bottom:12px;">
-      <button class="${selectedPrefMode === "month" ? "primaryBtn" : "ghostBtn"}" onclick="changePrefMode('month')">今月</button>
-      <button class="${selectedPrefMode === "total" ? "primaryBtn" : "ghostBtn"}" onclick="changePrefMode('total')">トータル</button>
-    </div>
+    ${rangeButtons}
 
     <div class="mini" style="margin-bottom:10px;">表示対象：${escapeHtml(modeLabel)}</div>
 
@@ -512,11 +561,6 @@ function renderPrefAnalysis() {
   `;
 }
 
-function changePrefMode(mode) {
-  selectedPrefMode = mode === "total" ? "total" : "month";
-  renderPrefAnalysis();
-}
-
 function showPrefDetail(prefName) {
   const bundle = getCurrentPrefBundle();
   const pref = bundle.prefStats.find(x => x.pref === prefName);
@@ -525,7 +569,7 @@ function showPrefDetail(prefName) {
   const title = document.getElementById("detailTitle");
   if (!body || !title) return;
 
-  const modeLabel = selectedPrefMode === "total" ? "トータル" : (selectedMonth || currentMonthStr());
+  const modeLabel = getRangeLabel(selectedRangeMode, selectedMonth || currentMonthStr());
   title.textContent = `${prefName} 詳細（${modeLabel}）`;
 
   if (!pref) {
@@ -731,11 +775,11 @@ function buildMiniCategoryTableHtml(categories) {
 /* =========================
    サマリー
 ========================= */
-function renderMonthSummary(monthBundle, totalBundle) {
+function renderMonthSummary(currentBundle, totalBundle) {
   const el = document.getElementById("monthSummaryCard");
   if (!el) return;
 
-  const summary = monthBundle.summary;
+  const summary = currentBundle.summary;
 
   el.innerHTML = `
     <h2 class="sectionTitle" style="margin-bottom:16px;">📌 ${escapeHtml(summary.label)} サマリー</h2>
@@ -743,11 +787,11 @@ function renderMonthSummary(monthBundle, totalBundle) {
     <div class="chipRow" onclick="showMonthDetail('${escapeHtml(summary.label)}')" style="cursor:pointer;">
       <div class="chip">現在登録店舗 ${summary.registeredStoreCount}件</div>
       <div class="chip">対象店舗 ${summary.activeStoreCount}件</div>
-      <div class="chip">今月利益 ${yen(summary.profit)}</div>
-      <div class="chip">今月訪問 ${summary.visits}回</div>
-      <div class="chip">今月成功 ${summary.success}回</div>
-      <div class="chip">今月個数 ${summary.items}個</div>
-      <div class="chip">今月成功率 ${summary.rate.toFixed(1)}%</div>
+      <div class="chip">利益 ${yen(summary.profit)}</div>
+      <div class="chip">訪問 ${summary.visits}回</div>
+      <div class="chip">成功 ${summary.success}回</div>
+      <div class="chip">個数 ${summary.items}個</div>
+      <div class="chip">成功率 ${summary.rate.toFixed(1)}%</div>
       <div class="chip">1店舗あたり利益 ${yen(Math.round(summary.profitPerStore))}</div>
       <div class="chip">1訪問あたり利益 ${yen(Math.round(summary.profitPerVisit))}</div>
       <div class="chip">成功単価 ${yen(Math.round(summary.profitPerSuccess))}</div>
@@ -755,7 +799,7 @@ function renderMonthSummary(monthBundle, totalBundle) {
       <div class="chip">1日あたり利益 ${yen(Math.round(summary.profitPerDay))}</div>
     </div>
 
-    <div class="summarySubTitle">月間カテゴリ集計</div>
+    <div class="summarySubTitle">カテゴリ集計</div>
 
     <div class="chartWrap">
       <div class="chartCanvasBox">
@@ -888,7 +932,7 @@ function renderOneTopList(title, list, type) {
     return `
       <div class="card" style="margin-bottom:12px;">
         <h2 class="sectionTitle">${escapeHtml(title)}</h2>
-        <div class="emptyText">この月のデータがありません。</div>
+        <div class="emptyText">この期間のデータがありません。</div>
       </div>
     `;
   }
@@ -937,28 +981,30 @@ function renderTopStores(topLists) {
 /* =========================
    カテゴリ集計
 ========================= */
-function renderCategorySummary(monthCategories, totalCategories) {
+function renderCategorySummary(currentCategories, totalCategories) {
   const el = document.getElementById("categoryWrap");
   if (!el) return;
 
-  if (!monthCategories.length && !totalCategories.length) {
+  if (!currentCategories.length && !totalCategories.length) {
     el.innerHTML = `<div class="emptyText">カテゴリデータがありません。</div>`;
     return;
   }
 
+  const currentLabel = getRangeLabel(selectedRangeMode, selectedMonth || currentMonthStr());
+
   el.innerHTML = `
-    <div class="summarySubTitle" style="margin-top:0;">月間カテゴリ集計</div>
+    <div class="summarySubTitle" style="margin-top:0;">${escapeHtml(currentLabel)} カテゴリ集計</div>
     ${
-      monthCategories.length
+      currentCategories.length
         ? `<div class="catList">
-            ${monthCategories.map(([name, qty]) => `
+            ${currentCategories.map(([name, qty]) => `
               <div class="catItem">
                 <div class="catName">${escapeHtml(name)}</div>
                 <div class="catQty">${qty}個</div>
               </div>
             `).join("")}
           </div>`
-        : `<div class="emptyText">今月のカテゴリデータがありません。</div>`
+        : `<div class="emptyText">この期間のカテゴリデータがありません。</div>`
     }
 
     <div class="summarySubTitle">トータルカテゴリ集計</div>
@@ -1005,10 +1051,11 @@ function buildDetailSummaryFromStoreStats(storeStats) {
   };
 }
 
-function showMonthDetail(targetMonth) {
+function showMonthDetail(targetLabel) {
   const stores = loadStores();
   const logs = loadLogs();
-  const bundle = getMonthBundle(stores, logs, targetMonth);
+  const baseMonth = selectedMonth || currentMonthStr();
+  const bundle = getRangeBundle(stores, logs, selectedRangeMode, baseMonth);
   const grouped = bundle.perStore;
   const summary = buildDetailSummaryFromStoreStats(grouped);
 
@@ -1016,7 +1063,7 @@ function showMonthDetail(targetMonth) {
   const title = document.getElementById("detailTitle");
   if (!body || !title) return;
 
-  title.textContent = `${targetMonth} 詳細`;
+  title.textContent = `${targetLabel} 詳細`;
 
   const rows = Object.values(grouped).sort((a, b) => {
     return Number(b.profit || 0) - Number(a.profit || 0);
@@ -1024,7 +1071,7 @@ function showMonthDetail(targetMonth) {
 
   let html = `
     <div class="detailBlock">
-      <div class="detailTitle">月サマリー</div>
+      <div class="detailTitle">期間サマリー</div>
       <div class="detailText">
         対象店舗：${summary.storeCount}件<br>
         利益：${yen(summary.profit)}<br>
@@ -1035,7 +1082,7 @@ function showMonthDetail(targetMonth) {
   `;
 
   if (!rows.length) {
-    html += `<div class="emptyText">この月のデータはありません。</div>`;
+    html += `<div class="emptyText">この期間のデータはありません。</div>`;
     body.innerHTML = html;
     showDetailModal();
     return;
@@ -1189,14 +1236,14 @@ function bootReport() {
 
   renderMonthPicker(logs);
 
-  const targetMonth = selectedMonth || currentMonthStr();
-  const monthBundle = getMonthBundle(stores, logs, targetMonth);
+  const baseMonth = selectedMonth || currentMonthStr();
+  const currentBundle = getRangeBundle(stores, logs, selectedRangeMode, baseMonth);
   const totalBundle = getTotalBundle(stores, logs);
 
-  renderCalendar(targetMonth, monthBundle.daily);
-  renderMonthSummary(monthBundle, totalBundle);
-  renderTopStores(monthBundle.topLists);
-  renderCategorySummary(monthBundle.categories, totalBundle.categories);
+  renderCalendar(baseMonth, getMonthBundle(stores, logs, baseMonth).daily);
+  renderMonthSummary(currentBundle, totalBundle);
+  renderTopStores(currentBundle.topLists);
+  renderCategorySummary(currentBundle.categories, totalBundle.categories);
   renderPrefAnalysis();
 }
 
@@ -1204,7 +1251,7 @@ window.addEventListener("load", bootReport);
 window.addEventListener("resize", () => {
   const stores = loadStores();
   const logs = loadLogs();
-  const targetMonth = selectedMonth || currentMonthStr();
-  const bundle = getMonthBundle(stores, logs, targetMonth);
+  const baseMonth = selectedMonth || currentMonthStr();
+  const bundle = getRangeBundle(stores, logs, selectedRangeMode, baseMonth);
   drawCategoryPieChart("categoryPieChart", bundle.summary.categories || [], bundle.summary.label || "");
 });
