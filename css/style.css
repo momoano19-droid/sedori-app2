@@ -2602,3 +2602,66 @@ a{
     min-width:0;
   }
 }
+.detailModal{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:rgba(15,23,42,.38);
+  z-index:3000;
+}
+
+.detailModal.show{
+  display:flex;
+}
+
+.detailModalCard{
+  width:min(680px, 100%);
+  max-height:85vh;
+  overflow:auto;
+  background:#ffffff;
+  border-radius:18px;
+  box-shadow:0 20px 50px rgba(15,23,42,.24);
+  padding:16px;
+}
+
+.detailModalHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.detailModalTitle{
+  font-size:18px;
+  font-weight:900;
+  color:#1f2340;
+}
+
+.detailModalBody{
+  padding-top:4px;
+}
+
+.detailBlock{
+  background:#f8fbff;
+  border:1px solid #dbe5f0;
+  border-radius:14px;
+  padding:12px;
+  margin-bottom:10px;
+}
+
+.detailTitle{
+  font-size:14px;
+  font-weight:800;
+  color:#1f2340;
+  margin-bottom:6px;
+}
+
+.detailText{
+  font-size:13px;
+  line-height:1.7;
+  color:#475569;
+}
