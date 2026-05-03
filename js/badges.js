@@ -366,7 +366,12 @@ function saveBadgeUnlockedHistory(list) {
 
 function getBadgeStores() {
   try {
+    if (typeof stores !== "undefined" && Array.isArray(stores)) return stores;
+  } catch {}
+  try {
     if (Array.isArray(window.stores)) return window.stores;
+  } catch {}
+  try {
     if (typeof loadStores === "function") return loadStores();
   } catch {}
   return [];
@@ -374,7 +379,12 @@ function getBadgeStores() {
 
 function getBadgeLogs() {
   try {
+    if (typeof logs !== "undefined" && Array.isArray(logs)) return logs;
+  } catch {}
+  try {
     if (Array.isArray(window.logs)) return window.logs;
+  } catch {}
+  try {
     if (typeof loadLogs === "function") return loadLogs();
   } catch {}
   return [];
@@ -398,16 +408,17 @@ function getBadgeMetricsForStore(store) {
 }
 
 function getBadgeStats() {
-  const stores = getBadgeStores();
-  const logs = getBadgeLogs();
+  const storesList = getBadgeStores();
+  const logsList = getBadgeLogs();
 
   let totalVisits = 0;
   let totalSuccess = 0;
   let totalItems = 0;
   let totalProfit = 0;
 
-  logs.forEach(log => {
+  logsList.forEach(log => {
     const delta = badgeSafeNumber(log?.delta);
+
     if (log?.type === "visit") totalVisits += delta;
     if (log?.type === "success") totalSuccess += delta;
     if (log?.type === "items") totalItems += delta;
@@ -418,12 +429,12 @@ function getBadgeStats() {
   totalSuccess = Math.max(0, totalSuccess);
   totalItems = Math.max(0, totalItems);
 
-  const highExpectedStoreCount = stores.filter(store => {
+  const highExpectedStoreCount = storesList.filter(store => {
     const m = getBadgeMetricsForStore(store);
     return m.expected >= 3000;
   }).length;
 
-  const stableStoreCount = stores.filter(store => {
+  const stableStoreCount = storesList.filter(store => {
     const m = getBadgeMetricsForStore(store);
     return m.visits > 0 && m.rate >= 30;
   }).length;
@@ -438,7 +449,7 @@ function getBadgeStats() {
     highExpectedStoreCount,
     stableStoreCount,
     completedRouteCount,
-    totalStoreCount: stores.length
+    totalStoreCount: storesList.length
   };
 }
 
@@ -481,22 +492,28 @@ function getBadgeProgressText(badge, current = 0) {
   const cur = Math.max(0, badgeSafeNumber(current));
   const remain = Math.max(0, badge.target - cur);
 
-  if (badge.category === "profit") return `あと${remain.toLocaleString()}円`;
-  if (badge.category === "store" || badge.category === "route") return `あと${remain}件`;
+  if (badge.category === "profit") {
+    return `あと${remain.toLocaleString()}円`;
+  }
+  if (badge.category === "store" || badge.category === "route") {
+    return `あと${remain}件`;
+  }
   return `あと${remain}回`;
 }
 
 function getNextBadge() {
   const locked = getLockedBadges();
+
   if (!locked.length) return null;
 
   const ranked = locked
     .map(badge => {
       const target = Math.max(1, badgeSafeNumber(badge.target));
       const current = Math.max(0, badgeSafeNumber(badge.current));
+      const ratio = current / target;
       return {
         ...badge,
-        ratio: current / target,
+        ratio,
         remain: Math.max(0, target - current)
       };
     })
@@ -561,6 +578,31 @@ function getLatestUnlockedBadge() {
   return BADGE_DEFINITIONS.find(b => b.id === latest.id) || null;
 }
 
+function renderBadgeMiniCard() {
+  const el = document.getElementById("badgeMiniCard");
+  if (!el) return;
+
+  const unlocked = getUnlockedBadges();
+  const total = BADGE_DEFINITIONS.length;
+  const latest = getLatestUnlockedBadge();
+  const next = getNextBadge();
+
+  const latestText = latest
+    ? `${latest.icon} ${latest.name}`
+    : "なし";
+
+  const nextText = next
+    ? `${next.icon} ${next.name} ${getBadgeProgressText(next, next.current)}`
+    : "全実績解除済み";
+
+  el.innerHTML = `
+    <div class="badgeMiniTitle">🏅 実績</div>
+    <div class="badgeMiniProgress">${unlocked.length} / ${total} 解除</div>
+    <div class="badgeMiniLatest">最新：${escapeHtml(latestText)}</div>
+    <div class="badgeMiniNext">次：${escapeHtml(nextText)}</div>
+  `;
+}
+
 function getBadgeListViewData() {
   const historyMap = getBadgeHistoryMap();
   const stats = getBadgeStats();
@@ -587,15 +629,32 @@ function getBadgeListViewData() {
 }
 
 function getCompletedTodayRouteCount() {
-  const todayIds = Array.isArray(window.todayRouteOrder) ? window.todayRouteOrder : [];
-  const visitedIds = Array.isArray(window.todayRouteVisitedIds) ? window.todayRouteVisitedIds : [];
+  let todayIds = [];
+  let visitedIds = [];
+
+  try {
+    if (typeof todayRouteOrder !== "undefined" && Array.isArray(todayRouteOrder)) {
+      todayIds = todayRouteOrder;
+    } else if (Array.isArray(window.todayRouteOrder)) {
+      todayIds = window.todayRouteOrder;
+    }
+  } catch {}
+
+  try {
+    if (typeof todayRouteVisitedIds !== "undefined" && Array.isArray(todayRouteVisitedIds)) {
+      visitedIds = todayRouteVisitedIds;
+    } else if (Array.isArray(window.todayRouteVisitedIds)) {
+      visitedIds = window.todayRouteVisitedIds;
+    }
+  } catch {}
+
   const todaySet = new Set(todayIds);
   return visitedIds.filter(id => todaySet.has(id)).length;
 }
 
 function getTodayRouteTotalCount() {
-  const stores = getBadgeStores();
-  return stores.filter(store => !!store.today).length;
+  const storesList = getBadgeStores();
+  return storesList.filter(store => !!store.today).length;
 }
 
 function checkAndCountCompletedRoute() {
@@ -610,6 +669,7 @@ function checkAndCountCompletedRoute() {
 
   const key = `badge_route_completed_date_${today}`;
   const alreadyCounted = localStorage.getItem(key) === "1";
+
   if (alreadyCounted) return false;
 
   const nextCount = loadBadgeRouteCompleteCount() + 1;
@@ -622,203 +682,10 @@ function checkAndCountCompletedRoute() {
 function resetRouteBadgeCompletionForTodayIfNeeded() {
   const total = getTodayRouteTotalCount();
   const done = getCompletedTodayRouteCount();
+
   if (total > 0 && done < total) {
     return;
   }
-}
-
-function getBadgeEvolutionState() {
-  const unlocked = getUnlockedBadges();
-  const totalUnlocked = unlocked.length;
-  const advancedUnlocked = unlocked.filter(b => b.tier === "上級").length;
-  const intermediateUnlocked = unlocked.filter(b => b.tier === "中級").length;
-
-  let rank = 1;
-  let title = "見習い";
-  let theme = "basic";
-
-  if (totalUnlocked >= 3) {
-    rank = 2;
-    title = "巡回員";
-    theme = "blue";
-  }
-
-  if (totalUnlocked >= 8) {
-    rank = 3;
-    title = "仕入れ職人";
-    theme = "purple";
-  }
-
-  if (totalUnlocked >= 15) {
-    rank = 4;
-    title = "ベテラン";
-    theme = "gold";
-  }
-
-  if (totalUnlocked >= 22) {
-    rank = 5;
-    title = "ルートマスター";
-    theme = "master";
-  }
-
-  if (advancedUnlocked >= 3) {
-    rank = 6;
-    title = "覇者級";
-    theme = "legend";
-  }
-
-  return {
-    rank,
-    title,
-    theme,
-    totalUnlocked,
-    intermediateUnlocked,
-    advancedUnlocked
-  };
-}
-
-function getNextEvolutionGoal() {
-  const evo = getBadgeEvolutionState();
-
-  if (evo.theme === "legend") {
-    return {
-      label: "最終進化済み",
-      remain: 0
-    };
-  }
-
-  if (evo.theme === "basic") {
-    return {
-      label: "巡回員まで",
-      remain: Math.max(0, 3 - evo.totalUnlocked)
-    };
-  }
-
-  if (evo.theme === "blue") {
-    return {
-      label: "仕入れ職人まで",
-      remain: Math.max(0, 8 - evo.totalUnlocked)
-    };
-  }
-
-  if (evo.theme === "purple") {
-    return {
-      label: "ベテランまで",
-      remain: Math.max(0, 15 - evo.totalUnlocked)
-    };
-  }
-
-  if (evo.theme === "gold") {
-    return {
-      label: "ルートマスターまで",
-      remain: Math.max(0, 22 - evo.totalUnlocked)
-    };
-  }
-
-  if (evo.theme === "master") {
-    return {
-      label: "覇者級まで",
-      remain: Math.max(0, 3 - evo.advancedUnlocked)
-    };
-  }
-
-  return {
-    label: "進化中",
-    remain: 0
-  };
-}
-
-function applyBadgeEvolutionTheme() {
-  const card = document.getElementById("badgeMiniCard");
-  if (!card) return;
-
-  const evo = getBadgeEvolutionState();
-
-  card.classList.remove(
-    "badgeThemeBasic",
-    "badgeThemeBlue",
-    "badgeThemePurple",
-    "badgeThemeGold",
-    "badgeThemeMaster",
-    "badgeThemeLegend"
-  );
-
-  if (evo.theme === "basic") card.classList.add("badgeThemeBasic");
-  if (evo.theme === "blue") card.classList.add("badgeThemeBlue");
-  if (evo.theme === "purple") card.classList.add("badgeThemePurple");
-  if (evo.theme === "gold") card.classList.add("badgeThemeGold");
-  if (evo.theme === "master") card.classList.add("badgeThemeMaster");
-  if (evo.theme === "legend") card.classList.add("badgeThemeLegend");
-}
-
-function renderAppRankBadge() {
-  const el = document.getElementById("appRankBadge");
-  if (!el) return;
-
-  const evo = getBadgeEvolutionState();
-
-  el.innerHTML = `
-    <div class="appRankLabel">現在ランク</div>
-    <div class="appRankValue">Rank ${evo.rank}</div>
-    <div class="appRankTitle">${escapeHtml(evo.title)}</div>
-  `;
-
-  el.classList.remove(
-    "appRankThemeBasic",
-    "appRankThemeBlue",
-    "appRankThemePurple",
-    "appRankThemeGold",
-    "appRankThemeMaster",
-    "appRankThemeLegend"
-  );
-
-  if (evo.theme === "basic") el.classList.add("appRankThemeBasic");
-  if (evo.theme === "blue") el.classList.add("appRankThemeBlue");
-  if (evo.theme === "purple") el.classList.add("appRankThemePurple");
-  if (evo.theme === "gold") el.classList.add("appRankThemeGold");
-  if (evo.theme === "master") el.classList.add("appRankThemeMaster");
-  if (evo.theme === "legend") el.classList.add("appRankThemeLegend");
-}
-
-function renderBadgeMiniCard() {
-  const el = document.getElementById("badgeMiniCard");
-  if (!el) return;
-
-  const unlocked = getUnlockedBadges();
-  const total = BADGE_DEFINITIONS.length;
-  const latest = getLatestUnlockedBadge();
-  const next = getNextBadge();
-  const evo = getBadgeEvolutionState();
-  const nextEvolution = getNextEvolutionGoal();
-
-  const latestText = latest ? `${latest.icon} ${latest.name}` : "なし";
-  const nextText = next
-    ? `${next.icon} ${next.name} ${getBadgeProgressText(next, next.current)}`
-    : "全実績解除済み";
-
-  const evolutionText =
-    nextEvolution.remain > 0
-      ? `${nextEvolution.label} あと${nextEvolution.remain}個`
-      : nextEvolution.label;
-
-  el.innerHTML = `
-    <div class="badgeMiniTopRow">
-      <div class="badgeMiniTitle">🏅 実績</div>
-      <div class="badgeMiniRank">Rank ${evo.rank}</div>
-    </div>
-
-    <div class="badgeMiniProgress">${unlocked.length} / ${total} 解除</div>
-
-    <div class="badgeMiniTitleLine">
-      現在称号：<span class="badgeMiniRankName">${escapeHtml(evo.title)}</span>
-    </div>
-
-    <div class="badgeMiniLatest">最新：${escapeHtml(latestText)}</div>
-    <div class="badgeMiniNext">次：${escapeHtml(nextText)}</div>
-    <div class="badgeMiniEvolution">進化：${escapeHtml(evolutionText)}</div>
-  `;
-
-  applyBadgeEvolutionTheme();
 }
 
 function renderBadgeMiniCardIfExists() {
@@ -847,13 +714,13 @@ function renderBadgeList() {
 
   const tiers = ["初級", "中級", "上級"];
 
-  el.innerHTML = tiers.map(tier => {
+  const sectionHtml = tiers.map(tier => {
     const tierList = list.filter(b => (b.tier || "初級") === tier);
-    if (!tierList.length) return "";
-
     const unlocked = tierList.filter(b => b.unlocked);
     const locked = tierList.filter(b => !b.unlocked);
     const ordered = [...unlocked, ...locked];
+
+    if (!ordered.length) return "";
 
     return `
       <div class="badgeTierSection">
@@ -863,30 +730,37 @@ function renderBadgeList() {
         </div>
 
         <div class="badgeListWrap">
-          ${ordered.map(badge => `
-            <div class="badgeItem ${badge.unlocked ? "unlocked" : "locked"}">
-              <div class="badgeRowTop">
-                <div class="badgeMain">
-                  <div class="badgeIcon">${badge.icon || "🏅"}</div>
-                  <div>
-                    <div class="badgeName">${escapeHtml(badge.name || "実績")}</div>
-                    <div class="badgeDesc">${escapeHtml(badge.description || "")}</div>
+          ${ordered.map(badge => {
+            const stateText = badge.unlocked ? "達成" : "未達成";
+            const progressText = badge.unlocked
+              ? "解除済み"
+              : (badge.progressText || "");
+
+            return `
+              <div class="badgeItem ${badge.unlocked ? "unlocked" : "locked"}">
+                <div class="badgeRowTop">
+                  <div class="badgeMain">
+                    <div class="badgeIcon">${badge.icon || "🏅"}</div>
+                    <div>
+                      <div class="badgeName">${escapeHtml(badge.name || "実績")}</div>
+                      <div class="badgeDesc">${escapeHtml(badge.description || "")}</div>
+                    </div>
+                  </div>
+                  <div class="badgeState ${badge.unlocked ? "unlocked" : "locked"}">
+                    ${stateText}
                   </div>
                 </div>
-                <div class="badgeState ${badge.unlocked ? "unlocked" : "locked"}">
-                  ${badge.unlocked ? "達成" : "未達成"}
-                </div>
-              </div>
 
-              <div class="badgeProgress">
-                ${badge.unlocked ? "解除済み" : escapeHtml(badge.progressText || "")}
+                <div class="badgeProgress">${escapeHtml(progressText)}</div>
               </div>
-            </div>
-          `).join("")}
+            `;
+          }).join("")}
         </div>
       </div>
     `;
   }).join("");
+
+  el.innerHTML = sectionHtml || `<div class="emptyText">実績データがありません。</div>`;
 }
 
 let badgeAccordionOpen = false;
@@ -910,14 +784,7 @@ function toggleBadgeAccordion(forceOpen = null) {
 }
 
 function renderBadgesIfExists() {
-  if (typeof renderAppRankBadge === "function") {
-    renderAppRankBadge();
-  }
-  if (typeof renderBadgeMiniCardIfExists === "function") {
-    renderBadgeMiniCardIfExists();
-  }
-  if (typeof renderBadgeList === "function") {
-    renderBadgeList();
-  }
+  renderBadgeMiniCardIfExists();
+  renderBadgeList();
   syncBadgeAccordionUI();
 }
