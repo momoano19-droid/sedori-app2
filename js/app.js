@@ -89,12 +89,7 @@ function scrollToTopArea() {
   });
 }
 
-function scrollToTopArea() {
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth"
-  });
-}
+
 function isTodayRouteVisited(storeId) {
   return todayRouteVisitedIds.includes(storeId);
 }
@@ -356,8 +351,6 @@ function renderSavedRoutesList() {
 
   el.innerHTML = savedRoutes.map(route => {
     const routeStores = buildSavedRouteStores(route);
-    const missingCount = Math.max(0, route.storeIds.length - routeStores.length);
-    const preview = getSavedRoutePreviewText(route, 3);
     const isOpen = openSavedRouteId === route.id;
     const dueSummary = calcSavedRouteDueSummary(route);
 
@@ -377,8 +370,7 @@ function renderSavedRoutesList() {
               </div>
 
               <div class="savedRouteMeta">
-                作成: ${escapeHtml(formatDateTimeText(route.createdAt))}
-                ${route.updatedAt ? ` / 更新: ${escapeHtml(formatDateTimeText(route.updatedAt))}` : ""}
+                更新: ${escapeHtml(formatDateTimeText(route.updatedAt || route.createdAt))}
               </div>
             </div>
 
@@ -388,16 +380,7 @@ function renderSavedRoutesList() {
           <div class="savedRouteCompactInfo">
             <div class="savedRouteCount">
               店舗数: ${route.storeIds.length}件
-              ${missingCount > 0 ? ` / 削除済み店舗あり: ${missingCount}件` : ""}
             </div>
-
-            <div class="savedRoutePreview">
-              ${dueSummary.emoji} ${dueSummary.label} / 回り頃: ${dueSummary.dueCount}件 / もうすぐ: ${dueSummary.soonCount}件
-              ${dueSummary.avgFreq !== null ? ` / 平均補充頻度: ${formatRestockDays(dueSummary.avgFreq)}` : ""}
-            </div>
-
-            ${route.note ? `<div class="savedRoutePreview">📝 ${escapeHtml(route.note)}</div>` : ``}
-            ${preview ? `<div class="savedRoutePreview">📍 ${escapeHtml(preview)}${routeStores.length > 3 ? " / …" : ""}</div>` : ``}
           </div>
         </button>
 
