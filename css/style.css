@@ -2727,3 +2727,198 @@ a{
 .badgePeriodSection .badgeTierSection > .badgeTierHeader .badgeTierTitle{
   font-size:13px;
 }
+.appRankBadge{
+  position:relative;
+  overflow:hidden;
+  border-radius:16px;
+  padding:12px 14px;
+  margin-bottom:12px;
+  border:1px solid #dbe5f0;
+  box-shadow:0 8px 20px rgba(15,23,42,.08);
+  transition:.25s ease;
+}
+
+.appRankLabel{
+  font-size:11px;
+  font-weight:700;
+  opacity:.92;
+  margin-bottom:4px;
+}
+
+.appRankValue{
+  font-size:22px;
+  font-weight:900;
+  line-height:1.1;
+}
+
+.appRankTitle{
+  font-size:13px;
+  font-weight:800;
+  margin-top:4px;
+}
+
+/* Rank 1 */
+.appRankBadge.rankTheme1{
+  background:linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%);
+  border-color:#d8e0ea;
+  color:#334155;
+}
+
+/* Rank 2 */
+.appRankBadge.rankTheme2{
+  background:linear-gradient(135deg, #eef6ff 0%, #dbeafe 100%);
+  border-color:#bfdbfe;
+  color:#1d4ed8;
+}
+
+/* Rank 3 */
+.appRankBadge.rankTheme3{
+  background:linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+  border-color:#d8b4fe;
+  color:#7c3aed;
+}
+
+/* Rank 4 */
+.appRankBadge.rankTheme4{
+  background:linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  border-color:#fdba74;
+  color:#c2410c;
+}
+
+/* Rank 5 */
+.appRankBadge.rankTheme5{
+  background:linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color:#facc15;
+  color:#a16207;
+}
+
+/* Rank 6 */
+.appRankBadge.rankTheme6{
+  background:linear-gradient(135deg, #ecfccb 0%, #d9f99d 100%);
+  border-color:#a3e635;
+  color:#3f6212;
+}
+
+/* Rank 7 */
+.appRankBadge.rankTheme7{
+  background:linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  border-color:#7dd3fc;
+  color:#0369a1;
+}
+
+/* Rank 8 ここから豪華 */
+.appRankBadge.rankTheme8{
+  background:
+    radial-gradient(circle at 15% 20%, rgba(255,255,255,.75) 0 8%, transparent 9%),
+    linear-gradient(135deg, #faf5ff 0%, #f5d0fe 45%, #ddd6fe 100%);
+  border-color:#e879f9;
+  color:#86198f;
+  box-shadow:
+    0 12px 26px rgba(168,85,247,.22),
+    0 0 0 1px rgba(255,255,255,.35) inset;
+}
+
+.appRankBadge.rankTheme8::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(120deg, transparent 20%, rgba(255,255,255,.28) 50%, transparent 80%);
+  transform:translateX(-120%);
+  animation:rankShine 4.8s linear infinite;
+  pointer-events:none;
+}
+
+/* Rank 9 かなり豪華 */
+.appRankBadge.rankTheme9{
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255,255,255,.82) 0 8%, transparent 9%),
+    radial-gradient(circle at 85% 28%, rgba(255,255,255,.35) 0 10%, transparent 11%),
+    linear-gradient(135deg, #fff1f2 0%, #fecdd3 45%, #fde68a 100%);
+  border-color:#fb7185;
+  color:#9f1239;
+  box-shadow:
+    0 14px 30px rgba(244,63,94,.24),
+    0 0 0 1px rgba(255,255,255,.42) inset;
+}
+
+.appRankBadge.rankTheme9 .appRankValue{
+  font-size:24px;
+  letter-spacing:.3px;
+}
+
+.appRankBadge.rankTheme9::before{
+  content:"✦";
+  position:absolute;
+  right:12px;
+  top:8px;
+  font-size:18px;
+  opacity:.7;
+}
+
+.appRankBadge.rankTheme9::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(120deg, transparent 15%, rgba(255,255,255,.34) 50%, transparent 85%);
+  transform:translateX(-120%);
+  animation:rankShine 4s linear infinite;
+  pointer-events:none;
+}
+
+/* Rank 10 かなり目立つ */
+.appRankBadge.rankTheme10{
+  background:
+    radial-gradient(circle at 20% 18%, rgba(255,255,255,.95) 0 10%, transparent 11%),
+    radial-gradient(circle at 82% 22%, rgba(255,255,255,.38) 0 11%, transparent 12%),
+    linear-gradient(135deg, #fff7cc 0%, #ffe08a 28%, #f59e0b 62%, #f97316 100%);
+  border:2px solid #f59e0b;
+  color:#7c2d12;
+  box-shadow:
+    0 16px 34px rgba(245,158,11,.34),
+    0 0 0 2px rgba(255,255,255,.42) inset,
+    0 0 18px rgba(251,191,36,.28);
+  transform:translateY(-1px);
+}
+
+.appRankBadge.rankTheme10 .appRankLabel{
+  font-size:12px;
+}
+
+.appRankBadge.rankTheme10 .appRankValue{
+  font-size:28px;
+  letter-spacing:.6px;
+  text-shadow:0 1px 0 rgba(255,255,255,.35);
+}
+
+.appRankBadge.rankTheme10 .appRankTitle{
+  font-size:14px;
+  letter-spacing:.2px;
+}
+
+.appRankBadge.rankTheme10::before{
+  content:"👑";
+  position:absolute;
+  right:10px;
+  top:6px;
+  font-size:22px;
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.12));
+}
+
+.appRankBadge.rankTheme10::after{
+  content:"";
+  position:absolute;
+  inset:-20%;
+  background:linear-gradient(120deg, transparent 30%, rgba(255,255,255,.42) 50%, transparent 70%);
+  transform:translateX(-120%) skewX(-18deg);
+  animation:rankShine 2.8s linear infinite;
+  pointer-events:none;
+}
+
+@keyframes rankShine{
+  0%{
+    transform:translateX(-120%) skewX(-18deg);
+  }
+  100%{
+    transform:translateX(120%) skewX(-18deg);
+  }
+}
