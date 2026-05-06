@@ -825,6 +825,9 @@ function renderAppRankBadge() {
 
   const evo = getBadgeEvolutionState();
 
+  el.className = "appRankBadge";
+  el.classList.add(`rankTheme${evo.rank}`);
+
   el.innerHTML = `
     <div class="appRankLabel">現在ランク</div>
     <div class="appRankValue">Rank ${evo.rank}</div>
