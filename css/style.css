@@ -2665,3 +2665,65 @@ a{
   line-height:1.7;
   color:#475569;
 }
+.badgePeriodSection{
+  margin-bottom:18px;
+}
+
+.badgePeriodSection > .badgeTierHeader{
+  border-radius:14px;
+  padding:10px 12px;
+  margin-bottom:10px;
+  border:1px solid #dbe5f0;
+  background:#f8fbff;
+}
+
+.badgePeriodSection > .badgeTierHeader .badgeTierTitle{
+  font-size:14px;
+  font-weight:800;
+}
+
+/* 累計実績 */
+.badgePeriodSection:nth-of-type(1) > .badgeTierHeader{
+  background:linear-gradient(135deg, #f8fbff 0%, #eef4ff 100%);
+  border-color:#cfe0ff;
+}
+
+.badgePeriodSection:nth-of-type(1) > .badgeTierHeader .badgeTierTitle{
+  color:#2d5bdb;
+}
+
+/* 月間実績 */
+.badgePeriodSection:nth-of-type(2) > .badgeTierHeader{
+  background:linear-gradient(135deg, #fff9ef 0%, #fff3db 100%);
+  border-color:#ffd89b;
+}
+
+.badgePeriodSection:nth-of-type(2) > .badgeTierHeader .badgeTierTitle{
+  color:#c47a00;
+}
+
+/* 年間実績 */
+.badgePeriodSection:nth-of-type(3) > .badgeTierHeader{
+  background:linear-gradient(135deg, #f4fbf7 0%, #e7f8ee 100%);
+  border-color:#b8e7c8;
+}
+
+.badgePeriodSection:nth-of-type(3) > .badgeTierHeader .badgeTierTitle{
+  color:#1f8a4c;
+}
+
+/* 各期間の中の 初級 / 中級 / 上級 */
+.badgePeriodSection .badgeTierSection{
+  margin-top:10px;
+}
+
+.badgePeriodSection .badgeTierSection > .badgeTierHeader{
+  background:#ffffff;
+  border:1px solid #e5eaf2;
+  border-radius:12px;
+  padding:8px 10px;
+}
+
+.badgePeriodSection .badgeTierSection > .badgeTierHeader .badgeTierTitle{
+  font-size:13px;
+}
