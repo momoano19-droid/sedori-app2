@@ -690,7 +690,6 @@ function getBadgeProgressText(badge, current = 0) {
 
 function getNextBadge() {
   const locked = getLockedBadges();
-
   if (!locked.length) return null;
 
   const ranked = locked
@@ -954,6 +953,67 @@ function renderBadgeMiniCardIfExists() {
   }
 }
 
+function buildBadgeTierGroupHtml(list, tierName) {
+  const tierList = list.filter(b => (b.tier || "初級") === tierName);
+  const unlocked = tierList.filter(b => b.unlocked);
+  const locked = tierList.filter(b => !b.unlocked);
+  const ordered = [...unlocked, ...locked];
+
+  if (!ordered.length) return "";
+
+  return `
+    <div class="badgeTierSection">
+      <div class="badgeTierHeader">
+        <span class="badgeTierTitle">${tierName}</span>
+        <span class="badgeTierCount">${unlocked.length} / ${ordered.length} 達成</span>
+      </div>
+
+      <div class="badgeListWrap">
+        ${ordered.map(badge => {
+          const stateText = badge.unlocked ? "達成" : "未達成";
+          const progressText = badge.unlocked ? "解除済み" : (badge.progressText || "");
+
+          return `
+            <div class="badgeItem ${badge.unlocked ? "unlocked" : "locked"}">
+              <div class="badgeRowTop">
+                <div class="badgeMain">
+                  <div class="badgeIcon">${badge.icon || "🏅"}</div>
+                  <div>
+                    <div class="badgeName">${escapeHtml(badge.name || "実績")}</div>
+                    <div class="badgeDesc">${escapeHtml(badge.description || "")}</div>
+                  </div>
+                </div>
+                <div class="badgeState ${badge.unlocked ? "unlocked" : "locked"}">
+                  ${stateText}
+                </div>
+              </div>
+
+              <div class="badgeProgress">${escapeHtml(progressText)}</div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function buildBadgePeriodSectionHtml(list, periodKey, periodLabel) {
+  const periodList = list.filter(b => (b.period || "all") === periodKey);
+  if (!periodList.length) return "";
+
+  return `
+    <div class="badgePeriodSection period-${periodKey}">
+      <div class="badgePeriodHeader">
+        <span class="badgePeriodTitle">${periodLabel}</span>
+      </div>
+
+      ${buildBadgeTierGroupHtml(periodList, "初級")}
+      ${buildBadgeTierGroupHtml(periodList, "中級")}
+      ${buildBadgeTierGroupHtml(periodList, "上級")}
+    </div>
+  `;
+}
+
 function renderBadgeList() {
   const el = document.getElementById("badgeListWrap");
   if (!el) return;
@@ -972,71 +1032,13 @@ function renderBadgeList() {
     return;
   }
 
-  const tiers = ["初級", "中級", "上級"];
-  const periods = [
-    { key: "all", label: "累計実績" },
-    { key: "month", label: "月間実績" },
-    { key: "year", label: "年間実績" }
-  ];
+  const html = [
+    buildBadgePeriodSectionHtml(list, "all", "累計実績"),
+    buildBadgePeriodSectionHtml(list, "month", "月間実績"),
+    buildBadgePeriodSectionHtml(list, "year", "年間実績")
+  ].join("");
 
-  const sectionHtml = periods.map(period => {
-    const periodList = list.filter(b => (b.period || "all") === period.key);
-    if (!periodList.length) return "";
-
-    return `
-      <div class="badgePeriodSection">
-        <div class="badgeTierHeader">
-          <span class="badgeTierTitle">${period.label}</span>
-        </div>
-
-        ${tiers.map(tier => {
-          const tierList = periodList.filter(b => (b.tier || "初級") === tier);
-          const unlocked = tierList.filter(b => b.unlocked);
-          const locked = tierList.filter(b => !b.unlocked);
-          const ordered = [...unlocked, ...locked];
-
-          if (!ordered.length) return "";
-
-          return `
-            <div class="badgeTierSection">
-              <div class="badgeTierHeader">
-                <span class="badgeTierTitle">${tier}</span>
-                <span class="badgeTierCount">${unlocked.length} / ${ordered.length} 達成</span>
-              </div>
-
-              <div class="badgeListWrap">
-                ${ordered.map(badge => {
-                  const stateText = badge.unlocked ? "達成" : "未達成";
-                  const progressText = badge.unlocked ? "解除済み" : (badge.progressText || "");
-
-                  return `
-                    <div class="badgeItem ${badge.unlocked ? "unlocked" : "locked"}">
-                      <div class="badgeRowTop">
-                        <div class="badgeMain">
-                          <div class="badgeIcon">${badge.icon || "🏅"}</div>
-                          <div>
-                            <div class="badgeName">${escapeHtml(badge.name || "実績")}</div>
-                            <div class="badgeDesc">${escapeHtml(badge.description || "")}</div>
-                          </div>
-                        </div>
-                        <div class="badgeState ${badge.unlocked ? "unlocked" : "locked"}">
-                          ${stateText}
-                        </div>
-                      </div>
-
-                      <div class="badgeProgress">${escapeHtml(progressText)}</div>
-                    </div>
-                  `;
-                }).join("")}
-              </div>
-            </div>
-          `;
-        }).join("")}
-      </div>
-    `;
-  }).join("");
-
-  el.innerHTML = sectionHtml || `<div class="emptyText">実績データがありません。</div>`;
+  el.innerHTML = html || `<div class="emptyText">実績データがありません。</div>`;
 }
 
 let badgeAccordionOpen = false;
