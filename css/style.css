@@ -2922,3 +2922,95 @@ a{
     transform:translateX(120%) skewX(-18deg);
   }
 }
+.badgePeriodSection{
+  margin-top:14px;
+  margin-bottom:18px;
+}
+
+.badgePeriodHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:11px 13px;
+  border-radius:14px;
+  margin-bottom:10px;
+  border:1px solid #dbe5f0;
+  box-shadow:0 6px 14px rgba(15,23,42,.05);
+}
+
+.badgePeriodTitle{
+  font-size:15px;
+  font-weight:900;
+  letter-spacing:.02em;
+}
+
+.badgePeriodSection.period-all .badgePeriodHeader{
+  background:linear-gradient(135deg, #eef5ff 0%, #dfeaff 100%);
+  border-color:#bfd4ff;
+}
+
+.badgePeriodSection.period-all .badgePeriodTitle{
+  color:#2457d6;
+}
+
+.badgePeriodSection.period-month .badgePeriodHeader{
+  background:linear-gradient(135deg, #fff8ea 0%, #ffefc8 100%);
+  border-color:#ffd58b;
+}
+
+.badgePeriodSection.period-month .badgePeriodTitle{
+  color:#b76a00;
+}
+
+.badgePeriodSection.period-year .badgePeriodHeader{
+  background:linear-gradient(135deg, #eefbf2 0%, #dff6e7 100%);
+  border-color:#b8e3c7;
+}
+
+.badgePeriodSection.period-year .badgePeriodTitle{
+  color:#1f8a4c;
+}
+
+.badgeTierSection{
+  margin-top:10px;
+}
+
+.badgeTierSection .badgeTierHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:9px 11px;
+  border-radius:12px;
+  border:1px solid #e2e8f0;
+  background:#ffffff;
+  margin-bottom:8px;
+}
+
+.badgeTierTitle{
+  font-size:13px;
+  font-weight:800;
+  color:#1f2340;
+}
+
+.badgeTierCount{
+  font-size:11px;
+  font-weight:700;
+  color:#64748b;
+}
+
+.badgePeriodSection.period-all .badgeTierSection .badgeTierHeader{
+  background:#f8fbff;
+  border-color:#dbe7ff;
+}
+
+.badgePeriodSection.period-month .badgeTierSection .badgeTierHeader{
+  background:#fffdf7;
+  border-color:#ffe7b8;
+}
+
+.badgePeriodSection.period-year .badgeTierSection .badgeTierHeader{
+  background:#f8fdf9;
+  border-color:#d6efdf;
+}
