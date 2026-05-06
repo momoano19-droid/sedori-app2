@@ -1,407 +1,338 @@
+const BADGE_ROUTE_COMPLETE_KEY = "badge_route_complete_count";
+const BADGE_UNLOCKED_HISTORY_KEY = "badge_unlocked_history_v1";
+
+function makeStatBadge({
+  id,
+  icon,
+  name,
+  category,
+  tier,
+  period,
+  description,
+  statKey,
+  target
+}) {
+  return {
+    id,
+    icon,
+    name,
+    category,
+    tier,
+    period,
+    description,
+    condition: stats => badgeSafeNumber(stats?.[statKey]) >= target,
+    progress: stats => badgeSafeNumber(stats?.[statKey]),
+    target
+  };
+}
+
 const BADGE_DEFINITIONS = [
-  {
-    id: "first_visit",
+  // =========================
+  // 累計実績 / 初級（6個）
+  // =========================
+  makeStatBadge({
+    id: "all_visit_1",
     icon: "👣",
     name: "はじめの一歩",
     category: "visit",
     tier: "初級",
     period: "all",
-    description: "訪問1回達成",
-    condition: stats => stats.totalVisits >= 1,
-    progress: stats => stats.totalVisits,
+    description: "累計訪問1回達成",
+    statKey: "totalVisits",
     target: 1
-  },
-  {
-    id: "visit_10",
+  }),
+  makeStatBadge({
+    id: "all_visit_10",
     icon: "👣",
     name: "巡回スタート",
     category: "visit",
     tier: "初級",
     period: "all",
-    description: "訪問10回達成",
-    condition: stats => stats.totalVisits >= 10,
-    progress: stats => stats.totalVisits,
+    description: "累計訪問10回達成",
+    statKey: "totalVisits",
     target: 10
-  },
-  {
-    id: "visit_50",
-    icon: "👣",
-    name: "巡回職人",
-    category: "visit",
-    tier: "中級",
-    period: "all",
-    description: "訪問50回達成",
-    condition: stats => stats.totalVisits >= 50,
-    progress: stats => stats.totalVisits,
-    target: 50
-  },
-  {
-    id: "visit_100",
-    icon: "👣",
-    name: "遠征マスター",
-    category: "visit",
-    tier: "中級",
-    period: "all",
-    description: "訪問100回達成",
-    condition: stats => stats.totalVisits >= 100,
-    progress: stats => stats.totalVisits,
-    target: 100
-  },
-  {
-    id: "visit_200",
-    icon: "👣",
-    name: "巡回ベテラン",
-    category: "visit",
-    tier: "上級",
-    period: "all",
-    description: "訪問200回達成",
-    condition: stats => stats.totalVisits >= 200,
-    progress: stats => stats.totalVisits,
-    target: 200
-  },
-  {
-    id: "visit_500",
-    icon: "👣",
-    name: "巡回レジェンド",
-    category: "visit",
-    tier: "上級",
-    period: "all",
-    description: "訪問500回達成",
-    condition: stats => stats.totalVisits >= 500,
-    progress: stats => stats.totalVisits,
-    target: 500
-  },
-
-  {
-    id: "first_success",
+  }),
+  makeStatBadge({
+    id: "all_success_1",
     icon: "🎯",
     name: "初仕入れ",
     category: "success",
     tier: "初級",
     period: "all",
-    description: "成功1回達成",
-    condition: stats => stats.totalSuccess >= 1,
-    progress: stats => stats.totalSuccess,
+    description: "累計成功1回達成",
+    statKey: "totalSuccess",
     target: 1
-  },
-  {
-    id: "success_10",
-    icon: "🎯",
-    name: "仕入れ上昇中",
-    category: "success",
-    tier: "初級",
-    period: "all",
-    description: "成功10回達成",
-    condition: stats => stats.totalSuccess >= 10,
-    progress: stats => stats.totalSuccess,
-    target: 10
-  },
-  {
-    id: "success_30",
-    icon: "🎯",
-    name: "仕入れ名人",
-    category: "success",
-    tier: "中級",
-    period: "all",
-    description: "成功30回達成",
-    condition: stats => stats.totalSuccess >= 30,
-    progress: stats => stats.totalSuccess,
-    target: 30
-  },
-  {
-    id: "success_50",
-    icon: "🎯",
-    name: "爆仕入れ職人",
-    category: "success",
-    tier: "中級",
-    period: "all",
-    description: "成功50回達成",
-    condition: stats => stats.totalSuccess >= 50,
-    progress: stats => stats.totalSuccess,
-    target: 50
-  },
-  {
-    id: "success_100",
-    icon: "🎯",
-    name: "仕入れ達人",
-    category: "success",
-    tier: "上級",
-    period: "all",
-    description: "成功100回達成",
-    condition: stats => stats.totalSuccess >= 100,
-    progress: stats => stats.totalSuccess,
-    target: 100
-  },
-  {
-    id: "success_200",
-    icon: "🎯",
-    name: "仕入れレジェンド",
-    category: "success",
-    tier: "上級",
-    period: "all",
-    description: "成功200回達成",
-    condition: stats => stats.totalSuccess >= 200,
-    progress: stats => stats.totalSuccess,
-    target: 200
-  },
-
-  {
-    id: "profit_10k",
+  }),
+  makeStatBadge({
+    id: "all_profit_10k",
     icon: "💰",
     name: "初利益達成",
     category: "profit",
     tier: "初級",
     period: "all",
     description: "累計利益1万円達成",
-    condition: stats => stats.totalProfit >= 10000,
-    progress: stats => stats.totalProfit,
+    statKey: "totalProfit",
     target: 10000
-  },
-  {
-    id: "profit_100k",
-    icon: "💰",
-    name: "利益職人",
-    category: "profit",
-    tier: "初級",
-    period: "all",
-    description: "累計利益10万円達成",
-    condition: stats => stats.totalProfit >= 100000,
-    progress: stats => stats.totalProfit,
-    target: 100000
-  },
-  {
-    id: "profit_500k",
-    icon: "💰",
-    name: "月間エース級",
-    category: "profit",
-    tier: "中級",
-    period: "all",
-    description: "累計利益50万円達成",
-    condition: stats => stats.totalProfit >= 500000,
-    progress: stats => stats.totalProfit,
-    target: 500000
-  },
-  {
-    id: "profit_1000k",
-    icon: "💰",
-    name: "伝説級プレイヤー",
-    category: "profit",
-    tier: "中級",
-    period: "all",
-    description: "累計利益100万円達成",
-    condition: stats => stats.totalProfit >= 1000000,
-    progress: stats => stats.totalProfit,
-    target: 1000000
-  },
-  {
-    id: "profit_3000k",
-    icon: "💰",
-    name: "利益王への道",
-    category: "profit",
-    tier: "上級",
-    period: "all",
-    description: "累計利益300万円達成",
-    condition: stats => stats.totalProfit >= 3000000,
-    progress: stats => stats.totalProfit,
-    target: 3000000
-  },
-  {
-    id: "profit_5000k",
-    icon: "💰",
-    name: "利益王",
-    category: "profit",
-    tier: "上級",
-    period: "all",
-    description: "累計利益500万円達成",
-    condition: stats => stats.totalProfit >= 5000000,
-    progress: stats => stats.totalProfit,
-    target: 5000000
-  },
-
-  {
-    id: "items_10",
+  }),
+  makeStatBadge({
+    id: "all_items_10",
     icon: "📦",
     name: "収集家",
     category: "items",
     tier: "初級",
     period: "all",
     description: "累計個数10個達成",
-    condition: stats => stats.totalItems >= 10,
-    progress: stats => stats.totalItems,
+    statKey: "totalItems",
     target: 10
-  },
-  {
-    id: "items_50",
-    icon: "📦",
-    name: "大量仕入れ",
-    category: "items",
+  }),
+  makeStatBadge({
+    id: "all_route_1",
+    icon: "🗺",
+    name: "ルート初制覇",
+    category: "route",
     tier: "初級",
     period: "all",
-    description: "累計個数50個達成",
-    condition: stats => stats.totalItems >= 50,
-    progress: stats => stats.totalItems,
+    description: "累計ルート制覇1回達成",
+    statKey: "completedRouteCount",
+    target: 1
+  }),
+
+  // =========================
+  // 累計実績 / 中級（6個）
+  // =========================
+  makeStatBadge({
+    id: "all_visit_50",
+    icon: "👣",
+    name: "巡回職人",
+    category: "visit",
+    tier: "中級",
+    period: "all",
+    description: "累計訪問50回達成",
+    statKey: "totalVisits",
     target: 50
-  },
-  {
-    id: "items_100",
+  }),
+  makeStatBadge({
+    id: "all_success_30",
+    icon: "🎯",
+    name: "仕入れ名人",
+    category: "success",
+    tier: "中級",
+    period: "all",
+    description: "累計成功30回達成",
+    statKey: "totalSuccess",
+    target: 30
+  }),
+  makeStatBadge({
+    id: "all_profit_500k",
+    icon: "💰",
+    name: "利益エース",
+    category: "profit",
+    tier: "中級",
+    period: "all",
+    description: "累計利益50万円達成",
+    statKey: "totalProfit",
+    target: 500000
+  }),
+  makeStatBadge({
+    id: "all_items_100",
     icon: "📦",
     name: "在庫マスター",
     category: "items",
     tier: "中級",
     period: "all",
     description: "累計個数100個達成",
-    condition: stats => stats.totalItems >= 100,
-    progress: stats => stats.totalItems,
+    statKey: "totalItems",
     target: 100
-  },
-  {
-    id: "items_300",
-    icon: "📦",
-    name: "在庫キング",
-    category: "items",
-    tier: "上級",
-    period: "all",
-    description: "累計個数300個達成",
-    condition: stats => stats.totalItems >= 300,
-    progress: stats => stats.totalItems,
-    target: 300
-  },
-
-  {
-    id: "high_expected_1",
-    icon: "🏪",
-    name: "高期待値発見",
-    category: "store",
-    tier: "初級",
-    period: "all",
-    description: "期待値3000円以上の店舗を1件作成",
-    condition: stats => stats.highExpectedStoreCount >= 1,
-    progress: stats => stats.highExpectedStoreCount,
-    target: 1
-  },
-  {
-    id: "high_expected_3",
+  }),
+  makeStatBadge({
+    id: "all_high_expected_3",
     icon: "🏪",
     name: "優良店舗ハンター",
     category: "store",
     tier: "中級",
     period: "all",
     description: "期待値3000円以上の店舗を3件作成",
-    condition: stats => stats.highExpectedStoreCount >= 3,
-    progress: stats => stats.highExpectedStoreCount,
+    statKey: "highExpectedStoreCount",
     target: 3
-  },
-  {
-    id: "high_expected_5",
+  }),
+  makeStatBadge({
+    id: "all_route_5",
+    icon: "🗺",
+    name: "ルートマスター",
+    category: "route",
+    tier: "中級",
+    period: "all",
+    description: "累計ルート制覇5回達成",
+    statKey: "completedRouteCount",
+    target: 5
+  }),
+
+  // =========================
+  // 累計実績 / 上級（6個）
+  // =========================
+  makeStatBadge({
+    id: "all_visit_200",
+    icon: "👣",
+    name: "巡回ベテラン",
+    category: "visit",
+    tier: "上級",
+    period: "all",
+    description: "累計訪問200回達成",
+    statKey: "totalVisits",
+    target: 200
+  }),
+  makeStatBadge({
+    id: "all_success_100",
+    icon: "🎯",
+    name: "仕入れ達人",
+    category: "success",
+    tier: "上級",
+    period: "all",
+    description: "累計成功100回達成",
+    statKey: "totalSuccess",
+    target: 100
+  }),
+  makeStatBadge({
+    id: "all_profit_3000k",
+    icon: "💰",
+    name: "利益王への道",
+    category: "profit",
+    tier: "上級",
+    period: "all",
+    description: "累計利益300万円達成",
+    statKey: "totalProfit",
+    target: 3000000
+  }),
+  makeStatBadge({
+    id: "all_items_300",
+    icon: "📦",
+    name: "在庫キング",
+    category: "items",
+    tier: "上級",
+    period: "all",
+    description: "累計個数300個達成",
+    statKey: "totalItems",
+    target: 300
+  }),
+  makeStatBadge({
+    id: "all_high_expected_5",
     icon: "🏪",
     name: "高期待値コレクター",
     category: "store",
     tier: "上級",
     period: "all",
     description: "期待値3000円以上の店舗を5件作成",
-    condition: stats => stats.highExpectedStoreCount >= 5,
-    progress: stats => stats.highExpectedStoreCount,
+    statKey: "highExpectedStoreCount",
     target: 5
-  },
-  {
-    id: "stable_store_3",
-    icon: "🏪",
-    name: "安定運用中",
-    category: "store",
-    tier: "中級",
-    period: "all",
-    description: "成功率30%以上の店舗を3件作成",
-    condition: stats => stats.stableStoreCount >= 3,
-    progress: stats => stats.stableStoreCount,
-    target: 3
-  },
-  {
-    id: "stable_store_10",
-    icon: "🏪",
-    name: "安定店舗マスター",
-    category: "store",
-    tier: "上級",
-    period: "all",
-    description: "成功率30%以上の店舗を10件作成",
-    condition: stats => stats.stableStoreCount >= 10,
-    progress: stats => stats.stableStoreCount,
-    target: 10
-  },
-
-  {
-    id: "route_complete_1",
-    icon: "🗺",
-    name: "ルート初制覇",
-    category: "route",
-    tier: "初級",
-    period: "all",
-    description: "今日のルートを1回すべて訪問",
-    condition: stats => stats.completedRouteCount >= 1,
-    progress: stats => stats.completedRouteCount,
-    target: 1
-  },
-  {
-    id: "route_complete_5",
-    icon: "🗺",
-    name: "ルートマスター",
-    category: "route",
-    tier: "中級",
-    period: "all",
-    description: "今日のルートを5回すべて訪問",
-    condition: stats => stats.completedRouteCount >= 5,
-    progress: stats => stats.completedRouteCount,
-    target: 5
-  },
-  {
-    id: "route_complete_20",
+  }),
+  makeStatBadge({
+    id: "all_route_20",
     icon: "🗺",
     name: "ルート覇者",
     category: "route",
     tier: "上級",
     period: "all",
-    description: "今日のルートを20回すべて訪問",
-    condition: stats => stats.completedRouteCount >= 20,
-    progress: stats => stats.completedRouteCount,
+    description: "累計ルート制覇20回達成",
+    statKey: "completedRouteCount",
     target: 20
-  },
+  }),
 
-  {
+  // =========================
+  // 月間実績 / 初級（6個）
+  // =========================
+  makeStatBadge({
+    id: "month_visit_1",
+    icon: "📅",
+    name: "今月の一歩",
+    category: "visit",
+    tier: "初級",
+    period: "month",
+    description: "今月の訪問1回達成",
+    statKey: "monthVisits",
+    target: 1
+  }),
+  makeStatBadge({
+    id: "month_success_1",
+    icon: "📅",
+    name: "今月初成功",
+    category: "success",
+    tier: "初級",
+    period: "month",
+    description: "今月の成功1回達成",
+    statKey: "monthSuccess",
+    target: 1
+  }),
+  makeStatBadge({
+    id: "month_profit_10k",
+    icon: "📅",
+    name: "今月利益1万",
+    category: "profit",
+    tier: "初級",
+    period: "month",
+    description: "今月の利益1万円達成",
+    statKey: "monthProfit",
+    target: 10000
+  }),
+  makeStatBadge({
+    id: "month_items_10",
+    icon: "📅",
+    name: "今月10個達成",
+    category: "items",
+    tier: "初級",
+    period: "month",
+    description: "今月の個数10個達成",
+    statKey: "monthItems",
+    target: 10
+  }),
+  makeStatBadge({
+    id: "month_high_expected_1",
+    icon: "📅",
+    name: "今月高期待値1",
+    category: "store",
+    tier: "初級",
+    period: "month",
+    description: "今月の期待値3000円以上店舗を1件作成",
+    statKey: "monthHighExpectedStoreCount",
+    target: 1
+  }),
+  makeStatBadge({
+    id: "month_route_1",
+    icon: "📅",
+    name: "今月ルート1",
+    category: "route",
+    tier: "初級",
+    period: "month",
+    description: "今月のルート制覇1回達成",
+    statKey: "monthCompletedRouteCount",
+    target: 1
+  }),
+
+  // =========================
+  // 月間実績 / 中級（6個）
+  // =========================
+  makeStatBadge({
     id: "month_visit_30",
     icon: "📅",
     name: "今月巡回30",
     category: "visit",
-    tier: "初級",
+    tier: "中級",
     period: "month",
     description: "今月の訪問30回達成",
-    condition: stats => stats.monthVisits >= 30,
-    progress: stats => stats.monthVisits,
+    statKey: "monthVisits",
     target: 30
-  },
-  {
+  }),
+  makeStatBadge({
     id: "month_success_10",
     icon: "📅",
     name: "今月成功10",
     category: "success",
-    tier: "初級",
+    tier: "中級",
     period: "month",
     description: "今月の成功10回達成",
-    condition: stats => stats.monthSuccess >= 10,
-    progress: stats => stats.monthSuccess,
+    statKey: "monthSuccess",
     target: 10
-  },
-  {
-    id: "month_items_30",
-    icon: "📅",
-    name: "今月30個達成",
-    category: "items",
-    tier: "初級",
-    period: "month",
-    description: "今月の個数30個達成",
-    condition: stats => stats.monthItems >= 30,
-    progress: stats => stats.monthItems,
-    target: 30
-  },
-  {
+  }),
+  makeStatBadge({
     id: "month_profit_100k",
     icon: "📅",
     name: "今月利益10万",
@@ -409,11 +340,32 @@ const BADGE_DEFINITIONS = [
     tier: "中級",
     period: "month",
     description: "今月の利益10万円達成",
-    condition: stats => stats.monthProfit >= 100000,
-    progress: stats => stats.monthProfit,
+    statKey: "monthProfit",
     target: 100000
-  },
-  {
+  }),
+  makeStatBadge({
+    id: "month_items_30",
+    icon: "📅",
+    name: "今月30個達成",
+    category: "items",
+    tier: "中級",
+    period: "month",
+    description: "今月の個数30個達成",
+    statKey: "monthItems",
+    target: 30
+  }),
+  makeStatBadge({
+    id: "month_high_expected_3",
+    icon: "📅",
+    name: "今月高期待値3",
+    category: "store",
+    tier: "中級",
+    period: "month",
+    description: "今月の期待値3000円以上店舗を3件作成",
+    statKey: "monthHighExpectedStoreCount",
+    target: 3
+  }),
+  makeStatBadge({
     id: "month_route_3",
     icon: "📅",
     name: "今月ルート3",
@@ -421,12 +373,176 @@ const BADGE_DEFINITIONS = [
     tier: "中級",
     period: "month",
     description: "今月のルート制覇3回達成",
-    condition: stats => stats.monthCompletedRouteCount >= 3,
-    progress: stats => stats.monthCompletedRouteCount,
+    statKey: "monthCompletedRouteCount",
     target: 3
-  },
+  }),
 
-  {
+  // =========================
+  // 月間実績 / 上級（6個）
+  // =========================
+  makeStatBadge({
+    id: "month_visit_100",
+    icon: "📅",
+    name: "今月巡回100",
+    category: "visit",
+    tier: "上級",
+    period: "month",
+    description: "今月の訪問100回達成",
+    statKey: "monthVisits",
+    target: 100
+  }),
+  makeStatBadge({
+    id: "month_success_50",
+    icon: "📅",
+    name: "今月成功50",
+    category: "success",
+    tier: "上級",
+    period: "month",
+    description: "今月の成功50回達成",
+    statKey: "monthSuccess",
+    target: 50
+  }),
+  makeStatBadge({
+    id: "month_profit_500k",
+    icon: "📅",
+    name: "今月利益50万",
+    category: "profit",
+    tier: "上級",
+    period: "month",
+    description: "今月の利益50万円達成",
+    statKey: "monthProfit",
+    target: 500000
+  }),
+  makeStatBadge({
+    id: "month_items_150",
+    icon: "📅",
+    name: "今月150個達成",
+    category: "items",
+    tier: "上級",
+    period: "month",
+    description: "今月の個数150個達成",
+    statKey: "monthItems",
+    target: 150
+  }),
+  makeStatBadge({
+    id: "month_high_expected_5",
+    icon: "📅",
+    name: "今月高期待値5",
+    category: "store",
+    tier: "上級",
+    period: "month",
+    description: "今月の期待値3000円以上店舗を5件作成",
+    statKey: "monthHighExpectedStoreCount",
+    target: 5
+  }),
+  makeStatBadge({
+    id: "month_route_10",
+    icon: "📅",
+    name: "今月ルート10",
+    category: "route",
+    tier: "上級",
+    period: "month",
+    description: "今月のルート制覇10回達成",
+    statKey: "monthCompletedRouteCount",
+    target: 10
+  }),
+
+  // =========================
+  // 年間実績 / 初級（6個）
+  // =========================
+  makeStatBadge({
+    id: "year_visit_10",
+    icon: "🎍",
+    name: "今年巡回10",
+    category: "visit",
+    tier: "初級",
+    period: "year",
+    description: "今年の訪問10回達成",
+    statKey: "yearVisits",
+    target: 10
+  }),
+  makeStatBadge({
+    id: "year_success_10",
+    icon: "🎍",
+    name: "今年成功10",
+    category: "success",
+    tier: "初級",
+    period: "year",
+    description: "今年の成功10回達成",
+    statKey: "yearSuccess",
+    target: 10
+  }),
+  makeStatBadge({
+    id: "year_profit_100k",
+    icon: "🎍",
+    name: "年間利益10万",
+    category: "profit",
+    tier: "初級",
+    period: "year",
+    description: "今年の利益10万円達成",
+    statKey: "yearProfit",
+    target: 100000
+  }),
+  makeStatBadge({
+    id: "year_items_30",
+    icon: "🎍",
+    name: "年間30個達成",
+    category: "items",
+    tier: "初級",
+    period: "year",
+    description: "今年の個数30個達成",
+    statKey: "yearItems",
+    target: 30
+  }),
+  makeStatBadge({
+    id: "year_high_expected_1",
+    icon: "🎍",
+    name: "年間高期待値1",
+    category: "store",
+    tier: "初級",
+    period: "year",
+    description: "今年の期待値3000円以上店舗を1件作成",
+    statKey: "yearHighExpectedStoreCount",
+    target: 1
+  }),
+  makeStatBadge({
+    id: "year_route_3",
+    icon: "🎍",
+    name: "年間ルート3",
+    category: "route",
+    tier: "初級",
+    period: "year",
+    description: "今年のルート制覇3回達成",
+    statKey: "yearCompletedRouteCount",
+    target: 3
+  }),
+
+  // =========================
+  // 年間実績 / 中級（6個）
+  // =========================
+  makeStatBadge({
+    id: "year_visit_100",
+    icon: "🎍",
+    name: "今年巡回100",
+    category: "visit",
+    tier: "中級",
+    period: "year",
+    description: "今年の訪問100回達成",
+    statKey: "yearVisits",
+    target: 100
+  }),
+  makeStatBadge({
+    id: "year_success_50",
+    icon: "🎍",
+    name: "今年成功50",
+    category: "success",
+    tier: "中級",
+    period: "year",
+    description: "今年の成功50回達成",
+    statKey: "yearSuccess",
+    target: 50
+  }),
+  makeStatBadge({
     id: "year_profit_1000k",
     icon: "🎍",
     name: "年間利益100万",
@@ -434,11 +550,69 @@ const BADGE_DEFINITIONS = [
     tier: "中級",
     period: "year",
     description: "今年の利益100万円達成",
-    condition: stats => stats.yearProfit >= 1000000,
-    progress: stats => stats.yearProfit,
+    statKey: "yearProfit",
     target: 1000000
-  },
-  {
+  }),
+  makeStatBadge({
+    id: "year_items_200",
+    icon: "🎍",
+    name: "年間200個達成",
+    category: "items",
+    tier: "中級",
+    period: "year",
+    description: "今年の個数200個達成",
+    statKey: "yearItems",
+    target: 200
+  }),
+  makeStatBadge({
+    id: "year_high_expected_3",
+    icon: "🎍",
+    name: "年間高期待値3",
+    category: "store",
+    tier: "中級",
+    period: "year",
+    description: "今年の期待値3000円以上店舗を3件作成",
+    statKey: "yearHighExpectedStoreCount",
+    target: 3
+  }),
+  makeStatBadge({
+    id: "year_route_10",
+    icon: "🎍",
+    name: "年間ルート10",
+    category: "route",
+    tier: "中級",
+    period: "year",
+    description: "今年のルート制覇10回達成",
+    statKey: "yearCompletedRouteCount",
+    target: 10
+  }),
+
+  // =========================
+  // 年間実績 / 上級（6個）
+  // =========================
+  makeStatBadge({
+    id: "year_visit_500",
+    icon: "🎍",
+    name: "今年巡回500",
+    category: "visit",
+    tier: "上級",
+    period: "year",
+    description: "今年の訪問500回達成",
+    statKey: "yearVisits",
+    target: 500
+  }),
+  makeStatBadge({
+    id: "year_success_200",
+    icon: "🎍",
+    name: "今年成功200",
+    category: "success",
+    tier: "上級",
+    period: "year",
+    description: "今年の成功200回達成",
+    statKey: "yearSuccess",
+    target: 200
+  }),
+  makeStatBadge({
     id: "year_profit_3000k",
     icon: "🎍",
     name: "年間利益300万",
@@ -446,21 +620,62 @@ const BADGE_DEFINITIONS = [
     tier: "上級",
     period: "year",
     description: "今年の利益300万円達成",
-    condition: stats => stats.yearProfit >= 3000000,
-    progress: stats => stats.yearProfit,
+    statKey: "yearProfit",
     target: 3000000
-  }
+  }),
+  makeStatBadge({
+    id: "year_items_500",
+    icon: "🎍",
+    name: "年間500個達成",
+    category: "items",
+    tier: "上級",
+    period: "year",
+    description: "今年の個数500個達成",
+    statKey: "yearItems",
+    target: 500
+  }),
+  makeStatBadge({
+    id: "year_high_expected_5",
+    icon: "🎍",
+    name: "年間高期待値5",
+    category: "store",
+    tier: "上級",
+    period: "year",
+    description: "今年の期待値3000円以上店舗を5件作成",
+    statKey: "yearHighExpectedStoreCount",
+    target: 5
+  }),
+  makeStatBadge({
+    id: "year_route_20",
+    icon: "🎍",
+    name: "年間ルート20",
+    category: "route",
+    tier: "上級",
+    period: "year",
+    description: "今年のルート制覇20回達成",
+    statKey: "yearCompletedRouteCount",
+    target: 20
+  })
 ];
 
-const BADGE_ROUTE_COMPLETE_KEY = "badge_route_complete_count";
-const BADGE_UNLOCKED_HISTORY_KEY = "badge_unlocked_history_v1";
+function loadBadgeRoutePeriodCount(periodKey, fallback = "0") {
+  try {
+    return Number(localStorage.getItem(periodKey) || fallback);
+  } catch {
+    return Number(fallback || 0);
+  }
+}
+
+function getBadgeRouteMonthKey(monthStr) {
+  return `badge_route_complete_count_month_${monthStr}`;
+}
+
+function getBadgeRouteYearKey(yearStr) {
+  return `badge_route_complete_count_year_${yearStr}`;
+}
 
 function loadBadgeRouteCompleteCount() {
-  try {
-    return Number(localStorage.getItem(BADGE_ROUTE_COMPLETE_KEY) || "0");
-  } catch {
-    return 0;
-  }
+  return loadBadgeRoutePeriodCount(BADGE_ROUTE_COMPLETE_KEY, "0");
 }
 
 function saveBadgeRouteCompleteCount(count) {
@@ -514,12 +729,48 @@ function getBadgeMetricsForStore(store) {
   const visits = badgeSafeNumber(store?.visits);
   const success = badgeSafeNumber(store?.buyDays);
   const profit = badgeSafeNumber(store?.profit);
+
   return {
     visits,
     success,
     profit,
     expected: visits > 0 ? profit / visits : 0,
     rate: visits > 0 ? (success / visits) * 100 : 0
+  };
+}
+
+function getEmptyStorePeriodMetric() {
+  return {
+    visits: 0,
+    success: 0,
+    items: 0,
+    profit: 0
+  };
+}
+
+function ensureStoreMetric(map, storeId) {
+  if (!storeId) return null;
+  if (!map[storeId]) {
+    map[storeId] = getEmptyStorePeriodMetric();
+  }
+  return map[storeId];
+}
+
+function calcPeriodStoreCounts(metricMap) {
+  const metrics = Object.values(metricMap || {});
+  const highExpectedStoreCount = metrics.filter(m => {
+    const expected = m.visits > 0 ? m.profit / m.visits : 0;
+    return expected >= 3000;
+  }).length;
+
+  const stableStoreCount = metrics.filter(m => {
+    const rate = m.visits > 0 ? (m.success / m.visits) * 100 : 0;
+    return m.visits > 0 && rate >= 30;
+  }).length;
+
+  return {
+    highExpectedStoreCount,
+    stableStoreCount
   };
 }
 
@@ -546,34 +797,70 @@ function getBadgeStats() {
   let yearItems = 0;
   let yearProfit = 0;
 
+  const monthStoreMetricMap = {};
+  const yearStoreMetricMap = {};
+
   logsList.forEach(log => {
     const delta = badgeSafeNumber(log?.delta);
-    const dateStr = String(log?.date || "");
+    const dateStr = String(log?.date || log?.createdAt || "");
     const logMonth = dateStr.slice(0, 7);
     const logYear = dateStr.slice(0, 4);
+    const storeId = String(log?.storeId || "");
 
     if (log?.type === "visit") {
       totalVisits += delta;
-      if (logMonth === currentMonth) monthVisits += delta;
-      if (logYear === currentYear) yearVisits += delta;
+      if (logMonth === currentMonth) {
+        monthVisits += delta;
+        const m = ensureStoreMetric(monthStoreMetricMap, storeId);
+        if (m) m.visits += delta;
+      }
+      if (logYear === currentYear) {
+        yearVisits += delta;
+        const y = ensureStoreMetric(yearStoreMetricMap, storeId);
+        if (y) y.visits += delta;
+      }
     }
 
     if (log?.type === "success") {
       totalSuccess += delta;
-      if (logMonth === currentMonth) monthSuccess += delta;
-      if (logYear === currentYear) yearSuccess += delta;
+      if (logMonth === currentMonth) {
+        monthSuccess += delta;
+        const m = ensureStoreMetric(monthStoreMetricMap, storeId);
+        if (m) m.success += delta;
+      }
+      if (logYear === currentYear) {
+        yearSuccess += delta;
+        const y = ensureStoreMetric(yearStoreMetricMap, storeId);
+        if (y) y.success += delta;
+      }
     }
 
     if (log?.type === "items") {
       totalItems += delta;
-      if (logMonth === currentMonth) monthItems += delta;
-      if (logYear === currentYear) yearItems += delta;
+      if (logMonth === currentMonth) {
+        monthItems += delta;
+        const m = ensureStoreMetric(monthStoreMetricMap, storeId);
+        if (m) m.items += delta;
+      }
+      if (logYear === currentYear) {
+        yearItems += delta;
+        const y = ensureStoreMetric(yearStoreMetricMap, storeId);
+        if (y) y.items += delta;
+      }
     }
 
     if (log?.type === "profit") {
       totalProfit += delta;
-      if (logMonth === currentMonth) monthProfit += delta;
-      if (logYear === currentYear) yearProfit += delta;
+      if (logMonth === currentMonth) {
+        monthProfit += delta;
+        const m = ensureStoreMetric(monthStoreMetricMap, storeId);
+        if (m) m.profit += delta;
+      }
+      if (logYear === currentYear) {
+        yearProfit += delta;
+        const y = ensureStoreMetric(yearStoreMetricMap, storeId);
+        if (y) y.profit += delta;
+      }
     }
   });
 
@@ -599,15 +886,18 @@ function getBadgeStats() {
     return m.visits > 0 && m.rate >= 30;
   }).length;
 
-  const completedRouteCount = loadBadgeRouteCompleteCount();
+  const monthStoreCounts = calcPeriodStoreCounts(monthStoreMetricMap);
+  const yearStoreCounts = calcPeriodStoreCounts(yearStoreMetricMap);
 
-  const currentMonthRouteKey = `badge_route_complete_count_month_${currentMonth}`;
-  let monthCompletedRouteCount = 0;
-  try {
-    monthCompletedRouteCount = Number(localStorage.getItem(currentMonthRouteKey) || "0");
-  } catch {
-    monthCompletedRouteCount = 0;
-  }
+  const completedRouteCount = loadBadgeRouteCompleteCount();
+  const monthCompletedRouteCount = loadBadgeRoutePeriodCount(
+    getBadgeRouteMonthKey(currentMonth),
+    "0"
+  );
+  const yearCompletedRouteCount = loadBadgeRoutePeriodCount(
+    getBadgeRouteYearKey(currentYear),
+    "0"
+  );
 
   return {
     totalVisits,
@@ -625,10 +915,16 @@ function getBadgeStats() {
     yearItems,
     yearProfit,
 
-    monthCompletedRouteCount,
     highExpectedStoreCount,
     stableStoreCount,
+    monthHighExpectedStoreCount: monthStoreCounts.highExpectedStoreCount,
+    monthStableStoreCount: monthStoreCounts.stableStoreCount,
+    yearHighExpectedStoreCount: yearStoreCounts.highExpectedStoreCount,
+    yearStableStoreCount: yearStoreCounts.stableStoreCount,
+
     completedRouteCount,
+    monthCompletedRouteCount,
+    yearCompletedRouteCount,
     totalStoreCount: storesList.length,
 
     currentMonth,
@@ -679,12 +975,8 @@ function getBadgeProgressText(badge, current = 0) {
   if (badge.period === "month") suffix = "（今月）";
   if (badge.period === "year") suffix = "（今年）";
 
-  if (badge.category === "profit") {
-    return `あと${remain.toLocaleString()}円${suffix}`;
-  }
-  if (badge.category === "store" || badge.category === "route") {
-    return `あと${remain}件${suffix}`;
-  }
+  if (badge.category === "profit") return `あと${remain.toLocaleString()}円${suffix}`;
+  if (badge.category === "store" || badge.category === "route") return `あと${remain}件${suffix}`;
   return `あと${remain}回${suffix}`;
 }
 
@@ -764,47 +1056,62 @@ function getLatestUnlockedBadge() {
 }
 
 function getBadgeEvolutionState() {
-  const unlocked = getUnlockedBadges().filter(b => (b.period || "all") === "all");
+  const unlocked = getUnlockedBadges();
+
   const totalUnlocked = unlocked.length;
-  const advancedUnlocked = unlocked.filter(b => b.tier === "上級").length;
+
+  const allUnlocked = unlocked.filter(b => (b.period || "all") === "all").length;
+  const monthUnlocked = unlocked.filter(b => b.period === "month").length;
+  const yearUnlocked = unlocked.filter(b => b.period === "year").length;
+
+  const beginnerUnlocked = unlocked.filter(b => b.tier === "初級").length;
   const intermediateUnlocked = unlocked.filter(b => b.tier === "中級").length;
+  const advancedUnlocked = unlocked.filter(b => b.tier === "上級").length;
 
   let rank = 1;
-  let title = "見習い";
+  let title = "見習い探索者";
 
-  if (totalUnlocked >= 3) {
+  if (totalUnlocked >= 6) {
     rank = 2;
-    title = "巡回員";
+    title = "巡回アタッカー";
   }
-  if (totalUnlocked >= 8) {
+  if (totalUnlocked >= 12) {
     rank = 3;
-    title = "仕入れ職人";
+    title = "仕入れハンター";
   }
-  if (totalUnlocked >= 15) {
+  if (totalUnlocked >= 20) {
     rank = 4;
-    title = "ベテラン";
+    title = "店舗攻略家";
   }
-  if (totalUnlocked >= 22) {
+  if (totalUnlocked >= 28) {
     rank = 5;
     title = "ルートマスター";
   }
-  if (advancedUnlocked >= 3) {
+  if (advancedUnlocked >= 6) {
     rank = 6;
-    title = "覇者級";
+    title = "戦略の覇者";
   }
-  if (advancedUnlocked >= 5 && totalUnlocked >= 24) {
+  if (advancedUnlocked >= 10 && yearUnlocked >= 6) {
     rank = 7;
-    title = "伝説級";
+    title = "伝説の商人";
   }
-  if (advancedUnlocked >= 7 && intermediateUnlocked >= 6) {
+  if (advancedUnlocked >= 14 && intermediateUnlocked >= 12 && monthUnlocked >= 8) {
     rank = 8;
-    title = "神域級";
+    title = "神域の仕入れ人";
   }
-  if (advancedUnlocked >= 9 && totalUnlocked >= 28) {
+  if (advancedUnlocked >= 18 && yearUnlocked >= 12 && totalUnlocked >= 42) {
     rank = 9;
-    title = "王冠級";
+    title = "王冠の支配者";
   }
-  if (advancedUnlocked >= 10 && totalUnlocked >= 30) {
+  if (
+    advancedUnlocked >= 18 &&
+    intermediateUnlocked >= 15 &&
+    beginnerUnlocked >= 15 &&
+    allUnlocked >= 12 &&
+    monthUnlocked >= 12 &&
+    yearUnlocked >= 12 &&
+    totalUnlocked >= 50
+  ) {
     rank = 10;
     title = "せどり皇帝";
   }
@@ -813,8 +1120,12 @@ function getBadgeEvolutionState() {
     rank,
     title,
     totalUnlocked,
-    advancedUnlocked,
-    intermediateUnlocked
+    allUnlocked,
+    monthUnlocked,
+    yearUnlocked,
+    beginnerUnlocked,
+    intermediateUnlocked,
+    advancedUnlocked
   };
 }
 
@@ -920,20 +1231,23 @@ function checkAndCountCompletedRoute() {
     ? tokyoDateStr()
     : new Date().toISOString().slice(0, 10);
 
-  const key = `badge_route_completed_date_${today}`;
-  const alreadyCounted = localStorage.getItem(key) === "1";
+  const monthKey = today.slice(0, 7);
+  const yearKey = today.slice(0, 4);
+  const dayKey = `badge_route_completed_date_${today}`;
+  const alreadyCounted = localStorage.getItem(dayKey) === "1";
 
   if (alreadyCounted) return false;
 
   const nextCount = loadBadgeRouteCompleteCount() + 1;
   saveBadgeRouteCompleteCount(nextCount);
 
-  const monthKey = today.slice(0, 7);
-  const monthRouteCountKey = `badge_route_complete_count_month_${monthKey}`;
-  const currentMonthCount = Number(localStorage.getItem(monthRouteCountKey) || "0");
-  localStorage.setItem(monthRouteCountKey, String(currentMonthCount + 1));
+  const currentMonthCount = loadBadgeRoutePeriodCount(getBadgeRouteMonthKey(monthKey), "0");
+  localStorage.setItem(getBadgeRouteMonthKey(monthKey), String(currentMonthCount + 1));
 
-  localStorage.setItem(key, "1");
+  const currentYearCount = loadBadgeRoutePeriodCount(getBadgeRouteYearKey(yearKey), "0");
+  localStorage.setItem(getBadgeRouteYearKey(yearKey), String(currentYearCount + 1));
+
+  localStorage.setItem(dayKey, "1");
   syncUnlockedBadgeHistory();
   return true;
 }
@@ -941,7 +1255,6 @@ function checkAndCountCompletedRoute() {
 function resetRouteBadgeCompletionForTodayIfNeeded() {
   const total = getTodayRouteTotalCount();
   const done = getCompletedTodayRouteCount();
-
   if (total > 0 && done < total) {
     return;
   }
@@ -953,51 +1266,62 @@ function renderBadgeMiniCardIfExists() {
   }
 }
 
-function buildBadgeTierGroupHtml(list, tierName) {
-  const tierList = list.filter(b => (b.tier || "初級") === tierName);
-  const unlocked = tierList.filter(b => b.unlocked);
-  const locked = tierList.filter(b => !b.unlocked);
+function renderBadgeGroupCards(badges) {
+  if (!badges.length) {
+    return `<div class="emptyText">この区分の実績はまだありません。</div>`;
+  }
+
+  const unlocked = badges.filter(b => b.unlocked);
+  const locked = badges.filter(b => !b.unlocked);
   const ordered = [...unlocked, ...locked];
 
-  if (!ordered.length) return "";
+  return `
+    <div class="badgeListWrap">
+      ${ordered.map(badge => {
+        const stateText = badge.unlocked ? "達成" : "未達成";
+        const progressText = badge.unlocked ? "解除済み" : (badge.progressText || "");
+
+        return `
+          <div class="badgeItem ${badge.unlocked ? "unlocked" : "locked"}">
+            <div class="badgeRowTop">
+              <div class="badgeMain">
+                <div class="badgeIcon">${badge.icon || "🏅"}</div>
+                <div>
+                  <div class="badgeName">${escapeHtml(badge.name || "実績")}</div>
+                  <div class="badgeDesc">${escapeHtml(badge.description || "")}</div>
+                </div>
+              </div>
+              <div class="badgeState ${badge.unlocked ? "unlocked" : "locked"}">
+                ${stateText}
+              </div>
+            </div>
+
+            <div class="badgeProgress">${escapeHtml(progressText)}</div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderBadgeTierSection(list, tierName) {
+  const tierList = list.filter(b => (b.tier || "初級") === tierName);
+  if (!tierList.length) return "";
+
+  const unlockedCount = tierList.filter(b => b.unlocked).length;
 
   return `
     <div class="badgeTierSection">
       <div class="badgeTierHeader">
         <span class="badgeTierTitle">${tierName}</span>
-        <span class="badgeTierCount">${unlocked.length} / ${ordered.length} 達成</span>
+        <span class="badgeTierCount">${unlockedCount} / ${tierList.length} 達成</span>
       </div>
-
-      <div class="badgeListWrap">
-        ${ordered.map(badge => {
-          const stateText = badge.unlocked ? "達成" : "未達成";
-          const progressText = badge.unlocked ? "解除済み" : (badge.progressText || "");
-
-          return `
-            <div class="badgeItem ${badge.unlocked ? "unlocked" : "locked"}">
-              <div class="badgeRowTop">
-                <div class="badgeMain">
-                  <div class="badgeIcon">${badge.icon || "🏅"}</div>
-                  <div>
-                    <div class="badgeName">${escapeHtml(badge.name || "実績")}</div>
-                    <div class="badgeDesc">${escapeHtml(badge.description || "")}</div>
-                  </div>
-                </div>
-                <div class="badgeState ${badge.unlocked ? "unlocked" : "locked"}">
-                  ${stateText}
-                </div>
-              </div>
-
-              <div class="badgeProgress">${escapeHtml(progressText)}</div>
-            </div>
-          `;
-        }).join("")}
-      </div>
+      ${renderBadgeGroupCards(tierList)}
     </div>
   `;
 }
 
-function buildBadgePeriodSectionHtml(list, periodKey, periodLabel) {
+function renderBadgePeriodSection(list, periodKey, periodLabel) {
   const periodList = list.filter(b => (b.period || "all") === periodKey);
   if (!periodList.length) return "";
 
@@ -1007,9 +1331,9 @@ function buildBadgePeriodSectionHtml(list, periodKey, periodLabel) {
         <span class="badgePeriodTitle">${periodLabel}</span>
       </div>
 
-      ${buildBadgeTierGroupHtml(periodList, "初級")}
-      ${buildBadgeTierGroupHtml(periodList, "中級")}
-      ${buildBadgeTierGroupHtml(periodList, "上級")}
+      ${renderBadgeTierSection(periodList, "初級")}
+      ${renderBadgeTierSection(periodList, "中級")}
+      ${renderBadgeTierSection(periodList, "上級")}
     </div>
   `;
 }
@@ -1033,9 +1357,9 @@ function renderBadgeList() {
   }
 
   const html = [
-    buildBadgePeriodSectionHtml(list, "all", "累計実績"),
-    buildBadgePeriodSectionHtml(list, "month", "月間実績"),
-    buildBadgePeriodSectionHtml(list, "year", "年間実績")
+    renderBadgePeriodSection(list, "all", "累計実績"),
+    renderBadgePeriodSection(list, "month", "月間実績"),
+    renderBadgePeriodSection(list, "year", "年間実績")
   ].join("");
 
   el.innerHTML = html || `<div class="emptyText">実績データがありません。</div>`;
