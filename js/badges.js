@@ -5,6 +5,7 @@ const BADGE_DEFINITIONS = [
     name: "はじめの一歩",
     category: "visit",
     tier: "初級",
+    period: "all",
     description: "訪問1回達成",
     condition: stats => stats.totalVisits >= 1,
     progress: stats => stats.totalVisits,
@@ -16,6 +17,7 @@ const BADGE_DEFINITIONS = [
     name: "巡回スタート",
     category: "visit",
     tier: "初級",
+    period: "all",
     description: "訪問10回達成",
     condition: stats => stats.totalVisits >= 10,
     progress: stats => stats.totalVisits,
@@ -27,6 +29,7 @@ const BADGE_DEFINITIONS = [
     name: "巡回職人",
     category: "visit",
     tier: "中級",
+    period: "all",
     description: "訪問50回達成",
     condition: stats => stats.totalVisits >= 50,
     progress: stats => stats.totalVisits,
@@ -38,6 +41,7 @@ const BADGE_DEFINITIONS = [
     name: "遠征マスター",
     category: "visit",
     tier: "中級",
+    period: "all",
     description: "訪問100回達成",
     condition: stats => stats.totalVisits >= 100,
     progress: stats => stats.totalVisits,
@@ -49,6 +53,7 @@ const BADGE_DEFINITIONS = [
     name: "巡回ベテラン",
     category: "visit",
     tier: "上級",
+    period: "all",
     description: "訪問200回達成",
     condition: stats => stats.totalVisits >= 200,
     progress: stats => stats.totalVisits,
@@ -60,6 +65,7 @@ const BADGE_DEFINITIONS = [
     name: "巡回レジェンド",
     category: "visit",
     tier: "上級",
+    period: "all",
     description: "訪問500回達成",
     condition: stats => stats.totalVisits >= 500,
     progress: stats => stats.totalVisits,
@@ -72,6 +78,7 @@ const BADGE_DEFINITIONS = [
     name: "初仕入れ",
     category: "success",
     tier: "初級",
+    period: "all",
     description: "成功1回達成",
     condition: stats => stats.totalSuccess >= 1,
     progress: stats => stats.totalSuccess,
@@ -83,6 +90,7 @@ const BADGE_DEFINITIONS = [
     name: "仕入れ上昇中",
     category: "success",
     tier: "初級",
+    period: "all",
     description: "成功10回達成",
     condition: stats => stats.totalSuccess >= 10,
     progress: stats => stats.totalSuccess,
@@ -94,6 +102,7 @@ const BADGE_DEFINITIONS = [
     name: "仕入れ名人",
     category: "success",
     tier: "中級",
+    period: "all",
     description: "成功30回達成",
     condition: stats => stats.totalSuccess >= 30,
     progress: stats => stats.totalSuccess,
@@ -105,6 +114,7 @@ const BADGE_DEFINITIONS = [
     name: "爆仕入れ職人",
     category: "success",
     tier: "中級",
+    period: "all",
     description: "成功50回達成",
     condition: stats => stats.totalSuccess >= 50,
     progress: stats => stats.totalSuccess,
@@ -116,6 +126,7 @@ const BADGE_DEFINITIONS = [
     name: "仕入れ達人",
     category: "success",
     tier: "上級",
+    period: "all",
     description: "成功100回達成",
     condition: stats => stats.totalSuccess >= 100,
     progress: stats => stats.totalSuccess,
@@ -127,6 +138,7 @@ const BADGE_DEFINITIONS = [
     name: "仕入れレジェンド",
     category: "success",
     tier: "上級",
+    period: "all",
     description: "成功200回達成",
     condition: stats => stats.totalSuccess >= 200,
     progress: stats => stats.totalSuccess,
@@ -139,6 +151,7 @@ const BADGE_DEFINITIONS = [
     name: "初利益達成",
     category: "profit",
     tier: "初級",
+    period: "all",
     description: "累計利益1万円達成",
     condition: stats => stats.totalProfit >= 10000,
     progress: stats => stats.totalProfit,
@@ -150,6 +163,7 @@ const BADGE_DEFINITIONS = [
     name: "利益職人",
     category: "profit",
     tier: "初級",
+    period: "all",
     description: "累計利益10万円達成",
     condition: stats => stats.totalProfit >= 100000,
     progress: stats => stats.totalProfit,
@@ -161,6 +175,7 @@ const BADGE_DEFINITIONS = [
     name: "月間エース級",
     category: "profit",
     tier: "中級",
+    period: "all",
     description: "累計利益50万円達成",
     condition: stats => stats.totalProfit >= 500000,
     progress: stats => stats.totalProfit,
@@ -172,6 +187,7 @@ const BADGE_DEFINITIONS = [
     name: "伝説級プレイヤー",
     category: "profit",
     tier: "中級",
+    period: "all",
     description: "累計利益100万円達成",
     condition: stats => stats.totalProfit >= 1000000,
     progress: stats => stats.totalProfit,
@@ -183,6 +199,7 @@ const BADGE_DEFINITIONS = [
     name: "利益王への道",
     category: "profit",
     tier: "上級",
+    period: "all",
     description: "累計利益300万円達成",
     condition: stats => stats.totalProfit >= 3000000,
     progress: stats => stats.totalProfit,
@@ -194,6 +211,7 @@ const BADGE_DEFINITIONS = [
     name: "利益王",
     category: "profit",
     tier: "上級",
+    period: "all",
     description: "累計利益500万円達成",
     condition: stats => stats.totalProfit >= 5000000,
     progress: stats => stats.totalProfit,
@@ -206,6 +224,7 @@ const BADGE_DEFINITIONS = [
     name: "収集家",
     category: "items",
     tier: "初級",
+    period: "all",
     description: "累計個数10個達成",
     condition: stats => stats.totalItems >= 10,
     progress: stats => stats.totalItems,
@@ -217,6 +236,7 @@ const BADGE_DEFINITIONS = [
     name: "大量仕入れ",
     category: "items",
     tier: "初級",
+    period: "all",
     description: "累計個数50個達成",
     condition: stats => stats.totalItems >= 50,
     progress: stats => stats.totalItems,
@@ -228,6 +248,7 @@ const BADGE_DEFINITIONS = [
     name: "在庫マスター",
     category: "items",
     tier: "中級",
+    period: "all",
     description: "累計個数100個達成",
     condition: stats => stats.totalItems >= 100,
     progress: stats => stats.totalItems,
@@ -239,6 +260,7 @@ const BADGE_DEFINITIONS = [
     name: "在庫キング",
     category: "items",
     tier: "上級",
+    period: "all",
     description: "累計個数300個達成",
     condition: stats => stats.totalItems >= 300,
     progress: stats => stats.totalItems,
@@ -251,6 +273,7 @@ const BADGE_DEFINITIONS = [
     name: "高期待値発見",
     category: "store",
     tier: "初級",
+    period: "all",
     description: "期待値3000円以上の店舗を1件作成",
     condition: stats => stats.highExpectedStoreCount >= 1,
     progress: stats => stats.highExpectedStoreCount,
@@ -262,6 +285,7 @@ const BADGE_DEFINITIONS = [
     name: "優良店舗ハンター",
     category: "store",
     tier: "中級",
+    period: "all",
     description: "期待値3000円以上の店舗を3件作成",
     condition: stats => stats.highExpectedStoreCount >= 3,
     progress: stats => stats.highExpectedStoreCount,
@@ -273,6 +297,7 @@ const BADGE_DEFINITIONS = [
     name: "高期待値コレクター",
     category: "store",
     tier: "上級",
+    period: "all",
     description: "期待値3000円以上の店舗を5件作成",
     condition: stats => stats.highExpectedStoreCount >= 5,
     progress: stats => stats.highExpectedStoreCount,
@@ -284,6 +309,7 @@ const BADGE_DEFINITIONS = [
     name: "安定運用中",
     category: "store",
     tier: "中級",
+    period: "all",
     description: "成功率30%以上の店舗を3件作成",
     condition: stats => stats.stableStoreCount >= 3,
     progress: stats => stats.stableStoreCount,
@@ -295,6 +321,7 @@ const BADGE_DEFINITIONS = [
     name: "安定店舗マスター",
     category: "store",
     tier: "上級",
+    period: "all",
     description: "成功率30%以上の店舗を10件作成",
     condition: stats => stats.stableStoreCount >= 10,
     progress: stats => stats.stableStoreCount,
@@ -307,6 +334,7 @@ const BADGE_DEFINITIONS = [
     name: "ルート初制覇",
     category: "route",
     tier: "初級",
+    period: "all",
     description: "今日のルートを1回すべて訪問",
     condition: stats => stats.completedRouteCount >= 1,
     progress: stats => stats.completedRouteCount,
@@ -318,6 +346,7 @@ const BADGE_DEFINITIONS = [
     name: "ルートマスター",
     category: "route",
     tier: "中級",
+    period: "all",
     description: "今日のルートを5回すべて訪問",
     condition: stats => stats.completedRouteCount >= 5,
     progress: stats => stats.completedRouteCount,
@@ -329,10 +358,97 @@ const BADGE_DEFINITIONS = [
     name: "ルート覇者",
     category: "route",
     tier: "上級",
+    period: "all",
     description: "今日のルートを20回すべて訪問",
     condition: stats => stats.completedRouteCount >= 20,
     progress: stats => stats.completedRouteCount,
     target: 20
+  },
+
+  {
+    id: "month_visit_30",
+    icon: "📅",
+    name: "今月巡回30",
+    category: "visit",
+    tier: "初級",
+    period: "month",
+    description: "今月の訪問30回達成",
+    condition: stats => stats.monthVisits >= 30,
+    progress: stats => stats.monthVisits,
+    target: 30
+  },
+  {
+    id: "month_success_10",
+    icon: "📅",
+    name: "今月成功10",
+    category: "success",
+    tier: "初級",
+    period: "month",
+    description: "今月の成功10回達成",
+    condition: stats => stats.monthSuccess >= 10,
+    progress: stats => stats.monthSuccess,
+    target: 10
+  },
+  {
+    id: "month_items_30",
+    icon: "📅",
+    name: "今月30個達成",
+    category: "items",
+    tier: "初級",
+    period: "month",
+    description: "今月の個数30個達成",
+    condition: stats => stats.monthItems >= 30,
+    progress: stats => stats.monthItems,
+    target: 30
+  },
+  {
+    id: "month_profit_100k",
+    icon: "📅",
+    name: "今月利益10万",
+    category: "profit",
+    tier: "中級",
+    period: "month",
+    description: "今月の利益10万円達成",
+    condition: stats => stats.monthProfit >= 100000,
+    progress: stats => stats.monthProfit,
+    target: 100000
+  },
+  {
+    id: "month_route_3",
+    icon: "📅",
+    name: "今月ルート3",
+    category: "route",
+    tier: "中級",
+    period: "month",
+    description: "今月のルート制覇3回達成",
+    condition: stats => stats.monthCompletedRouteCount >= 3,
+    progress: stats => stats.monthCompletedRouteCount,
+    target: 3
+  },
+
+  {
+    id: "year_profit_1000k",
+    icon: "🎍",
+    name: "年間利益100万",
+    category: "profit",
+    tier: "中級",
+    period: "year",
+    description: "今年の利益100万円達成",
+    condition: stats => stats.yearProfit >= 1000000,
+    progress: stats => stats.yearProfit,
+    target: 1000000
+  },
+  {
+    id: "year_profit_3000k",
+    icon: "🎍",
+    name: "年間利益300万",
+    category: "profit",
+    tier: "上級",
+    period: "year",
+    description: "今年の利益300万円達成",
+    condition: stats => stats.yearProfit >= 3000000,
+    progress: stats => stats.yearProfit,
+    target: 3000000
   }
 ];
 
@@ -411,23 +527,67 @@ function getBadgeStats() {
   const storesList = getBadgeStores();
   const logsList = getBadgeLogs();
 
+  const now = new Date();
+  const currentMonth = now.toISOString().slice(0, 7);
+  const currentYear = now.toISOString().slice(0, 4);
+
   let totalVisits = 0;
   let totalSuccess = 0;
   let totalItems = 0;
   let totalProfit = 0;
 
+  let monthVisits = 0;
+  let monthSuccess = 0;
+  let monthItems = 0;
+  let monthProfit = 0;
+
+  let yearVisits = 0;
+  let yearSuccess = 0;
+  let yearItems = 0;
+  let yearProfit = 0;
+
   logsList.forEach(log => {
     const delta = badgeSafeNumber(log?.delta);
+    const dateStr = String(log?.date || "");
+    const logMonth = dateStr.slice(0, 7);
+    const logYear = dateStr.slice(0, 4);
 
-    if (log?.type === "visit") totalVisits += delta;
-    if (log?.type === "success") totalSuccess += delta;
-    if (log?.type === "items") totalItems += delta;
-    if (log?.type === "profit") totalProfit += delta;
+    if (log?.type === "visit") {
+      totalVisits += delta;
+      if (logMonth === currentMonth) monthVisits += delta;
+      if (logYear === currentYear) yearVisits += delta;
+    }
+
+    if (log?.type === "success") {
+      totalSuccess += delta;
+      if (logMonth === currentMonth) monthSuccess += delta;
+      if (logYear === currentYear) yearSuccess += delta;
+    }
+
+    if (log?.type === "items") {
+      totalItems += delta;
+      if (logMonth === currentMonth) monthItems += delta;
+      if (logYear === currentYear) yearItems += delta;
+    }
+
+    if (log?.type === "profit") {
+      totalProfit += delta;
+      if (logMonth === currentMonth) monthProfit += delta;
+      if (logYear === currentYear) yearProfit += delta;
+    }
   });
 
   totalVisits = Math.max(0, totalVisits);
   totalSuccess = Math.max(0, totalSuccess);
   totalItems = Math.max(0, totalItems);
+
+  monthVisits = Math.max(0, monthVisits);
+  monthSuccess = Math.max(0, monthSuccess);
+  monthItems = Math.max(0, monthItems);
+
+  yearVisits = Math.max(0, yearVisits);
+  yearSuccess = Math.max(0, yearSuccess);
+  yearItems = Math.max(0, yearItems);
 
   const highExpectedStoreCount = storesList.filter(store => {
     const m = getBadgeMetricsForStore(store);
@@ -441,15 +601,38 @@ function getBadgeStats() {
 
   const completedRouteCount = loadBadgeRouteCompleteCount();
 
+  const currentMonthRouteKey = `badge_route_complete_count_month_${currentMonth}`;
+  let monthCompletedRouteCount = 0;
+  try {
+    monthCompletedRouteCount = Number(localStorage.getItem(currentMonthRouteKey) || "0");
+  } catch {
+    monthCompletedRouteCount = 0;
+  }
+
   return {
     totalVisits,
     totalSuccess,
     totalItems,
     totalProfit,
+
+    monthVisits,
+    monthSuccess,
+    monthItems,
+    monthProfit,
+
+    yearVisits,
+    yearSuccess,
+    yearItems,
+    yearProfit,
+
+    monthCompletedRouteCount,
     highExpectedStoreCount,
     stableStoreCount,
     completedRouteCount,
-    totalStoreCount: storesList.length
+    totalStoreCount: storesList.length,
+
+    currentMonth,
+    currentYear
   };
 }
 
@@ -492,13 +675,17 @@ function getBadgeProgressText(badge, current = 0) {
   const cur = Math.max(0, badgeSafeNumber(current));
   const remain = Math.max(0, badge.target - cur);
 
+  let suffix = "";
+  if (badge.period === "month") suffix = "（今月）";
+  if (badge.period === "year") suffix = "（今年）";
+
   if (badge.category === "profit") {
-    return `あと${remain.toLocaleString()}円`;
+    return `あと${remain.toLocaleString()}円${suffix}`;
   }
   if (badge.category === "store" || badge.category === "route") {
-    return `あと${remain}件`;
+    return `あと${remain}件${suffix}`;
   }
-  return `あと${remain}回`;
+  return `あと${remain}回${suffix}`;
 }
 
 function getNextBadge() {
@@ -510,10 +697,9 @@ function getNextBadge() {
     .map(badge => {
       const target = Math.max(1, badgeSafeNumber(badge.target));
       const current = Math.max(0, badgeSafeNumber(badge.current));
-      const ratio = current / target;
       return {
         ...badge,
-        ratio,
+        ratio: current / target,
         remain: Math.max(0, target - current)
       };
     })
@@ -578,6 +764,74 @@ function getLatestUnlockedBadge() {
   return BADGE_DEFINITIONS.find(b => b.id === latest.id) || null;
 }
 
+function getBadgeEvolutionState() {
+  const unlocked = getUnlockedBadges().filter(b => (b.period || "all") === "all");
+  const totalUnlocked = unlocked.length;
+  const advancedUnlocked = unlocked.filter(b => b.tier === "上級").length;
+  const intermediateUnlocked = unlocked.filter(b => b.tier === "中級").length;
+
+  let rank = 1;
+  let title = "見習い";
+
+  if (totalUnlocked >= 3) {
+    rank = 2;
+    title = "巡回員";
+  }
+  if (totalUnlocked >= 8) {
+    rank = 3;
+    title = "仕入れ職人";
+  }
+  if (totalUnlocked >= 15) {
+    rank = 4;
+    title = "ベテラン";
+  }
+  if (totalUnlocked >= 22) {
+    rank = 5;
+    title = "ルートマスター";
+  }
+  if (advancedUnlocked >= 3) {
+    rank = 6;
+    title = "覇者級";
+  }
+  if (advancedUnlocked >= 5 && totalUnlocked >= 24) {
+    rank = 7;
+    title = "伝説級";
+  }
+  if (advancedUnlocked >= 7 && intermediateUnlocked >= 6) {
+    rank = 8;
+    title = "神域級";
+  }
+  if (advancedUnlocked >= 9 && totalUnlocked >= 28) {
+    rank = 9;
+    title = "王冠級";
+  }
+  if (advancedUnlocked >= 10 && totalUnlocked >= 30) {
+    rank = 10;
+    title = "せどり皇帝";
+  }
+
+  return {
+    rank,
+    title,
+    totalUnlocked,
+    advancedUnlocked,
+    intermediateUnlocked
+  };
+}
+
+function renderAppRankBadge() {
+  const el = document.getElementById("appRankBadge");
+  if (!el) return;
+
+  const evo = getBadgeEvolutionState();
+
+  el.innerHTML = `
+    <div class="appRankLabel">現在ランク</div>
+    <div class="appRankValue">Rank ${evo.rank}</div>
+    <div class="appRankTitle">${escapeHtml(evo.title)}</div>
+  `;
+}
+
 function renderBadgeMiniCard() {
   const el = document.getElementById("badgeMiniCard");
   if (!el) return;
@@ -587,10 +841,7 @@ function renderBadgeMiniCard() {
   const latest = getLatestUnlockedBadge();
   const next = getNextBadge();
 
-  const latestText = latest
-    ? `${latest.icon} ${latest.name}`
-    : "なし";
-
+  const latestText = latest ? `${latest.icon} ${latest.name}` : "なし";
   const nextText = next
     ? `${next.icon} ${next.name} ${getBadgeProgressText(next, next.current)}`
     : "全実績解除済み";
@@ -674,6 +925,12 @@ function checkAndCountCompletedRoute() {
 
   const nextCount = loadBadgeRouteCompleteCount() + 1;
   saveBadgeRouteCompleteCount(nextCount);
+
+  const monthKey = today.slice(0, 7);
+  const monthRouteCountKey = `badge_route_complete_count_month_${monthKey}`;
+  const currentMonthCount = Number(localStorage.getItem(monthRouteCountKey) || "0");
+  localStorage.setItem(monthRouteCountKey, String(currentMonthCount + 1));
+
   localStorage.setItem(key, "1");
   syncUnlockedBadgeHistory();
   return true;
@@ -713,49 +970,65 @@ function renderBadgeList() {
   }
 
   const tiers = ["初級", "中級", "上級"];
+  const periods = [
+    { key: "all", label: "累計実績" },
+    { key: "month", label: "月間実績" },
+    { key: "year", label: "年間実績" }
+  ];
 
-  const sectionHtml = tiers.map(tier => {
-    const tierList = list.filter(b => (b.tier || "初級") === tier);
-    const unlocked = tierList.filter(b => b.unlocked);
-    const locked = tierList.filter(b => !b.unlocked);
-    const ordered = [...unlocked, ...locked];
-
-    if (!ordered.length) return "";
+  const sectionHtml = periods.map(period => {
+    const periodList = list.filter(b => (b.period || "all") === period.key);
+    if (!periodList.length) return "";
 
     return `
-      <div class="badgeTierSection">
+      <div class="badgePeriodSection">
         <div class="badgeTierHeader">
-          <span class="badgeTierTitle">${tier}</span>
-          <span class="badgeTierCount">${unlocked.length} / ${ordered.length} 達成</span>
+          <span class="badgeTierTitle">${period.label}</span>
         </div>
 
-        <div class="badgeListWrap">
-          ${ordered.map(badge => {
-            const stateText = badge.unlocked ? "達成" : "未達成";
-            const progressText = badge.unlocked
-              ? "解除済み"
-              : (badge.progressText || "");
+        ${tiers.map(tier => {
+          const tierList = periodList.filter(b => (b.tier || "初級") === tier);
+          const unlocked = tierList.filter(b => b.unlocked);
+          const locked = tierList.filter(b => !b.unlocked);
+          const ordered = [...unlocked, ...locked];
 
-            return `
-              <div class="badgeItem ${badge.unlocked ? "unlocked" : "locked"}">
-                <div class="badgeRowTop">
-                  <div class="badgeMain">
-                    <div class="badgeIcon">${badge.icon || "🏅"}</div>
-                    <div>
-                      <div class="badgeName">${escapeHtml(badge.name || "実績")}</div>
-                      <div class="badgeDesc">${escapeHtml(badge.description || "")}</div>
-                    </div>
-                  </div>
-                  <div class="badgeState ${badge.unlocked ? "unlocked" : "locked"}">
-                    ${stateText}
-                  </div>
-                </div>
+          if (!ordered.length) return "";
 
-                <div class="badgeProgress">${escapeHtml(progressText)}</div>
+          return `
+            <div class="badgeTierSection">
+              <div class="badgeTierHeader">
+                <span class="badgeTierTitle">${tier}</span>
+                <span class="badgeTierCount">${unlocked.length} / ${ordered.length} 達成</span>
               </div>
-            `;
-          }).join("")}
-        </div>
+
+              <div class="badgeListWrap">
+                ${ordered.map(badge => {
+                  const stateText = badge.unlocked ? "達成" : "未達成";
+                  const progressText = badge.unlocked ? "解除済み" : (badge.progressText || "");
+
+                  return `
+                    <div class="badgeItem ${badge.unlocked ? "unlocked" : "locked"}">
+                      <div class="badgeRowTop">
+                        <div class="badgeMain">
+                          <div class="badgeIcon">${badge.icon || "🏅"}</div>
+                          <div>
+                            <div class="badgeName">${escapeHtml(badge.name || "実績")}</div>
+                            <div class="badgeDesc">${escapeHtml(badge.description || "")}</div>
+                          </div>
+                        </div>
+                        <div class="badgeState ${badge.unlocked ? "unlocked" : "locked"}">
+                          ${stateText}
+                        </div>
+                      </div>
+
+                      <div class="badgeProgress">${escapeHtml(progressText)}</div>
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            </div>
+          `;
+        }).join("")}
       </div>
     `;
   }).join("");
@@ -784,6 +1057,7 @@ function toggleBadgeAccordion(forceOpen = null) {
 }
 
 function renderBadgesIfExists() {
+  renderAppRankBadge();
   renderBadgeMiniCardIfExists();
   renderBadgeList();
   syncBadgeAccordionUI();
