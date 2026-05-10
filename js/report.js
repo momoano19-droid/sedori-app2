@@ -42,6 +42,17 @@ function readFirstAvailable(keys) {
   return null;
 }
 
+function saveLogs(logs) {
+  const json = JSON.stringify(Array.isArray(logs) ? logs : []);
+  LOG_KEYS.forEach(key => {
+    try {
+      localStorage.setItem(key, json);
+    } catch (e) {
+      console.error("save error:", key, e);
+    }
+  });
+}
+
 function loadStores() {
   if (cachedStores) return cachedStores;
   const parsed = readFirstAvailable(STORE_KEYS);
@@ -95,6 +106,10 @@ function ym(dateStr) {
   return String(dateStr || "").slice(0, 7);
 }
 
+function ymd(dateStr) {
+  return String(dateStr || "").slice(0, 10);
+}
+
 function todayStr() {
   const d = new Date();
   const y = d.getFullYear();
@@ -134,6 +149,22 @@ function getAvailableMonths(logs) {
   if (!months.length) return [currentMonthStr()];
   if (!months.includes(currentMonthStr())) months.unshift(currentMonthStr());
   return [...new Set(months)];
+}
+
+function ensureLogId() {
+  return `log_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function normalizeLog(log) {
+  return {
+    id: String(log?.id || ensureLogId()),
+    storeId: String(log?.storeId || ""),
+    type: String(log?.type || ""),
+    delta: Number(log?.delta || 0),
+    date: String(log?.date || ""),
+    category: String(log?.category || ""),
+    note: String(log?.note || "")
+  };
 }
 
 function renderMonthPicker(logs) {
@@ -193,6 +224,119 @@ function getRangeLabel(mode, baseMonth) {
   if (mode === "12m") return `直近1年（〜${baseMonth}）`;
   if (mode === "total") return "トータル";
   return baseMonth;
+}
+
+/* =========================
+   利益修正ログ
+========================= */
+function getBaseStoreDayProfit(dayStr, storeId, logs) {
+  return (logs || []).reduce((sum, log) => {
+    if (ymd(log.date) !== dayStr) return sum;
+    if (String(log.storeId || "") !== String(storeId)) return sum;
+    if (log.type !== "profit") return sum;
+    return sum + Number(log.delta || 0);
+  }, 0);
+}
+
+function getAdjustStoreDayProfit(dayStr, storeId, logs) {
+  return (logs || []).reduce((sum, log) => {
+    if (ymd(log.date) !== dayStr) return sum;
+    if (String(log.storeId || "") !== String(storeId)) return sum;
+    if (log.type !== "profit_adjust") return sum;
+    return sum + Number(log.delta || 0);
+  }, 0);
+}
+
+function saveStoreDayProfitCorrection(dayStr, storeId, nextProfit) {
+  const logs = loadLogs();
+  const baseProfit = getBaseStoreDayProfit(dayStr, storeId, logs);
+  const adjustProfit = getAdjustStoreDayProfit(dayStr, storeId, logs);
+  const currentShown = baseProfit + adjustProfit;
+
+  const nextValue = Number(nextProfit || 0);
+  if (!Number.isFinite(nextValue) || nextValue < 0) {
+    alert("0以上の数値を入力してください。");
+    return false;
+  }
+
+  const diff = nextValue - currentShown;
+  if (diff === 0) return false;
+
+  logs.push(normalizeLog({
+    id: ensureLogId(),
+    storeId,
+    type: "profit_adjust",
+    delta: diff,
+    date: dayStr,
+    note: "日次利益修正"
+  }));
+
+  saveLogs(logs);
+  invalidateReportCache();
+  return true;
+}
+
+function editStoreDayProfit(dayStr, storeId) {
+  const stores = loadStores();
+  const logs = loadLogs();
+  const storeMap = getStoreMap(stores);
+  const storeName = storeMap[String(storeId)]?.name || "不明な店舗";
+
+  const baseProfit = getBaseStoreDayProfit(dayStr, storeId, logs);
+  const adjustProfit = getAdjustStoreDayProfit(dayStr, storeId, logs);
+  const currentShown = baseProfit + adjustProfit;
+
+  const input = prompt(
+    `${dayStr}\n${storeName}\n現在の利益: ${yen(currentShown)}\n修正後の利益を入力してください`,
+    String(currentShown)
+  );
+
+  if (input === null) return;
+
+  const nextValue = Number(String(input).replaceAll(",", "").trim());
+  if (!Number.isFinite(nextValue) || nextValue < 0) {
+    alert("0以上の数値を入力してください。");
+    return;
+  }
+
+  const changed = saveStoreDayProfitCorrection(dayStr, storeId, nextValue);
+  if (!changed) return;
+
+  bootReport();
+  showDayDetail(dayStr);
+}
+
+function buildDayStoreProfitRows(dayStr, logs, storeMap) {
+  const grouped = {};
+
+  (logs || []).forEach(log => {
+    if (ymd(log.date) !== dayStr) return;
+    const id = String(log.storeId || "");
+    if (!id) return;
+    if (log.type !== "profit" && log.type !== "profit_adjust") return;
+
+    if (!grouped[id]) {
+      grouped[id] = {
+        id,
+        name: storeMap[id]?.name || "不明な店舗",
+        baseProfit: 0,
+        adjustProfit: 0,
+        profit: 0
+      };
+    }
+
+    const delta = Number(log.delta || 0);
+
+    if (log.type === "profit") {
+      grouped[id].baseProfit += delta;
+    } else if (log.type === "profit_adjust") {
+      grouped[id].adjustProfit += delta;
+    }
+
+    grouped[id].profit = grouped[id].baseProfit + grouped[id].adjustProfit;
+  });
+
+  return Object.values(grouped).sort((a, b) => Number(b.profit || 0) - Number(a.profit || 0));
 }
 
 /* =========================
@@ -276,7 +420,7 @@ function buildBundle(stores, logs, label) {
   const perStore = {};
 
   targetLogs.forEach(log => {
-    const date = String(log.date || "").slice(0, 10);
+    const date = ymd(log.date);
     const storeId = String(log.storeId || "").trim();
 
     if (date) activeDates.add(date);
@@ -308,7 +452,7 @@ function buildBundle(stores, logs, label) {
 
     const delta = Number(log.delta || 0);
 
-    if (log.type === "profit") {
+    if (log.type === "profit" || log.type === "profit_adjust") {
       profit += delta;
       if (daily[date]) daily[date].profit += delta;
       if (perStore[storeId]) perStore[storeId].profit += delta;
@@ -1088,7 +1232,7 @@ function showDayDetail(dayStr) {
   const stores = loadStores();
   const logs = loadLogs();
   const storeMap = getStoreMap(stores);
-  const dayLogs = logs.filter(l => l.date === dayStr);
+  const dayLogs = logs.filter(l => ymd(l.date) === dayStr);
 
   const grouped = {};
 
@@ -1110,7 +1254,7 @@ function showDayDetail(dayStr) {
 
     const delta = Number(log.delta || 0);
 
-    if (log.type === "profit") grouped[id].profit += delta;
+    if (log.type === "profit" || log.type === "profit_adjust") grouped[id].profit += delta;
     if (log.type === "visit") grouped[id].visits += delta;
     if (log.type === "success") grouped[id].success += delta;
     if (log.type === "items") grouped[id].items += delta;
@@ -1121,6 +1265,7 @@ function showDayDetail(dayStr) {
   });
 
   const summary = buildDetailSummaryFromStoreStats(grouped);
+  const profitRows = buildDayStoreProfitRows(dayStr, logs, storeMap);
 
   const body = document.getElementById("detailBody");
   const title = document.getElementById("detailTitle");
@@ -1158,15 +1303,25 @@ function showDayDetail(dayStr) {
       .join(" / ");
 
     const rate = Number(x.visits || 0) > 0 ? (Number(x.success || 0) / Number(x.visits || 0)) * 100 : 0;
+    const pRow = profitRows.find(r => r.id === x.id);
+    const baseProfit = Number(pRow?.baseProfit || 0);
+    const adjustProfit = Number(pRow?.adjustProfit || 0);
+    const shownProfit = Number(pRow?.profit || x.profit || 0);
 
     return `
       <div class="detailBlock">
         <div class="detailTitle">${escapeHtml(x.name)}</div>
         <div class="detailText">
-          利益：${yen(x.profit)}<br>
+          利益：${yen(shownProfit)}<br>
+          元利益：${yen(baseProfit)} / 補正：${yen(adjustProfit)}<br>
           訪問：${x.visits}回 / 成功：${x.success}回 / 個数：${x.items}個<br>
           成功率：${rate.toFixed(1)}%<br>
           ${cats ? `カテゴリ：${cats}` : "カテゴリ：なし"}
+        </div>
+        <div style="margin-top:8px;">
+          <button class="ghostBtn" type="button" onclick="editStoreDayProfit('${escapeHtml(dayStr)}', '${escapeHtml(x.id)}')">
+            利益を修正
+          </button>
         </div>
       </div>
     `;
