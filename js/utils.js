@@ -132,6 +132,10 @@ function matchesQuery(s, q) {
   return text.includes(String(q).toLowerCase());
 }
 
+function isProfitLikeLogType(type) {
+  return type === "profit" || type === "profit_adjust";
+}
+
 function addLog(storeId, type, delta, category = "") {
   logs.push({
     date: tokyoDateStr(),
@@ -141,6 +145,14 @@ function addLog(storeId, type, delta, category = "") {
     category: String(category || "")
   });
   categoryHistoryDirty = true;
+}
+
+function getStoreProfitFromLogs(storeId) {
+  return (logs || []).reduce((sum, log) => {
+    if (String(log?.storeId || "") !== String(storeId)) return sum;
+    if (!isProfitLikeLogType(String(log?.type || ""))) return sum;
+    return sum + Number(log?.delta || 0);
+  }, 0);
 }
 
 function getStoreSuccessDates(storeId) {
@@ -190,10 +202,30 @@ function calcRateAdjustedRestockCycleDays(storeId, rate) {
 }
 
 function getMetrics(s) {
-  const visits = Number(s.visits || 0);
-  const success = Number(s.buyDays || 0);
-  const items = Number(s.items || 0);
-  const profit = Number(s.profit || 0);
+  const storeId = String(s?.id || "");
+
+  const visitsFromLogs = (logs || []).reduce((sum, log) => {
+    if (String(log?.storeId || "") !== storeId) return sum;
+    if (String(log?.type || "") !== "visit") return sum;
+    return sum + Number(log?.delta || 0);
+  }, 0);
+
+  const successFromLogs = (logs || []).reduce((sum, log) => {
+    if (String(log?.storeId || "") !== storeId) return sum;
+    if (String(log?.type || "") !== "success") return sum;
+    return sum + Number(log?.delta || 0);
+  }, 0);
+
+  const itemsFromLogs = (logs || []).reduce((sum, log) => {
+    if (String(log?.storeId || "") !== storeId) return sum;
+    if (String(log?.type || "") !== "items") return sum;
+    return sum + Number(log?.delta || 0);
+  }, 0);
+
+  const visits = Math.max(0, visitsFromLogs || Number(s.visits || 0));
+  const success = Math.max(0, successFromLogs || Number(s.buyDays || 0));
+  const items = Math.max(0, itemsFromLogs || Number(s.items || 0));
+  const profit = getStoreProfitFromLogs(storeId);
 
   const rate = visits > 0 ? (success / visits) * 100 : 0;
   const avgProfit = success > 0 ? profit / success : 0;
@@ -296,7 +328,7 @@ function calcStoreDueStatus(store) {
     remainingDays,
     isDue: false,
     isSoon: false
-    };
+  };
 }
 
 function calcSavedRouteDueSummary(route) {
