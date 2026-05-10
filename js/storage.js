@@ -127,7 +127,10 @@ function loadStores() {
 }
 
 function saveStores(v) {
-  localStorage.setItem(PRIMARY_STORE_KEY, JSON.stringify(v));
+  localStorage.setItem(
+    PRIMARY_STORE_KEY,
+    JSON.stringify((Array.isArray(v) ? v : []).map(normalizeStore))
+  );
 }
 
 function loadLogs() {
@@ -137,7 +140,10 @@ function loadLogs() {
 }
 
 function saveLogs(v) {
-  localStorage.setItem(PRIMARY_LOG_KEY, JSON.stringify(v));
+  localStorage.setItem(
+    PRIMARY_LOG_KEY,
+    JSON.stringify((Array.isArray(v) ? v : []).map(normalizeLog))
+  );
 }
 
 function loadSavedRoutes() {
@@ -147,7 +153,10 @@ function loadSavedRoutes() {
 }
 
 function saveRoutes(v) {
-  localStorage.setItem(PRIMARY_ROUTE_KEY, JSON.stringify(v));
+  localStorage.setItem(
+    PRIMARY_ROUTE_KEY,
+    JSON.stringify((Array.isArray(v) ? v : []).map(normalizeRoute))
+  );
 }
 
 function loadTodayRouteOrder() {
@@ -162,16 +171,39 @@ function saveTodayRouteOrder(v) {
   );
 }
 
+function syncStoreProfitsBeforeSave() {
+  if (!Array.isArray(stores) || !Array.isArray(logs)) return;
+
+  const profitMap = {};
+
+  logs.forEach(log => {
+    const storeId = String(log?.storeId || "").trim();
+    if (!storeId) return;
+
+    const type = String(log?.type || "").trim();
+    if (type !== "profit" && type !== "profit_adjust") return;
+
+    profitMap[storeId] = (profitMap[storeId] || 0) + Number(log?.delta || 0);
+  });
+
+  stores.forEach(store => {
+    const storeId = String(store?.id || "");
+    store.profit = Number(profitMap[storeId] || 0);
+  });
+}
+
 function saveAutoBackup() {
   try {
+    syncStoreProfitsBeforeSave();
+
     localStorage.setItem(
       PRIMARY_AUTO_BACKUP_KEY,
       JSON.stringify({
         savedAt: new Date().toISOString(),
-        stores,
-        logs,
-        savedRoutes,
-        todayRouteOrder
+        stores: (Array.isArray(stores) ? stores : []).map(normalizeStore),
+        logs: (Array.isArray(logs) ? logs : []).map(normalizeLog),
+        savedRoutes: (Array.isArray(savedRoutes) ? savedRoutes : []).map(normalizeRoute),
+        todayRouteOrder: normalizeTodayRouteOrder(todayRouteOrder)
       })
     );
   } catch (e) {
@@ -211,6 +243,7 @@ function invalidateDerivedCaches() {
 }
 
 function saveAll() {
+  syncStoreProfitsBeforeSave();
   saveStores(stores);
   saveLogs(logs);
   saveRoutes(savedRoutes);
