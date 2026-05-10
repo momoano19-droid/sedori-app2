@@ -36,6 +36,12 @@ let todayRouteAccordionOpen = true;
 
 const TODAY_ROUTE_VISITED_KEY = "today_route_visited_ids";
 
+function syncStoreProfitsFromLogs() {
+  stores.forEach(store => {
+    store.profit = getStoreProfitFromLogs(store.id);
+  });
+}
+
 function loadTodayRouteVisitedIds() {
   try {
     const raw = localStorage.getItem(TODAY_ROUTE_VISITED_KEY);
@@ -72,6 +78,7 @@ function toggleTodayRouteAccordion(forceOpen = null) {
 function syncTodayRouteAccordionUI() {
   toggleTodayRouteAccordion(todayRouteAccordionOpen);
 }
+
 function scrollToStoreList() {
   const target = document.getElementById("storeListSection");
   if (!target) return;
@@ -88,7 +95,6 @@ function scrollToTopArea() {
     behavior: "smooth"
   });
 }
-
 
 function isTodayRouteVisited(storeId) {
   return todayRouteVisitedIds.includes(storeId);
@@ -500,6 +506,7 @@ function renderTodayRouteList() {
 }
 
 function render() {
+  syncStoreProfitsFromLogs();
   updateLayoutButtons();
   buildPrefFilter();
   syncTodayRouteOrder();
@@ -526,6 +533,7 @@ function render() {
     splitRouteCacheExists: !!splitRouteCache,
     splitRouteParts: splitRouteCache?.parts?.map(p => `${p.index}:${p.start}-${p.end}:${p.estimatedMinutes}`).join("|") || "",
     lastVisitDates: stores.map(s => `${s.id}:${s.lastVisitDate}`),
+    storeProfits: stores.map(s => `${s.id}:${Number(s.profit || 0)}`).join("|"),
     savedRoutes: savedRoutes.map(r => `${r.id}:${r.updatedAt}:${r.favorite}`).join("|"),
     openSavedRouteId,
     todayRouteAccordionOpen,
@@ -539,12 +547,12 @@ function render() {
     lastListRenderSignature = signature;
   }
 
-renderSavedRoutesList();
-renderTodayRouteList();
-scheduleRenderMapMarkers();
-renderCurrentLocationMarker();
-syncTodayRouteAccordionUI();
-renderBadgesIfExists();
+  renderSavedRoutesList();
+  renderTodayRouteList();
+  scheduleRenderMapMarkers();
+  renderCurrentLocationMarker();
+  syncTodayRouteAccordionUI();
+  renderBadgesIfExists();
 }
 
 let helpStep = 0;
@@ -800,6 +808,7 @@ function setupButtonPressEffect() {
 }
 
 window.addEventListener("load", () => {
+  syncStoreProfitsFromLogs();
   syncTodayRouteOrder();
   syncTodayRouteVisitedIds();
   initMap();
