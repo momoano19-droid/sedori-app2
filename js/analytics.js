@@ -1,12 +1,39 @@
 function calcMetrics(s){
-  const visits = clampNonNeg(s.visits);
-  const success = clampNonNeg(s.buyDays);
-  const items = clampNonNeg(s.items);
-  const profit = clampNonNeg(s.profit);
+  const storeId = String(s?.id || "");
+
+  const visitsFromLogs = (logs || []).reduce((sum, log) => {
+    if (String(log?.storeId || "") !== storeId) return sum;
+    if (String(log?.type || "") !== "visit") return sum;
+    return sum + Number(log?.delta || 0);
+  }, 0);
+
+  const successFromLogs = (logs || []).reduce((sum, log) => {
+    if (String(log?.storeId || "") !== storeId) return sum;
+    if (String(log?.type || "") !== "success") return sum;
+    return sum + Number(log?.delta || 0);
+  }, 0);
+
+  const itemsFromLogs = (logs || []).reduce((sum, log) => {
+    if (String(log?.storeId || "") !== storeId) return sum;
+    if (String(log?.type || "") !== "items") return sum;
+    return sum + Number(log?.delta || 0);
+  }, 0);
+
+  const profitFromLogs = (logs || []).reduce((sum, log) => {
+    if (String(log?.storeId || "") !== storeId) return sum;
+    const type = String(log?.type || "");
+    if (type !== "profit" && type !== "profit_adjust") return sum;
+    return sum + Number(log?.delta || 0);
+  }, 0);
+
+  const visits = Math.max(0, visitsFromLogs || clampNonNeg(s.visits));
+  const success = Math.max(0, successFromLogs || clampNonNeg(s.buyDays));
+  const items = Math.max(0, itemsFromLogs || clampNonNeg(s.items));
+  const profit = Math.max(0, profitFromLogs);
 
   const rate = visits > 0 ? (success / visits) * 100 : 0;
   const avgProfit = success > 0 ? (profit / success) : 0;
-  const expected = (rate / 100) * avgProfit;
+  const expected = visits > 0 ? (profit / visits) : 0;
   const profitPerItem = items > 0 ? (profit / items) : 0;
   const avgItems = success > 0 ? (items / success) : 0;
 
