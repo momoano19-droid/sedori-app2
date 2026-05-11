@@ -3014,3 +3014,42 @@ a{
   background:#f8fdf9;
   border-color:#d6efdf;
 }
+.storeHoursText {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #5b6475;
+  font-weight: 700;
+}
+
+.statusBeforeOpen,
+.statusOpen,
+.statusClosingSoon,
+.statusClosed,
+.statusUnknown {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 800;
+}
+
+.statusBeforeOpen {
+  color: #2563eb;
+}
+
+.statusOpen {
+  color: #129b52;
+}
+
+.statusClosingSoon {
+  color: #d97706;
+}
+
+.statusClosed {
+  color: #dc2626;
+}
+
+.statusUnknown {
+  color: #6b7280;
+}
