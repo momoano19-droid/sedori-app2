@@ -3053,3 +3053,61 @@ a{
 .statusUnknown {
   color: #6b7280;
 }
+.storeHoursGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.storeHoursGrid input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.storeHoursText {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #5b6475;
+  font-weight: 700;
+}
+
+.statusBeforeOpen,
+.statusOpen,
+.statusClosingSoon,
+.statusClosed,
+.statusUnknown {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 800;
+}
+
+.statusBeforeOpen {
+  color: #2563eb;
+}
+
+.statusOpen {
+  color: #129b52;
+}
+
+.statusClosingSoon {
+  color: #d97706;
+}
+
+.statusClosed {
+  color: #dc2626;
+}
+
+.statusUnknown {
+  color: #6b7280;
+}
+
+@media (max-width: 640px) {
+  .storeHoursGrid {
+    grid-template-columns: 1fr;
+  }
+}
