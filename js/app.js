@@ -35,6 +35,7 @@ let profitEditTargetIndex = -1;
 let todayRouteAccordionOpen = true;
 
 const TODAY_ROUTE_VISITED_KEY = "today_route_visited_ids";
+const STORE_ALERTED_STATUS_KEY = "store_closing_alerted_v1";
 
 function syncStoreProfitsFromLogs() {
   stores.forEach(store => {
@@ -57,6 +58,175 @@ function saveTodayRouteVisitedIds() {
     TODAY_ROUTE_VISITED_KEY,
     JSON.stringify(todayRouteVisitedIds)
   );
+}
+
+function loadClosingAlertedMap() {
+  try {
+    const raw = localStorage.getItem(STORE_ALERTED_STATUS_KEY);
+    const parsed = JSON.parse(raw || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveClosingAlertedMap(mapObj) {
+  localStorage.setItem(STORE_ALERTED_STATUS_KEY, JSON.stringify(mapObj || {}));
+}
+
+function getTodayAlertKey(storeId) {
+  return `${tokyoDateStr()}__${String(storeId || "")}`;
+}
+
+function hasClosingAlertedToday(storeId) {
+  const mapObj = loadClosingAlertedMap();
+  return mapObj[getTodayAlertKey(storeId)] === true;
+}
+
+function markClosingAlertedToday(storeId) {
+  const mapObj = loadClosingAlertedMap();
+  mapObj[getTodayAlertKey(storeId)] = true;
+  saveClosingAlertedMap(mapObj);
+}
+
+function cleanupOldClosingAlerts() {
+  const mapObj = loadClosingAlertedMap();
+  const today = tokyoDateStr();
+  const next = {};
+
+  Object.entries(mapObj).forEach(([key, value]) => {
+    if (String(key).startsWith(`${today}__`) && value === true) {
+      next[key] = true;
+    }
+  });
+
+  saveClosingAlertedMap(next);
+}
+
+function parseTimeToMinutes(timeStr) {
+  const text = String(timeStr || "").trim();
+  if (!/^\d{2}:\d{2}$/.test(text)) return null;
+
+  const [hh, mm] = text.split(":").map(Number);
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+  if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
+
+  return hh * 60 + mm;
+}
+
+function getNowMinutes() {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
+}
+
+function formatStoreHours(store) {
+  const openTime = String(store?.openTime || "").trim();
+  const closeTime = String(store?.closeTime || "").trim();
+
+  if (!openTime && !closeTime) return "未設定";
+  return `${openTime || "--:--"}〜${closeTime || "--:--"}`;
+}
+
+function getStoreBusinessStatus(store) {
+  const openMinutes = parseTimeToMinutes(store?.openTime);
+  const closeMinutes = parseTimeToMinutes(store?.closeTime);
+
+  if (openMinutes === null || closeMinutes === null) {
+    return {
+      code: "unknown",
+      label: "📝 営業時間未設定",
+      className: "statusUnknown",
+      isBeforeOpen: false,
+      isOpen: false,
+      isClosingSoon: false,
+      isClosed: false,
+      remainingMinutes: null
+    };
+  }
+
+  const nowMinutes = getNowMinutes();
+
+  if (nowMinutes < openMinutes) {
+    return {
+      code: "before_open",
+      label: `🕒 開店前（${store.openTime}開店）`,
+      className: "statusBeforeOpen",
+      isBeforeOpen: true,
+      isOpen: false,
+      isClosingSoon: false,
+      isClosed: false,
+      remainingMinutes: openMinutes - nowMinutes
+    };
+  }
+
+  if (nowMinutes >= closeMinutes) {
+    return {
+      code: "closed",
+      label: `🚫 閉店済み（${store.closeTime}閉店）`,
+      className: "statusClosed",
+      isBeforeOpen: false,
+      isOpen: false,
+      isClosingSoon: false,
+      isClosed: true,
+      remainingMinutes: 0
+    };
+  }
+
+  const remainingMinutes = closeMinutes - nowMinutes;
+
+  if (remainingMinutes <= 60) {
+    return {
+      code: "closing_soon",
+      label: `⚠️ まもなく閉店（あと${remainingMinutes}分）`,
+      className: "statusClosingSoon",
+      isBeforeOpen: false,
+      isOpen: true,
+      isClosingSoon: true,
+      isClosed: false,
+      remainingMinutes
+    };
+  }
+
+  return {
+    code: "open",
+    label: "✅ 営業中",
+    className: "statusOpen",
+    isBeforeOpen: false,
+    isOpen: true,
+    isClosingSoon: false,
+    isClosed: false,
+    remainingMinutes
+  };
+}
+
+function maybeNotifyClosingSoonStores() {
+  cleanupOldClosingAlerts();
+
+  const targets = stores.filter(store =>
+    store &&
+    store.today &&
+    !isTodayRouteVisited(store.id)
+  );
+
+  const notifyTargets = targets.filter(store => {
+    const status = getStoreBusinessStatus(store);
+    if (!status.isClosingSoon) return false;
+    if (hasClosingAlertedToday(store.id)) return false;
+    return true;
+  });
+
+  if (!notifyTargets.length) return;
+
+  notifyTargets.forEach(store => markClosingAlertedToday(store.id));
+
+  const message = notifyTargets
+    .map(store => {
+      const status = getStoreBusinessStatus(store);
+      return `・${store.name}（${formatStoreHours(store)} / あと${status.remainingMinutes}分）`;
+    })
+    .join("\n");
+
+  alert(`閉店1時間前の店舗があります。\n\n${message}`);
 }
 
 let todayRouteVisitedIds = loadTodayRouteVisitedIds();
@@ -206,6 +376,8 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
     `<span class="badge freq">補充頻度 ${formatRestockDays(m.freq)}</span>`
   ].filter(Boolean).join("");
 
+  const businessStatus = getStoreBusinessStatus(s);
+
   return `
     <div class="item compactCard ${expectedClass} ${staleClass}">
       <div class="evalLabel ${evalData.class}">
@@ -216,6 +388,14 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
 
       <div class="mt8">
         ${compactBadges}
+      </div>
+
+      <div class="mini mt8">
+        🕒 営業時間 ${escapeHtml(formatStoreHours(s))}
+      </div>
+
+      <div class="mini mt6 ${businessStatus.className}">
+        ${escapeHtml(businessStatus.label)}
       </div>
 
       <div class="mini compactMainRow">
@@ -257,6 +437,8 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
     .map(([cat, qty]) => `${cat}:${qty}`)
     .join(" / ");
 
+  const businessStatus = getStoreBusinessStatus(s);
+
   return `
     <div class="item ${expectedClass} ${staleClass}">
       <div class="evalLabel ${evalData.class}">
@@ -271,6 +453,14 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
         ${s.mapUrl ? `<span class="badge map">🗺 MAPあり</span>` : ``}
         ${hasCoords(s) ? `<span class="badge">📡 座標あり</span>` : ``}
         <span class="badge freq">補充頻度 ${formatRestockDays(m.freq)}</span>
+      </div>
+
+      <div class="mini mt8">
+        🕒 営業時間 ${escapeHtml(formatStoreHours(s))}
+      </div>
+
+      <div class="mini mt6 ${businessStatus.className}">
+        ${escapeHtml(businessStatus.label)}
       </div>
 
       ${s.address ? `<div class="mini mt8">📍 ${escapeHtml(s.address)}</div>` : ``}
@@ -478,6 +668,7 @@ function renderTodayRouteList() {
     ${splitButtonsHtml}
     ${routeStores.map((s, idx) => {
       const visited = isTodayRouteVisited(s.id);
+      const businessStatus = getStoreBusinessStatus(s);
 
       return `
         <div class="item todayRouteItem ${visited ? "todayRouteItemVisited" : ""}">
@@ -489,6 +680,16 @@ function renderTodayRouteList() {
           <div class="mini">
             ${escapeHtml(s.pref || "")}${s.address ? ` / ${escapeHtml(s.address)}` : ""}
           </div>
+
+          <div class="mini mt6">
+            🕒 営業時間 ${escapeHtml(formatStoreHours(s))}
+          </div>
+
+          ${!visited ? `
+            <div class="mini mt6 ${businessStatus.className}">
+              ${escapeHtml(businessStatus.label)}
+            </div>
+          ` : ``}
 
           <div class="row2 mt8">
             <button class="ghostBtn" onclick="moveTodayRouteItem(${idx}, -1)">↑ 上へ</button>
@@ -534,6 +735,7 @@ function render() {
     splitRouteParts: splitRouteCache?.parts?.map(p => `${p.index}:${p.start}-${p.end}:${p.estimatedMinutes}`).join("|") || "",
     lastVisitDates: stores.map(s => `${s.id}:${s.lastVisitDate}`),
     storeProfits: stores.map(s => `${s.id}:${Number(s.profit || 0)}`).join("|"),
+    storeHours: stores.map(s => `${s.id}:${s.openTime || ""}-${s.closeTime || ""}`).join("|"),
     savedRoutes: savedRoutes.map(r => `${r.id}:${r.updatedAt}:${r.favorite}`).join("|"),
     openSavedRouteId,
     todayRouteAccordionOpen,
@@ -553,6 +755,7 @@ function render() {
   renderCurrentLocationMarker();
   syncTodayRouteAccordionUI();
   renderBadgesIfExists();
+  maybeNotifyClosingSoonStores();
 }
 
 let helpStep = 0;
@@ -729,7 +932,6 @@ const helpData = [
       → 今日行くのチェックが残っていないか確認する<br><br>
       ・近くの店舗が出ない<br>
       → 位置情報の許可を確認する<br><br>
-      
     `
   }
 ];
@@ -811,12 +1013,15 @@ window.addEventListener("load", () => {
   syncStoreProfitsFromLogs();
   syncTodayRouteOrder();
   syncTodayRouteVisitedIds();
+  cleanupOldClosingAlerts();
   initMap();
   updateLayoutButtons();
   restoreSortType();
   render();
   renderBadgesIfExists();
   setTimeout(() => autoDetectNearbyStores(), 800);
+  setTimeout(() => maybeNotifyClosingSoonStores(), 1200);
+  setInterval(() => maybeNotifyClosingSoonStores(), 60000);
   setupButtonPressEffect();
 });
 
