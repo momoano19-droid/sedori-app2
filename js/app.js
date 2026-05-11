@@ -124,6 +124,7 @@ function formatStoreHours(store) {
   const closeTime = String(store?.closeTime || "").trim();
 
   if (!openTime && !closeTime) return "未設定";
+  if (openTime && closeTime) return `${openTime}〜${closeTime}`;
   return `${openTime || "--:--"}〜${closeTime || "--:--"}`;
 }
 
@@ -134,7 +135,7 @@ function getStoreBusinessStatus(store) {
   if (openMinutes === null || closeMinutes === null) {
     return {
       code: "unknown",
-      label: "📝 営業時間未設定",
+      label: "未設定",
       className: "statusUnknown",
       isBeforeOpen: false,
       isOpen: false,
@@ -149,7 +150,7 @@ function getStoreBusinessStatus(store) {
   if (nowMinutes < openMinutes) {
     return {
       code: "before_open",
-      label: `🕒 開店前（${store.openTime}開店）`,
+      label: `開店前（${store.openTime}開店）`,
       className: "statusBeforeOpen",
       isBeforeOpen: true,
       isOpen: false,
@@ -162,7 +163,7 @@ function getStoreBusinessStatus(store) {
   if (nowMinutes >= closeMinutes) {
     return {
       code: "closed",
-      label: `🚫 閉店済み（${store.closeTime}閉店）`,
+      label: `閉店済み（${store.closeTime}閉店）`,
       className: "statusClosed",
       isBeforeOpen: false,
       isOpen: false,
@@ -177,7 +178,7 @@ function getStoreBusinessStatus(store) {
   if (remainingMinutes <= 60) {
     return {
       code: "closing_soon",
-      label: `⚠️ まもなく閉店（あと${remainingMinutes}分）`,
+      label: `まもなく閉店（あと${remainingMinutes}分）`,
       className: "statusClosingSoon",
       isBeforeOpen: false,
       isOpen: true,
@@ -189,7 +190,7 @@ function getStoreBusinessStatus(store) {
 
   return {
     code: "open",
-    label: "✅ 営業中",
+    label: "営業中",
     className: "statusOpen",
     isBeforeOpen: false,
     isOpen: true,
@@ -377,6 +378,8 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
   ].filter(Boolean).join("");
 
   const businessStatus = getStoreBusinessStatus(s);
+  const hoursText = formatStoreHours(s);
+  const showBusinessStatus = businessStatus.code !== "unknown";
 
   return `
     <div class="item compactCard ${expectedClass} ${staleClass}">
@@ -391,12 +394,14 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
       </div>
 
       <div class="mini mt8">
-        🕒 営業時間 ${escapeHtml(formatStoreHours(s))}
+        🕒 営業時間 ${escapeHtml(hoursText)}
       </div>
 
-      <div class="mini mt6 ${businessStatus.className}">
-        ${escapeHtml(businessStatus.label)}
-      </div>
+      ${showBusinessStatus ? `
+        <div class="mini mt6 ${businessStatus.className}">
+          ${escapeHtml(businessStatus.label)}
+        </div>
+      ` : ``}
 
       <div class="mini compactMainRow">
         <span>期待値 <span class="mainExpected ${expectedHighClass}">${Math.round(m.expected).toLocaleString()}円</span></span>
@@ -438,6 +443,8 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
     .join(" / ");
 
   const businessStatus = getStoreBusinessStatus(s);
+  const hoursText = formatStoreHours(s);
+  const showBusinessStatus = businessStatus.code !== "unknown";
 
   return `
     <div class="item ${expectedClass} ${staleClass}">
@@ -456,12 +463,14 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
       </div>
 
       <div class="mini mt8">
-        🕒 営業時間 ${escapeHtml(formatStoreHours(s))}
+        🕒 営業時間 ${escapeHtml(hoursText)}
       </div>
 
-      <div class="mini mt6 ${businessStatus.className}">
-        ${escapeHtml(businessStatus.label)}
-      </div>
+      ${showBusinessStatus ? `
+        <div class="mini mt6 ${businessStatus.className}">
+          ${escapeHtml(businessStatus.label)}
+        </div>
+      ` : ``}
 
       ${s.address ? `<div class="mini mt8">📍 ${escapeHtml(s.address)}</div>` : ``}
 
@@ -669,6 +678,8 @@ function renderTodayRouteList() {
     ${routeStores.map((s, idx) => {
       const visited = isTodayRouteVisited(s.id);
       const businessStatus = getStoreBusinessStatus(s);
+      const hoursText = formatStoreHours(s);
+      const showBusinessStatus = businessStatus.code !== "unknown";
 
       return `
         <div class="item todayRouteItem ${visited ? "todayRouteItemVisited" : ""}">
@@ -682,10 +693,10 @@ function renderTodayRouteList() {
           </div>
 
           <div class="mini mt6">
-            🕒 営業時間 ${escapeHtml(formatStoreHours(s))}
+            🕒 営業時間 ${escapeHtml(hoursText)}
           </div>
 
-          ${!visited ? `
+          ${!visited && showBusinessStatus ? `
             <div class="mini mt6 ${businessStatus.className}">
               ${escapeHtml(businessStatus.label)}
             </div>
