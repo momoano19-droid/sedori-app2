@@ -25,26 +25,26 @@
 <body>
   <div class="container">
     <header class="appHeader card">
-  <div class="appHeaderTop">
-    <div>
-      <h1 class="appTitle">📱 せどりGPS店舗管理PRO</h1>
-      <div class="appSub">
-        店舗ごとの訪問・成功・個数・利益を記録して、期待値や成功率を見やすく管理できます。
+      <div class="appHeaderTop">
+        <div>
+          <h1 class="appTitle">📱 せどりGPS店舗管理PRO</h1>
+          <div class="appSub">
+            店舗ごとの訪問・成功・個数・利益を記録して、期待値や成功率を見やすく管理できます。
+          </div>
+        </div>
+
+        <div id="appRankBadge" class="appRankBadge">
+          <div class="appRankLabel">現在ランク</div>
+          <div class="appRankValue">Rank 1</div>
+          <div class="appRankTitle">見習い</div>
+        </div>
       </div>
-    </div>
 
-    <div id="appRankBadge" class="appRankBadge">
-      <div class="appRankLabel">現在ランク</div>
-      <div class="appRankValue">Rank 1</div>
-      <div class="appRankTitle">見習い</div>
-    </div>
-  </div>
-
-  <div class="row2 mt12">
-    <button class="primaryBtn" onclick="openHelp()">使い方</button>
-    <button class="ghostBtn" onclick="location.href='./report.html'">📊 レポート</button>
-  </div>
-</header>
+      <div class="row2 mt12">
+        <button class="primaryBtn" onclick="openHelp()">使い方</button>
+        <button class="ghostBtn" onclick="location.href='./report.html'">📊 レポート</button>
+      </div>
+    </header>
 
     <section class="card">
       <h2 class="sectionTitle">🏪 店舗追加</h2>
@@ -54,6 +54,8 @@
         <input id="prefName" type="text" placeholder="都道府県">
         <input id="address" type="text" placeholder="住所">
         <input id="mapUrl" type="text" placeholder="GoogleマップURL（任意）">
+        <input id="openTime" type="time" placeholder="開店時間">
+        <input id="closeTime" type="time" placeholder="閉店時間">
       </div>
 
       <div class="formActions">
@@ -63,6 +65,9 @@
 
       <div class="mini mt8">
         GoogleマップURLがあれば座標を取りやすくなります。住所だけでも登録できます。
+      </div>
+      <div class="mini mt8">
+        開店時間・閉店時間を入れると、店舗カードに営業時間を表示でき、今日のルートで閉店1時間前アラートにも使えます。
       </div>
     </section>
 
@@ -96,24 +101,24 @@
         <div class="badgeMiniNext">次：👣 はじめの一歩</div>
       </div>
     </section>
-    
-　　<section class="card">
-  <button
-    type="button"
-    class="badgeAccordionHeader"
-    onclick="toggleBadgeAccordion()"
-    aria-expanded="true"
-    id="badgeAccordionHeader"
-  >
-    <span class="sectionTitle" style="margin:0;">🏅 実績一覧</span>
-    <span class="badgeAccordionChevron" id="badgeAccordionChevron">▲</span>
-  </button>
 
-  <div id="badgeAccordionBody" class="badgeAccordionBody">
-    <div id="badgeListWrap" class="mt12"></div>
-  </div>
-</section>
-    
+    <section class="card">
+      <button
+        type="button"
+        class="badgeAccordionHeader"
+        onclick="toggleBadgeAccordion()"
+        aria-expanded="true"
+        id="badgeAccordionHeader"
+      >
+        <span class="sectionTitle" style="margin:0;">🏅 実績一覧</span>
+        <span class="badgeAccordionChevron" id="badgeAccordionChevron">▲</span>
+      </button>
+
+      <div id="badgeAccordionBody" class="badgeAccordionBody">
+        <div id="badgeListWrap" class="mt12"></div>
+      </div>
+    </section>
+
     <section class="card">
       <h2 class="sectionTitle">🔎 絞り込み / 並び替え</h2>
 
@@ -200,18 +205,20 @@
     </section>
 
     <section class="card" id="storeListSection">
-  <h2 class="sectionTitle">🏬 店舗一覧</h2>
-  <div id="storeList"></div>
-</section>
-    
-<div class="floatingJumpButtons">
-  <button type="button" class="floatingJumpBtn" onclick="scrollToStoreList()">
-    🏬 店舗一覧へ
-  </button>
-  <button type="button" class="floatingJumpBtn topBtn" onclick="scrollToTopArea()">
-    ⬆ 上へ
-  </button>
-</div>
+      <h2 class="sectionTitle">🏬 店舗一覧</h2>
+      <div id="storeList"></div>
+    </section>
+
+    <div class="floatingJumpButtons">
+      <button type="button" class="floatingJumpBtn" onclick="scrollToStoreList()">
+        🏬 店舗一覧へ
+      </button>
+      <button type="button" class="floatingJumpBtn topBtn" onclick="scrollToTopArea()">
+        ⬆ 上へ
+      </button>
+    </div>
+  </div>
+
   <div id="helpUI" aria-hidden="true">
     <div class="helpCard">
       <div id="helpTitle"></div>
