@@ -63,6 +63,8 @@ function importBackup(event) {
         ? normalizeTodayRouteOrder(parsed.todayRouteOrder)
         : [];
 
+      syncStoreProfitsFromLogs();
+
       nearbyMode = false;
       noCoordsOnlyMode = false;
       nearbyStoreIds = new Set();
@@ -103,6 +105,8 @@ function restoreAutoBackup() {
   todayRouteOrder = Array.isArray(data.todayRouteOrder)
     ? normalizeTodayRouteOrder(data.todayRouteOrder)
     : [];
+
+  syncStoreProfitsFromLogs();
 
   nearbyMode = false;
   noCoordsOnlyMode = false;
@@ -542,6 +546,8 @@ async function addStore() {
   const pref = document.getElementById("prefName")?.value?.trim() || "";
   const address = document.getElementById("address")?.value?.trim() || "";
   const mapUrl = document.getElementById("mapUrl")?.value?.trim() || "";
+  const openTime = document.getElementById("openTime")?.value?.trim() || "";
+  const closeTime = document.getElementById("closeTime")?.value?.trim() || "";
 
   if (!name) {
     alert("店舗名を入れてください。");
@@ -556,6 +562,8 @@ async function addStore() {
     pref,
     address,
     mapUrl,
+    openTime,
+    closeTime,
     lat: pos.lat,
     lng: pos.lng,
     visits: 0,
@@ -572,6 +580,8 @@ async function addStore() {
   document.getElementById("prefName").value = "";
   document.getElementById("address").value = "";
   document.getElementById("mapUrl").value = "";
+  if (document.getElementById("openTime")) document.getElementById("openTime").value = "";
+  if (document.getElementById("closeTime")) document.getElementById("closeTime").value = "";
 
   saveAll();
   render();
@@ -610,6 +620,12 @@ async function editStore(i) {
 
     const mapUrl = prompt("GoogleマップURL", s.mapUrl || "");
     if (mapUrl !== null) s.mapUrl = String(mapUrl).trim();
+
+    const openTime = prompt("開店時間（例: 10:00）", s.openTime || "");
+    if (openTime !== null) s.openTime = String(openTime).trim();
+
+    const closeTime = prompt("閉店時間（例: 20:00）", s.closeTime || "");
+    if (closeTime !== null) s.closeTime = String(closeTime).trim();
 
     const pos = await resolveStoreLatLng(s.pref, s.address, s.name, s.mapUrl, true);
     s.lat = pos.lat;
