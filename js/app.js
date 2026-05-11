@@ -135,7 +135,7 @@ function getStoreBusinessStatus(store) {
   if (openMinutes === null || closeMinutes === null) {
     return {
       code: "unknown",
-      label: "未設定",
+      label: "📝 未設定",
       className: "statusUnknown",
       isBeforeOpen: false,
       isOpen: false,
@@ -150,7 +150,7 @@ function getStoreBusinessStatus(store) {
   if (nowMinutes < openMinutes) {
     return {
       code: "before_open",
-      label: `開店前（${store.openTime}開店）`,
+      label: `🕒 開店前（${store.openTime}開店）`,
       className: "statusBeforeOpen",
       isBeforeOpen: true,
       isOpen: false,
@@ -163,7 +163,7 @@ function getStoreBusinessStatus(store) {
   if (nowMinutes >= closeMinutes) {
     return {
       code: "closed",
-      label: `閉店済み（${store.closeTime}閉店）`,
+      label: `🚫 閉店済み（${store.closeTime}閉店）`,
       className: "statusClosed",
       isBeforeOpen: false,
       isOpen: false,
@@ -178,7 +178,7 @@ function getStoreBusinessStatus(store) {
   if (remainingMinutes <= 60) {
     return {
       code: "closing_soon",
-      label: `まもなく閉店（あと${remainingMinutes}分）`,
+      label: `⚠️ まもなく閉店（あと${remainingMinutes}分）`,
       className: "statusClosingSoon",
       isBeforeOpen: false,
       isOpen: true,
@@ -190,7 +190,7 @@ function getStoreBusinessStatus(store) {
 
   return {
     code: "open",
-    label: "営業中",
+    label: "✅ 営業中",
     className: "statusOpen",
     isBeforeOpen: false,
     isOpen: true,
