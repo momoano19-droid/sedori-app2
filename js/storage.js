@@ -63,6 +63,10 @@ function normalizeStore(s) {
     pref: String(s?.pref || "").trim(),
     address: String(s?.address || "").trim(),
     mapUrl: String(s?.mapUrl || "").trim(),
+
+    openTime: String(s?.openTime || "").trim(),
+    closeTime: String(s?.closeTime || "").trim(),
+
     lat:
       s?.lat !== null &&
       s?.lat !== "" &&
@@ -75,15 +79,18 @@ function normalizeStore(s) {
       !isNaN(Number(s?.lng))
         ? Number(s.lng)
         : null,
+
     visits: Number(s?.visits || 0),
     buyDays: Number(s?.buyDays || 0),
     items: Number(s?.items || 0),
     profit: Number(s?.profit || 0),
+
     defaultCategory: String(s?.defaultCategory || "").trim(),
     categoryCounts:
       s?.categoryCounts && typeof s.categoryCounts === "object"
         ? { ...s.categoryCounts }
         : {},
+
     lastVisitDate: String(s?.lastVisitDate || "").trim(),
     today: !!s?.today
   };
