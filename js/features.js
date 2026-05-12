@@ -541,6 +541,28 @@ function deleteSavedRoute(routeId) {
   render();
 }
 
+function getSelectedRegularClosedDaysFromForm() {
+  return [...document.querySelectorAll('input[name="regularClosedDays"]:checked')]
+    .map(el => String(el.value || "").trim())
+    .filter(Boolean);
+}
+
+function clearRegularClosedDaysForm() {
+  document.querySelectorAll('input[name="regularClosedDays"]').forEach(el => {
+    el.checked = false;
+  });
+}
+
+function parseClosedDaysInput(text) {
+  const allowed = ["月", "火", "水", "木", "金", "土", "日"];
+  return [...new Set(
+    String(text || "")
+      .split(",")
+      .map(x => String(x || "").trim())
+      .filter(x => allowed.includes(x))
+  )];
+}
+
 async function addStore() {
   const name = document.getElementById("storeName")?.value?.trim() || "";
   const pref = document.getElementById("prefName")?.value?.trim() || "";
@@ -548,6 +570,8 @@ async function addStore() {
   const mapUrl = document.getElementById("mapUrl")?.value?.trim() || "";
   const openTime = document.getElementById("openTime")?.value?.trim() || "";
   const closeTime = document.getElementById("closeTime")?.value?.trim() || "";
+  const regularClosedDays = getSelectedRegularClosedDaysFromForm();
+  const memo = document.getElementById("storeMemo")?.value?.trim() || "";
 
   if (!name) {
     alert("店舗名を入れてください。");
@@ -564,6 +588,8 @@ async function addStore() {
     mapUrl,
     openTime,
     closeTime,
+    regularClosedDays,
+    memo,
     lat: pos.lat,
     lng: pos.lng,
     visits: 0,
@@ -582,6 +608,8 @@ async function addStore() {
   document.getElementById("mapUrl").value = "";
   if (document.getElementById("openTime")) document.getElementById("openTime").value = "";
   if (document.getElementById("closeTime")) document.getElementById("closeTime").value = "";
+  if (document.getElementById("storeMemo")) document.getElementById("storeMemo").value = "";
+  clearRegularClosedDaysForm();
 
   saveAll();
   render();
@@ -626,6 +654,17 @@ async function editStore(i) {
 
     const closeTime = prompt("閉店時間（例: 20:00）", s.closeTime || "");
     if (closeTime !== null) s.closeTime = String(closeTime).trim();
+
+    const closedDaysText = prompt(
+      "定休日（例: 水 または 火,木）",
+      Array.isArray(s.regularClosedDays) ? s.regularClosedDays.join(",") : ""
+    );
+    if (closedDaysText !== null) {
+      s.regularClosedDays = parseClosedDaysInput(closedDaysText);
+    }
+
+    const memo = prompt("メモ", s.memo || "");
+    if (memo !== null) s.memo = String(memo).trim();
 
     const pos = await resolveStoreLatLng(s.pref, s.address, s.name, s.mapUrl, true);
     s.lat = pos.lat;
