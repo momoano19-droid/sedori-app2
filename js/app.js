@@ -170,11 +170,10 @@ function renderBusinessInfoHtml(store, options = {}) {
       ` : ``}
 
       ${showBusinessStatus ? `
-        <div class="businessInfoRow ${businessStatus.className}">
-          <div class="businessInfoLabel">🕒 営業状態</div>
-          <div class="businessInfoValue">${escapeHtml(businessStatus.label)}</div>
-        </div>
-      ` : ``}
+  <div class="businessStatusOnly ${businessStatus.className}">
+    ${escapeHtml(businessStatus.label)}
+  </div>
+` : ``}
     </div>
   `;
 }
