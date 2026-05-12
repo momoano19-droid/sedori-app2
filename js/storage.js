@@ -56,6 +56,14 @@ function readFirstAvailable(keys) {
   return null;
 }
 
+function normalizeClosedDays(v) {
+  const allowed = ["月", "火", "水", "木", "金", "土", "日"];
+  if (!Array.isArray(v)) return [];
+  return [...new Set(
+    v.map(x => String(x || "").trim()).filter(x => allowed.includes(x))
+  )];
+}
+
 function normalizeStore(s) {
   return {
     id: String(s?.id || ensureId()),
@@ -63,10 +71,10 @@ function normalizeStore(s) {
     pref: String(s?.pref || "").trim(),
     address: String(s?.address || "").trim(),
     mapUrl: String(s?.mapUrl || "").trim(),
-
     openTime: String(s?.openTime || "").trim(),
     closeTime: String(s?.closeTime || "").trim(),
-
+    regularClosedDays: normalizeClosedDays(s?.regularClosedDays),
+    memo: String(s?.memo || "").trim(),
     lat:
       s?.lat !== null &&
       s?.lat !== "" &&
@@ -79,18 +87,15 @@ function normalizeStore(s) {
       !isNaN(Number(s?.lng))
         ? Number(s.lng)
         : null,
-
     visits: Number(s?.visits || 0),
     buyDays: Number(s?.buyDays || 0),
     items: Number(s?.items || 0),
     profit: Number(s?.profit || 0),
-
     defaultCategory: String(s?.defaultCategory || "").trim(),
     categoryCounts:
       s?.categoryCounts && typeof s.categoryCounts === "object"
         ? { ...s.categoryCounts }
         : {},
-
     lastVisitDate: String(s?.lastVisitDate || "").trim(),
     today: !!s?.today
   };
@@ -134,10 +139,7 @@ function loadStores() {
 }
 
 function saveStores(v) {
-  localStorage.setItem(
-    PRIMARY_STORE_KEY,
-    JSON.stringify((Array.isArray(v) ? v : []).map(normalizeStore))
-  );
+  localStorage.setItem(PRIMARY_STORE_KEY, JSON.stringify(v));
 }
 
 function loadLogs() {
@@ -147,10 +149,7 @@ function loadLogs() {
 }
 
 function saveLogs(v) {
-  localStorage.setItem(
-    PRIMARY_LOG_KEY,
-    JSON.stringify((Array.isArray(v) ? v : []).map(normalizeLog))
-  );
+  localStorage.setItem(PRIMARY_LOG_KEY, JSON.stringify(v));
 }
 
 function loadSavedRoutes() {
@@ -160,10 +159,7 @@ function loadSavedRoutes() {
 }
 
 function saveRoutes(v) {
-  localStorage.setItem(
-    PRIMARY_ROUTE_KEY,
-    JSON.stringify((Array.isArray(v) ? v : []).map(normalizeRoute))
-  );
+  localStorage.setItem(PRIMARY_ROUTE_KEY, JSON.stringify(v));
 }
 
 function loadTodayRouteOrder() {
@@ -178,39 +174,16 @@ function saveTodayRouteOrder(v) {
   );
 }
 
-function syncStoreProfitsBeforeSave() {
-  if (!Array.isArray(stores) || !Array.isArray(logs)) return;
-
-  const profitMap = {};
-
-  logs.forEach(log => {
-    const storeId = String(log?.storeId || "").trim();
-    if (!storeId) return;
-
-    const type = String(log?.type || "").trim();
-    if (type !== "profit" && type !== "profit_adjust") return;
-
-    profitMap[storeId] = (profitMap[storeId] || 0) + Number(log?.delta || 0);
-  });
-
-  stores.forEach(store => {
-    const storeId = String(store?.id || "");
-    store.profit = Number(profitMap[storeId] || 0);
-  });
-}
-
 function saveAutoBackup() {
   try {
-    syncStoreProfitsBeforeSave();
-
     localStorage.setItem(
       PRIMARY_AUTO_BACKUP_KEY,
       JSON.stringify({
         savedAt: new Date().toISOString(),
-        stores: (Array.isArray(stores) ? stores : []).map(normalizeStore),
-        logs: (Array.isArray(logs) ? logs : []).map(normalizeLog),
-        savedRoutes: (Array.isArray(savedRoutes) ? savedRoutes : []).map(normalizeRoute),
-        todayRouteOrder: normalizeTodayRouteOrder(todayRouteOrder)
+        stores,
+        logs,
+        savedRoutes,
+        todayRouteOrder
       })
     );
   } catch (e) {
@@ -250,7 +223,6 @@ function invalidateDerivedCaches() {
 }
 
 function saveAll() {
-  syncStoreProfitsBeforeSave();
   saveStores(stores);
   saveLogs(logs);
   saveRoutes(savedRoutes);
