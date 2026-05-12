@@ -3786,3 +3786,70 @@ button {
     grid-template-columns: 1fr;
   }
 }
+/* 店舗追加：開店時間・閉店時間の重なり修正 */
+#storeAddAccordionBody .storeHoursGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#storeAddAccordionBody .storeFieldBlock {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+#storeAddAccordionBody .storeFieldLabel {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #374151;
+  line-height: 1.3;
+}
+
+#storeAddAccordionBody .storeHoursGrid input[type="time"] {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 52px;
+  box-sizing: border-box;
+  font-size: 18px;
+  padding: 0 14px;
+  border-radius: 16px;
+}
+
+/* 店舗追加：定休日ボタンを少し小さく */
+#storeAddAccordionBody .closedDaysGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#storeAddAccordionBody .closedDayChip {
+  min-width: 0;
+}
+
+#storeAddAccordionBody .closedDayChip span {
+  min-height: 44px;
+  padding: 8px 6px;
+  font-size: 15px;
+  border-radius: 14px;
+  box-sizing: border-box;
+}
+
+/* かなり狭い画面では3列にする */
+@media (max-width: 360px) {
+  #storeAddAccordionBody .closedDaysGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #storeAddAccordionBody .closedDayChip span {
+    min-height: 42px;
+    font-size: 14px;
+  }
+}
