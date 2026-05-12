@@ -3423,3 +3423,36 @@ a{
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+.storeAddAccordionHeader {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.storeAddAccordionChevron {
+  font-size: 18px;
+  font-weight: 800;
+  color: #3976f6;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.storeAddAccordionBody {
+  margin-top: 14px;
+}
+
+.storeAddAccordionHeader .sectionTitle {
+  margin: 0;
+}
+
+.storeAddAccordionHeader:active {
+  opacity: 0.85;
+}
