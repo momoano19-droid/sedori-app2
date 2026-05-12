@@ -3235,3 +3235,94 @@ a{
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+#storeEditModal .qtyCategoryCard {
+  max-width: 720px;
+}
+
+#storeEditModal .formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+#storeEditModal input[type="text"],
+#storeEditModal textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+#storeEditModal .storeHoursGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+#storeEditModal .closedDaysGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#storeEditModal .closedDayChip {
+  position: relative;
+  display: block;
+}
+
+#storeEditModal .closedDayChip input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#storeEditModal .closedDayChip span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1.5px solid #d7deea;
+  background: #f8faff;
+  color: #4c566a;
+  font-size: 13px;
+  font-weight: 800;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+#storeEditModal .closedDayChip input:checked + span {
+  background: #ede9fe;
+  border-color: #8b5cf6;
+  color: #6d28d9;
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.08) inset;
+}
+
+#storeEditModal .storeMemoInput {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1.5px solid #d7deea;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: vertical;
+  color: #1f2937;
+}
+
+#storeEditModal .storeMemoInput::placeholder {
+  color: #9aa3b2;
+}
+
+@media (max-width: 640px) {
+  #storeEditModal .formGrid,
+  #storeEditModal .storeHoursGrid {
+    grid-template-columns: 1fr;
+  }
+
+  #storeEditModal .closedDaysGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
