@@ -67,16 +67,30 @@
         </div>
 
         <div class="storeHoursGrid mt12">
-          <label class="storeFieldBlock">
-            <span class="storeFieldLabel">🕒 開店時間</span>
-            <input id="openTime" type="time">
-          </label>
+  <label class="storeFieldBlock">
+    <span class="storeFieldLabel">🕒 開店時間</span>
+    <input
+      id="openTime"
+      type="text"
+      inputmode="numeric"
+      maxlength="5"
+      placeholder="例：10:00"
+      autocomplete="off"
+    >
+  </label>
 
-          <label class="storeFieldBlock">
-            <span class="storeFieldLabel">🌙 閉店時間</span>
-            <input id="closeTime" type="time">
-          </label>
-        </div>
+  <label class="storeFieldBlock">
+    <span class="storeFieldLabel">🌙 閉店時間</span>
+    <input
+      id="closeTime"
+      type="text"
+      inputmode="numeric"
+      maxlength="5"
+      placeholder="例：19:00"
+      autocomplete="off"
+    >
+  </label>
+</div>
 
         <div class="storeClosedDaysWrap mt12">
           <div class="mini storeClosedDaysLabel">📅 定休日</div>
