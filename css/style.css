@@ -3456,3 +3456,152 @@ a{
 .storeAddAccordionHeader:active {
   opacity: 0.85;
 }
+.formGrid,
+.filterGrid,
+.storeHoursGrid,
+.closedDaysGrid,
+.formActions,
+.row2,
+.routeBar,
+.storeTopActions {
+  width: 100%;
+}
+
+.formGrid > *,
+.filterGrid > *,
+.storeHoursGrid > *,
+.closedDaysGrid > *,
+.formActions > *,
+.row2 > *,
+.routeBar > *,
+.storeTopActions > * {
+  min-width: 0;
+}
+
+input,
+select,
+textarea,
+button {
+  box-sizing: border-box;
+}
+
+.storeAddAccordionBody {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+
+.storeHoursGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+}
+
+.storeFieldBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.storeFieldLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: #4b5563;
+  line-height: 1.4;
+}
+
+.storeFieldBlock input {
+  width: 100%;
+  min-width: 0;
+}
+
+.storeClosedDaysWrap {
+  width: 100%;
+}
+
+.storeClosedDaysLabel {
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.closedDaysGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.closedDayChip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  width: 100%;
+}
+
+.closedDayChip input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.closedDayChip span {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 16px;
+  border: 2px solid #d7dce8;
+  background: #f8faff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: #374151;
+  box-sizing: border-box;
+}
+
+.closedDayChip input:checked + span {
+  background: #3976f6;
+  border-color: #3976f6;
+  color: #fff;
+}
+
+.storeMemoInput {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+#storeName,
+#prefName,
+#address,
+#mapUrl,
+#openTime,
+#closeTime,
+#storeMemo {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .storeHoursGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .closedDaysGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .closedDaysGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
