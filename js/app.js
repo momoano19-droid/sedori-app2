@@ -170,10 +170,10 @@ function renderBusinessInfoHtml(store, options = {}) {
       ` : ``}
 
       ${showBusinessStatus ? `
-  <div class="businessStatusOnly ${businessStatus.className}">
-    ${escapeHtml(businessStatus.label)}
-  </div>
-` : ``}
+        <div class="businessStatusOnly ${businessStatus.className}">
+          ${escapeHtml(businessStatus.label)}
+        </div>
+      ` : ``}
     </div>
   `;
 }
@@ -1127,6 +1127,52 @@ function setupButtonPressEffect() {
   }
 }
 
+function formatTimeInputValue(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 4);
+
+  if (!digits) return "";
+
+  if (digits.length <= 2) {
+    const hour = Number(digits);
+    if (Number.isNaN(hour) || hour > 23) return "";
+    return `${String(hour).padStart(2, "0")}:00`;
+  }
+
+  const padded = digits.length === 3 ? `0${digits}` : digits;
+  const hour = Number(padded.slice(0, 2));
+  const minute = Number(padded.slice(2, 4));
+
+  if (
+    Number.isNaN(hour) ||
+    Number.isNaN(minute) ||
+    hour > 23 ||
+    minute > 59
+  ) {
+    return "";
+  }
+
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function setupTimeInputAutoFormat() {
+  const ids = ["openTime", "closeTime"];
+
+  ids.forEach(id => {
+    const input = document.getElementById(id);
+    if (!input || input.dataset.timeAutoFormatReady === "1") return;
+
+    input.dataset.timeAutoFormatReady = "1";
+
+    input.addEventListener("input", () => {
+      input.value = String(input.value || "").replace(/\D/g, "").slice(0, 4);
+    });
+
+    input.addEventListener("blur", () => {
+      input.value = formatTimeInputValue(input.value);
+    });
+  });
+}
+
 window.addEventListener("load", () => {
   try {
     syncStoreProfitsFromLogs();
@@ -1154,6 +1200,7 @@ window.addEventListener("load", () => {
     setTimeout(() => maybeNotifyClosingSoonStores(), 1200);
     setInterval(() => maybeNotifyClosingSoonStores(), 60000);
     setupButtonPressEffect();
+    setupTimeInputAutoFormat();
   } catch (e) {
     console.error("load init error:", e);
   }
