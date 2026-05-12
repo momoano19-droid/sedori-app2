@@ -582,8 +582,22 @@ function ensureStoreEditModal() {
       </div>
 
       <div class="storeHoursGrid">
-        <input id="editOpenTime" type="text" inputmode="numeric" placeholder="開店時間（例 10:00）">
-        <input id="editCloseTime" type="text" inputmode="numeric" placeholder="閉店時間（例 21:00）">
+        <input
+          id="editOpenTime"
+          type="text"
+          inputmode="numeric"
+          maxlength="5"
+          autocomplete="off"
+          placeholder="開店時間（例 1000）"
+        >
+        <input
+          id="editCloseTime"
+          type="text"
+          inputmode="numeric"
+          maxlength="5"
+          autocomplete="off"
+          placeholder="閉店時間（例 1900）"
+        >
       </div>
 
       <div class="mt12">
@@ -621,6 +635,27 @@ function ensureStoreEditModal() {
   document.body.appendChild(modal);
 }
 
+function setupEditTimeInputAutoFormat() {
+  const ids = ["editOpenTime", "editCloseTime"];
+
+  ids.forEach(id => {
+    const input = document.getElementById(id);
+    if (!input || input.dataset.timeAutoFormatReady === "1") return;
+
+    input.dataset.timeAutoFormatReady = "1";
+
+    input.addEventListener("input", () => {
+      input.value = String(input.value || "").replace(/\D/g, "").slice(0, 4);
+    });
+
+    input.addEventListener("blur", () => {
+      if (typeof formatTimeInputValue === "function") {
+        input.value = formatTimeInputValue(input.value);
+      }
+    });
+  });
+}
+
 let storeEditTargetIndex = -1;
 
 function openStoreEditModal(index) {
@@ -628,6 +663,7 @@ function openStoreEditModal(index) {
   if (!s) return;
 
   ensureStoreEditModal();
+  setupEditTimeInputAutoFormat();
   storeEditTargetIndex = index;
 
   const nameEl = document.getElementById("editStoreName");
@@ -674,9 +710,20 @@ async function saveStoreEditModal() {
   const pref = document.getElementById("editPrefName")?.value?.trim() || "";
   const address = document.getElementById("editAddress")?.value?.trim() || "";
   const mapUrl = document.getElementById("editMapUrl")?.value?.trim() || "";
-  const openTime = document.getElementById("editOpenTime")?.value?.trim() || "";
-  const closeTime = document.getElementById("editCloseTime")?.value?.trim() || "";
+  const rawOpenTime = document.getElementById("editOpenTime")?.value?.trim() || "";
+  const rawCloseTime = document.getElementById("editCloseTime")?.value?.trim() || "";
   const memo = document.getElementById("editStoreMemo")?.value?.trim() || "";
+
+  const openTime =
+    typeof formatTimeInputValue === "function"
+      ? formatTimeInputValue(rawOpenTime)
+      : rawOpenTime;
+
+  const closeTime =
+    typeof formatTimeInputValue === "function"
+      ? formatTimeInputValue(rawCloseTime)
+      : rawCloseTime;
+
   const regularClosedDays = [...document.querySelectorAll('input[name="editRegularClosedDays"]:checked')]
     .map(el => String(el.value || "").trim())
     .filter(Boolean);
