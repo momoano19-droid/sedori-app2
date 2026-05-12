@@ -3605,3 +3605,59 @@ button {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+/* 営業時間・定休日・営業状態：2列表示 */
+.businessInfo {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+  font-size: 15px;
+  color: #6b7280;
+}
+
+.businessInfoRow {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  line-height: 1.45;
+}
+
+.businessInfoLabel {
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.businessInfoValue {
+  min-width: 0;
+  color: #4b5563;
+  word-break: break-word;
+}
+
+.businessInfoRow.statusBeforeOpen .businessInfoValue,
+.businessInfoRow.statusOpen .businessInfoValue,
+.businessInfoRow.statusClosingSoon .businessInfoValue,
+.businessInfoRow.statusClosed .businessInfoValue,
+.businessInfoRow.statusClosedDay .businessInfoValue {
+  font-weight: 800;
+}
+
+.businessInfoRow.statusBeforeOpen .businessInfoValue {
+  color: #2563eb;
+}
+
+.businessInfoRow.statusOpen .businessInfoValue {
+  color: #16a34a;
+}
+
+.businessInfoRow.statusClosingSoon .businessInfoValue {
+  color: #d97706;
+}
+
+.businessInfoRow.statusClosed .businessInfoValue,
+.businessInfoRow.statusClosedDay .businessInfoValue {
+  color: #dc2626;
+}
+
+.todayRouteBusinessInfo {
+  margin-top: 8px;
+}
