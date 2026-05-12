@@ -3730,3 +3730,59 @@ button {
     grid-template-columns: 1fr;
   }
 }
+/* 店舗追加：開店時間・閉店時間のはみ出し防止 */
+.storeHoursGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.storeFieldBlock {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.storeFieldLabel {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b7280;
+  line-height: 1.3;
+}
+
+.storeHoursGrid input[type="time"] {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  font-size: 16px;
+}
+
+/* iPhone幅でさらに安全にする */
+@media (max-width: 390px) {
+  .storeHoursGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .storeFieldLabel {
+    font-size: 12px;
+  }
+
+  .storeHoursGrid input[type="time"] {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+
+/* かなり狭い画面では1列にして完全にはみ出し防止 */
+@media (max-width: 340px) {
+  .storeHoursGrid {
+    grid-template-columns: 1fr;
+  }
+}
