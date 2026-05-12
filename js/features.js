@@ -563,6 +563,147 @@ function parseClosedDaysInput(text) {
   )];
 }
 
+function ensureStoreEditModal() {
+  if (document.getElementById("storeEditModal")) return;
+
+  const modal = document.createElement("div");
+  modal.id = "storeEditModal";
+  modal.className = "qtyCategoryModal";
+  modal.innerHTML = `
+    <div class="qtyCategoryCard">
+      <div class="qtyCategoryTitle">店舗情報を編集</div>
+      <div class="qtyCategorySub">基本情報・営業時間・定休日・メモをまとめて編集できます</div>
+
+      <div class="formGrid" style="margin-top:12px;">
+        <input id="editStoreName" type="text" placeholder="店舗名">
+        <input id="editPrefName" type="text" placeholder="都道府県">
+        <input id="editAddress" type="text" placeholder="住所">
+        <input id="editMapUrl" type="text" placeholder="GoogleマップURL（任意）">
+      </div>
+
+      <div class="storeHoursGrid">
+        <input id="editOpenTime" type="text" inputmode="numeric" placeholder="開店時間（例 10:00）">
+        <input id="editCloseTime" type="text" inputmode="numeric" placeholder="閉店時間（例 21:00）">
+      </div>
+
+      <div class="mt12">
+        <div class="mini" style="font-weight:700; margin-bottom:8px;">📅 定休日</div>
+        <div class="closedDaysGrid" id="editClosedDaysGrid">
+          ${["月", "火", "水", "木", "金", "土", "日"].map(day => `
+            <label class="closedDayChip">
+              <input type="checkbox" name="editRegularClosedDays" value="${day}">
+              <span>${day}</span>
+            </label>
+          `).join("")}
+        </div>
+      </div>
+
+      <div class="mt12">
+        <textarea
+          id="editStoreMemo"
+          class="storeMemoInput"
+          placeholder="メモ（例: 5/20 棚卸し休み、入口は裏側 など）"
+          rows="4"
+        ></textarea>
+      </div>
+
+      <div class="categoryPickerActions">
+        <button type="button" class="ghostBtn" onclick="closeStoreEditModal()">キャンセル</button>
+        <button type="button" class="primaryBtn" onclick="saveStoreEditModal()">保存</button>
+      </div>
+    </div>
+  `;
+
+  modal.addEventListener("click", e => {
+    if (e.target === modal) closeStoreEditModal();
+  });
+
+  document.body.appendChild(modal);
+}
+
+let storeEditTargetIndex = -1;
+
+function openStoreEditModal(index) {
+  const s = stores[index];
+  if (!s) return;
+
+  ensureStoreEditModal();
+  storeEditTargetIndex = index;
+
+  const nameEl = document.getElementById("editStoreName");
+  const prefEl = document.getElementById("editPrefName");
+  const addressEl = document.getElementById("editAddress");
+  const mapUrlEl = document.getElementById("editMapUrl");
+  const openEl = document.getElementById("editOpenTime");
+  const closeEl = document.getElementById("editCloseTime");
+  const memoEl = document.getElementById("editStoreMemo");
+
+  if (nameEl) nameEl.value = s.name || "";
+  if (prefEl) prefEl.value = s.pref || "";
+  if (addressEl) addressEl.value = s.address || "";
+  if (mapUrlEl) mapUrlEl.value = s.mapUrl || "";
+  if (openEl) openEl.value = s.openTime || "";
+  if (closeEl) closeEl.value = s.closeTime || "";
+  if (memoEl) memoEl.value = s.memo || "";
+
+  const selectedDays = Array.isArray(s.regularClosedDays) ? s.regularClosedDays : [];
+  document.querySelectorAll('input[name="editRegularClosedDays"]').forEach(el => {
+    el.checked = selectedDays.includes(el.value);
+  });
+
+  const modal = document.getElementById("storeEditModal");
+  if (modal) modal.classList.add("show");
+}
+
+function closeStoreEditModal() {
+  const modal = document.getElementById("storeEditModal");
+  if (modal) modal.classList.remove("show");
+  storeEditTargetIndex = -1;
+}
+
+async function saveStoreEditModal() {
+  if (storeEditTargetIndex < 0) return;
+
+  const s = stores[storeEditTargetIndex];
+  if (!s) {
+    closeStoreEditModal();
+    return;
+  }
+
+  const name = document.getElementById("editStoreName")?.value?.trim() || "";
+  const pref = document.getElementById("editPrefName")?.value?.trim() || "";
+  const address = document.getElementById("editAddress")?.value?.trim() || "";
+  const mapUrl = document.getElementById("editMapUrl")?.value?.trim() || "";
+  const openTime = document.getElementById("editOpenTime")?.value?.trim() || "";
+  const closeTime = document.getElementById("editCloseTime")?.value?.trim() || "";
+  const memo = document.getElementById("editStoreMemo")?.value?.trim() || "";
+  const regularClosedDays = [...document.querySelectorAll('input[name="editRegularClosedDays"]:checked')]
+    .map(el => String(el.value || "").trim())
+    .filter(Boolean);
+
+  if (!name) {
+    alert("店舗名を入れてください。");
+    return;
+  }
+
+  s.name = name;
+  s.pref = pref;
+  s.address = address;
+  s.mapUrl = mapUrl;
+  s.openTime = openTime;
+  s.closeTime = closeTime;
+  s.memo = memo;
+  s.regularClosedDays = regularClosedDays;
+
+  const pos = await resolveStoreLatLng(s.pref, s.address, s.name, s.mapUrl, true);
+  s.lat = pos.lat;
+  s.lng = pos.lng;
+
+  saveAll();
+  render();
+  closeStoreEditModal();
+}
+
 async function addStore() {
   const name = document.getElementById("storeName")?.value?.trim() || "";
   const pref = document.getElementById("prefName")?.value?.trim() || "";
@@ -636,39 +777,8 @@ async function editStore(i) {
   if (menu === null) return;
 
   if (menu === "1") {
-    const name = prompt("店舗名", s.name || "");
-    if (name === null) return;
-    s.name = String(name).trim() || s.name;
-
-    const pref = prompt("都道府県", s.pref || "");
-    if (pref !== null) s.pref = String(pref).trim();
-
-    const address = prompt("住所", s.address || "");
-    if (address !== null) s.address = String(address).trim();
-
-    const mapUrl = prompt("GoogleマップURL", s.mapUrl || "");
-    if (mapUrl !== null) s.mapUrl = String(mapUrl).trim();
-
-    const openTime = prompt("開店時間（例: 10:00）", s.openTime || "");
-    if (openTime !== null) s.openTime = String(openTime).trim();
-
-    const closeTime = prompt("閉店時間（例: 20:00）", s.closeTime || "");
-    if (closeTime !== null) s.closeTime = String(closeTime).trim();
-
-    const closedDaysText = prompt(
-      "定休日（例: 水 または 火,木）",
-      Array.isArray(s.regularClosedDays) ? s.regularClosedDays.join(",") : ""
-    );
-    if (closedDaysText !== null) {
-      s.regularClosedDays = parseClosedDaysInput(closedDaysText);
-    }
-
-    const memo = prompt("メモ", s.memo || "");
-    if (memo !== null) s.memo = String(memo).trim();
-
-    const pos = await resolveStoreLatLng(s.pref, s.address, s.name, s.mapUrl, true);
-    s.lat = pos.lat;
-    s.lng = pos.lng;
+    openStoreEditModal(i);
+    return;
   }
 
   if (menu === "2") {
