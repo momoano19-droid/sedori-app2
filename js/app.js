@@ -39,8 +39,14 @@ const STORE_ALERTED_STATUS_KEY = "store_closing_alerted_v1";
 const STORE_ADD_ACCORDION_KEY = "store_add_accordion_open";
 
 function syncStoreProfitsFromLogs() {
+  if (typeof getStoreProfitFromLogs !== "function") return;
+
   stores.forEach(store => {
-    store.profit = getStoreProfitFromLogs(store.id);
+    try {
+      store.profit = getStoreProfitFromLogs(store.id);
+    } catch (e) {
+      console.error("getStoreProfitFromLogs error:", e);
+    }
   });
 }
 
@@ -135,7 +141,7 @@ function formatClosedDays(store) {
 }
 
 function getStoreBusinessStatus(store) {
-  if (isRegularClosedToday(store)) {
+  if (typeof isRegularClosedToday === "function" && isRegularClosedToday(store)) {
     return {
       code: "regular_closed",
       label: "📅 定休日",
@@ -842,10 +848,21 @@ function render() {
 
   renderSavedRoutesList();
   renderTodayRouteList();
-  scheduleRenderMapMarkers();
-  renderCurrentLocationMarker();
+
+  if (typeof scheduleRenderMapMarkers === "function") {
+    scheduleRenderMapMarkers();
+  }
+
+  if (typeof renderCurrentLocationMarker === "function") {
+    renderCurrentLocationMarker();
+  }
+
   syncTodayRouteAccordionUI();
-  renderBadgesIfExists();
+
+  if (typeof renderBadgesIfExists === "function") {
+    renderBadgesIfExists();
+  }
+
   maybeNotifyClosingSoonStores();
 }
 
@@ -1101,20 +1118,35 @@ function setupButtonPressEffect() {
 }
 
 window.addEventListener("load", () => {
-  syncStoreProfitsFromLogs();
-  syncTodayRouteOrder();
-  syncTodayRouteVisitedIds();
-  cleanupOldClosingAlerts();
-  initMap();
-  updateLayoutButtons();
-  restoreStoreAddAccordion();
-  restoreSortType();
-  render();
-  renderBadgesIfExists();
-  setTimeout(() => autoDetectNearbyStores(), 800);
-  setTimeout(() => maybeNotifyClosingSoonStores(), 1200);
-  setInterval(() => maybeNotifyClosingSoonStores(), 60000);
-  setupButtonPressEffect();
+  try {
+    syncStoreProfitsFromLogs();
+    syncTodayRouteOrder();
+    syncTodayRouteVisitedIds();
+    cleanupOldClosingAlerts();
+
+    if (typeof initMap === "function") {
+      initMap();
+    }
+
+    updateLayoutButtons();
+    restoreStoreAddAccordion();
+    restoreSortType();
+    render();
+
+    if (typeof renderBadgesIfExists === "function") {
+      renderBadgesIfExists();
+    }
+
+    if (typeof autoDetectNearbyStores === "function") {
+      setTimeout(() => autoDetectNearbyStores(), 800);
+    }
+
+    setTimeout(() => maybeNotifyClosingSoonStores(), 1200);
+    setInterval(() => maybeNotifyClosingSoonStores(), 60000);
+    setupButtonPressEffect();
+  } catch (e) {
+    console.error("load init error:", e);
+  }
 });
 
 window.addEventListener("keydown", e => {
