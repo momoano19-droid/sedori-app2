@@ -3661,3 +3661,31 @@ button {
 .todayRouteBusinessInfo {
   margin-top: 8px;
 }
+/* 営業状態：ラベルなし表示 */
+.businessStatusOnly {
+  margin-top: 2px;
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 800;
+}
+
+.businessStatusOnly.statusBeforeOpen {
+  color: #2563eb;
+}
+
+.businessStatusOnly.statusOpen {
+  color: #16a34a;
+}
+
+.businessStatusOnly.statusClosingSoon {
+  color: #d97706;
+}
+
+.businessStatusOnly.statusClosed,
+.businessStatusOnly.statusClosedDay {
+  color: #dc2626;
+}
+
+.businessStatusOnly.statusUnknown {
+  color: #6b7280;
+}
