@@ -595,3 +595,11 @@ function getStoreEvaluationLabel(m) {
 
   return { label: "❌ スキップ推奨", class: "eval-bad" };
 }
+function getStoreProfitFromLogs(storeId) {
+  return logs
+    .filter(l =>
+      l.storeId === storeId &&
+      l.type === "profit"
+    )
+    .reduce((sum, l) => sum + Number(l.delta || 0), 0);
+}
