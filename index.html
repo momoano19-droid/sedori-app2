@@ -54,7 +54,7 @@
         aria-expanded="true"
         id="storeAddAccordionHeader"
       >
-        <span class="sectionTitle" style="margin:0;">🏪 店舗追加</span>
+        <span class="sectionTitle">🏪 店舗追加</span>
         <span class="storeAddAccordionChevron" id="storeAddAccordionChevron">▲</span>
       </button>
 
@@ -64,8 +64,8 @@
           <input id="prefName" type="text" placeholder="都道府県">
           <input id="address" type="text" placeholder="住所">
           <input id="mapUrl" type="text" placeholder="GoogleマップURL（任意）">
-          <input id="openTime" type="text" inputmode="numeric" placeholder="開店時間（例 10:00）">
-          <input id="closeTime" type="text" inputmode="numeric" placeholder="閉店時間（例 20:00）">
+          <input id="openTime" type="time" placeholder="開店時間">
+          <input id="closeTime" type="time" placeholder="閉店時間">
         </div>
 
         <div class="storeClosedDaysWrap mt12">
@@ -107,7 +107,7 @@
             id="storeMemo"
             class="storeMemoInput"
             rows="3"
-            placeholder="メモ（例: 臨時休業、祝日は時間変更、入口は裏側 など）"
+            placeholder="メモ（例: 第2火曜は棚卸し、臨時休業あり など）"
           ></textarea>
         </div>
 
