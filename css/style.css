@@ -3689,3 +3689,44 @@ button {
 .businessStatusOnly.statusUnknown {
   color: #6b7280;
 }
+/* 店舗追加フォーム：開店時間・閉店時間のはみ出し防止 */
+#storeAddAccordionBody input,
+#storeAddAccordionBody select,
+#storeAddAccordionBody textarea {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+/* 店舗追加フォーム内の横並び入力をiPhoneで崩れにくくする */
+#storeAddAccordionBody .row2,
+#storeAddAccordionBody .formRow2,
+#storeAddAccordionBody .timeRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+
+/* 時間入力欄 */
+#storeAddAccordionBody input[type="time"] {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  font-size: 16px;
+}
+
+/* ラベル＋入力欄のまとまり */
+#storeAddAccordionBody label,
+#storeAddAccordionBody .field,
+#storeAddAccordionBody .formField {
+  min-width: 0;
+}
+
+/* かなり狭い画面では1列にする */
+@media (max-width: 380px) {
+  #storeAddAccordionBody .row2,
+  #storeAddAccordionBody .formRow2,
+  #storeAddAccordionBody .timeRow {
+    grid-template-columns: 1fr;
+  }
+}
