@@ -128,7 +128,25 @@ function formatStoreHours(store) {
   return `${openTime || "--:--"}〜${closeTime || "--:--"}`;
 }
 
+function formatClosedDays(store) {
+  const days = Array.isArray(store?.regularClosedDays) ? store.regularClosedDays : [];
+  return days.length ? days.join("・") : "なし";
+}
+
 function getStoreBusinessStatus(store) {
+  if (isRegularClosedToday(store)) {
+    return {
+      code: "regular_closed",
+      label: "📅 定休日",
+      className: "statusClosedDay",
+      isBeforeOpen: false,
+      isOpen: false,
+      isClosingSoon: false,
+      isClosed: true,
+      remainingMinutes: null
+    };
+  }
+
   const openMinutes = parseTimeToMinutes(store?.openTime);
   const closeMinutes = parseTimeToMinutes(store?.closeTime);
 
@@ -211,6 +229,7 @@ function maybeNotifyClosingSoonStores() {
 
   const notifyTargets = targets.filter(store => {
     const status = getStoreBusinessStatus(store);
+    if (status.code === "regular_closed") return false;
     if (!status.isClosingSoon) return false;
     if (hasClosingAlertedToday(store.id)) return false;
     return true;
@@ -380,6 +399,7 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
   const businessStatus = getStoreBusinessStatus(s);
   const hoursText = formatStoreHours(s);
   const showBusinessStatus = businessStatus.code !== "unknown";
+  const closedDaysText = formatClosedDays(s);
 
   return `
     <div class="item compactCard ${expectedClass} ${staleClass}">
@@ -397,9 +417,19 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
         🕒 営業時間 ${escapeHtml(hoursText)}
       </div>
 
+      <div class="mini mt6">
+        📌 定休日 ${escapeHtml(closedDaysText)}
+      </div>
+
       ${showBusinessStatus ? `
         <div class="mini mt6 ${businessStatus.className}">
           ${escapeHtml(businessStatus.label)}
+        </div>
+      ` : ``}
+
+      ${s.memo ? `
+        <div class="mini mt6">
+          📝 ${escapeHtml(s.memo)}
         </div>
       ` : ``}
 
@@ -445,6 +475,7 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
   const businessStatus = getStoreBusinessStatus(s);
   const hoursText = formatStoreHours(s);
   const showBusinessStatus = businessStatus.code !== "unknown";
+  const closedDaysText = formatClosedDays(s);
 
   return `
     <div class="item ${expectedClass} ${staleClass}">
@@ -466,12 +497,17 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
         🕒 営業時間 ${escapeHtml(hoursText)}
       </div>
 
+      <div class="mini mt6">
+        📌 定休日 ${escapeHtml(closedDaysText)}
+      </div>
+
       ${showBusinessStatus ? `
         <div class="mini mt6 ${businessStatus.className}">
           ${escapeHtml(businessStatus.label)}
         </div>
       ` : ``}
 
+      ${s.memo ? `<div class="mini mt8">📝 ${escapeHtml(s.memo)}</div>` : ``}
       ${s.address ? `<div class="mini mt8">📍 ${escapeHtml(s.address)}</div>` : ``}
 
       <div class="mini mt8">
@@ -680,6 +716,7 @@ function renderTodayRouteList() {
       const businessStatus = getStoreBusinessStatus(s);
       const hoursText = formatStoreHours(s);
       const showBusinessStatus = businessStatus.code !== "unknown";
+      const closedDaysText = formatClosedDays(s);
 
       return `
         <div class="item todayRouteItem ${visited ? "todayRouteItemVisited" : ""}">
@@ -696,9 +733,19 @@ function renderTodayRouteList() {
             🕒 営業時間 ${escapeHtml(hoursText)}
           </div>
 
+          <div class="mini mt6">
+            📌 定休日 ${escapeHtml(closedDaysText)}
+          </div>
+
           ${!visited && showBusinessStatus ? `
             <div class="mini mt6 ${businessStatus.className}">
               ${escapeHtml(businessStatus.label)}
+            </div>
+          ` : ``}
+
+          ${s.memo ? `
+            <div class="mini mt6">
+              📝 ${escapeHtml(s.memo)}
             </div>
           ` : ``}
 
@@ -747,6 +794,8 @@ function render() {
     lastVisitDates: stores.map(s => `${s.id}:${s.lastVisitDate}`),
     storeProfits: stores.map(s => `${s.id}:${Number(s.profit || 0)}`).join("|"),
     storeHours: stores.map(s => `${s.id}:${s.openTime || ""}-${s.closeTime || ""}`).join("|"),
+    storeClosedDays: stores.map(s => `${s.id}:${(s.regularClosedDays || []).join(",")}`).join("|"),
+    storeMemos: stores.map(s => `${s.id}:${s.memo || ""}`).join("|"),
     savedRoutes: savedRoutes.map(r => `${r.id}:${r.updatedAt}:${r.favorite}`).join("|"),
     openSavedRouteId,
     todayRouteAccordionOpen,
