@@ -49,13 +49,13 @@
     <section class="card">
       <button
         type="button"
-        class="storeAddAccordionHeader"
+        class="badgeAccordionHeader"
         onclick="toggleStoreAddAccordion()"
         aria-expanded="true"
         id="storeAddAccordionHeader"
       >
-        <span class="sectionTitle">🏪 店舗追加</span>
-        <span class="storeAddAccordionChevron" id="storeAddAccordionChevron">▲</span>
+        <span class="sectionTitle" style="margin:0;">🏪 店舗追加</span>
+        <span class="badgeAccordionChevron" id="storeAddAccordionChevron">▲</span>
       </button>
 
       <div id="storeAddAccordionBody" class="storeAddAccordionBody">
@@ -64,12 +64,22 @@
           <input id="prefName" type="text" placeholder="都道府県">
           <input id="address" type="text" placeholder="住所">
           <input id="mapUrl" type="text" placeholder="GoogleマップURL（任意）">
-          <input id="openTime" type="time" placeholder="開店時間">
-          <input id="closeTime" type="time" placeholder="閉店時間">
+        </div>
+
+        <div class="storeHoursGrid mt12">
+          <label class="storeFieldBlock">
+            <span class="storeFieldLabel">🕒 開店時間</span>
+            <input id="openTime" type="time">
+          </label>
+
+          <label class="storeFieldBlock">
+            <span class="storeFieldLabel">🌙 閉店時間</span>
+            <input id="closeTime" type="time">
+          </label>
         </div>
 
         <div class="storeClosedDaysWrap mt12">
-          <div class="mini storeClosedDaysLabel">定休日</div>
+          <div class="mini storeClosedDaysLabel">📅 定休日</div>
           <div class="closedDaysGrid">
             <label class="closedDayChip">
               <input type="checkbox" name="regularClosedDays" value="月">
