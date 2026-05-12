@@ -140,6 +140,67 @@ function formatClosedDays(store) {
   return days.length ? days.join("・") : "なし";
 }
 
+function hasRegularClosedDays(store) {
+  const days = Array.isArray(store?.regularClosedDays)
+    ? store.regularClosedDays
+    : [];
+
+  return days.some(day => String(day || "").trim());
+}
+
+function renderBusinessInfoHtml(store, options = {}) {
+  const businessStatus = getStoreBusinessStatus(store);
+  const hoursText = formatStoreHours(store);
+  const closedDaysText = formatClosedDays(store);
+  const showClosedDays = hasRegularClosedDays(store);
+  const showBusinessStatus = businessStatus.code !== "unknown";
+
+  return `
+    <div class="businessInfo ${options.className || ""}">
+      <div class="businessInfoRow">
+        <div class="businessInfoLabel">🕒 営業時間</div>
+        <div class="businessInfoValue">${escapeHtml(hoursText)}</div>
+      </div>
+
+      ${showClosedDays ? `
+        <div class="businessInfoRow">
+          <div class="businessInfoLabel">📌 定休日</div>
+          <div class="businessInfoValue">${escapeHtml(closedDaysText)}</div>
+        </div>
+      ` : ``}
+
+      ${showBusinessStatus ? `
+        <div class="businessInfoRow ${businessStatus.className}">
+          <div class="businessInfoLabel">🕒 営業状態</div>
+          <div class="businessInfoValue">${escapeHtml(businessStatus.label)}</div>
+        </div>
+      ` : ``}
+    </div>
+  `;
+}
+
+function renderTodayRouteBusinessInfoHtml(store, visited) {
+  if (!visited) {
+    return renderBusinessInfoHtml(store, { className: "todayRouteBusinessInfo" });
+  }
+
+  return `
+    <div class="businessInfo todayRouteBusinessInfo">
+      <div class="businessInfoRow">
+        <div class="businessInfoLabel">🕒 営業時間</div>
+        <div class="businessInfoValue">${escapeHtml(formatStoreHours(store))}</div>
+      </div>
+
+      ${hasRegularClosedDays(store) ? `
+        <div class="businessInfoRow">
+          <div class="businessInfoLabel">📌 定休日</div>
+          <div class="businessInfoValue">${escapeHtml(formatClosedDays(store))}</div>
+        </div>
+      ` : ``}
+    </div>
+  `;
+}
+
 function getStoreBusinessStatus(store) {
   if (typeof isRegularClosedToday === "function" && isRegularClosedToday(store)) {
     return {
@@ -433,11 +494,6 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
     `<span class="badge freq">補充頻度 ${formatRestockDays(m.freq)}</span>`
   ].filter(Boolean).join("");
 
-  const businessStatus = getStoreBusinessStatus(s);
-  const hoursText = formatStoreHours(s);
-  const showBusinessStatus = businessStatus.code !== "unknown";
-  const closedDaysText = formatClosedDays(s);
-
   return `
     <div class="item compactCard ${expectedClass} ${staleClass}">
       <div class="evalLabel ${evalData.class}">
@@ -450,19 +506,7 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
         ${compactBadges}
       </div>
 
-      <div class="mini mt8">
-        🕒 営業時間 ${escapeHtml(hoursText)}
-      </div>
-
-      <div class="mini mt6">
-        📌 定休日 ${escapeHtml(closedDaysText)}
-      </div>
-
-      ${showBusinessStatus ? `
-        <div class="mini mt6 ${businessStatus.className}">
-          ${escapeHtml(businessStatus.label)}
-        </div>
-      ` : ``}
+      ${renderBusinessInfoHtml(s)}
 
       ${s.memo ? `
         <div class="mini mt6">
@@ -509,11 +553,6 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
     .map(([cat, qty]) => `${cat}:${qty}`)
     .join(" / ");
 
-  const businessStatus = getStoreBusinessStatus(s);
-  const hoursText = formatStoreHours(s);
-  const showBusinessStatus = businessStatus.code !== "unknown";
-  const closedDaysText = formatClosedDays(s);
-
   return `
     <div class="item ${expectedClass} ${staleClass}">
       <div class="evalLabel ${evalData.class}">
@@ -530,19 +569,7 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
         <span class="badge freq">補充頻度 ${formatRestockDays(m.freq)}</span>
       </div>
 
-      <div class="mini mt8">
-        🕒 営業時間 ${escapeHtml(hoursText)}
-      </div>
-
-      <div class="mini mt6">
-        📌 定休日 ${escapeHtml(closedDaysText)}
-      </div>
-
-      ${showBusinessStatus ? `
-        <div class="mini mt6 ${businessStatus.className}">
-          ${escapeHtml(businessStatus.label)}
-        </div>
-      ` : ``}
+      ${renderBusinessInfoHtml(s)}
 
       ${s.memo ? `<div class="mini mt8">📝 ${escapeHtml(s.memo)}</div>` : ``}
       ${s.address ? `<div class="mini mt8">📍 ${escapeHtml(s.address)}</div>` : ``}
@@ -750,10 +777,6 @@ function renderTodayRouteList() {
     ${splitButtonsHtml}
     ${routeStores.map((s, idx) => {
       const visited = isTodayRouteVisited(s.id);
-      const businessStatus = getStoreBusinessStatus(s);
-      const hoursText = formatStoreHours(s);
-      const showBusinessStatus = businessStatus.code !== "unknown";
-      const closedDaysText = formatClosedDays(s);
 
       return `
         <div class="item todayRouteItem ${visited ? "todayRouteItemVisited" : ""}">
@@ -766,19 +789,7 @@ function renderTodayRouteList() {
             ${escapeHtml(s.pref || "")}${s.address ? ` / ${escapeHtml(s.address)}` : ""}
           </div>
 
-          <div class="mini mt6">
-            🕒 営業時間 ${escapeHtml(hoursText)}
-          </div>
-
-          <div class="mini mt6">
-            📌 定休日 ${escapeHtml(closedDaysText)}
-          </div>
-
-          ${!visited && showBusinessStatus ? `
-            <div class="mini mt6 ${businessStatus.className}">
-              ${escapeHtml(businessStatus.label)}
-            </div>
-          ` : ``}
+          ${renderTodayRouteBusinessInfoHtml(s, visited)}
 
           ${s.memo ? `
             <div class="mini mt6">
