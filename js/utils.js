@@ -43,6 +43,19 @@ function formatDateTimeText(iso) {
   return `${y}-${m}-${day} ${hh}:${mm}`;
 }
 
+function getWeekdayJa(dateStr = tokyoDateStr()) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return "";
+  const list = ["日", "月", "火", "水", "木", "金", "土"];
+  return list[d.getDay()] || "";
+}
+
+function isRegularClosedToday(store, dateStr = tokyoDateStr()) {
+  const weekday = getWeekdayJa(dateStr);
+  const days = Array.isArray(store?.regularClosedDays) ? store.regularClosedDays : [];
+  return days.includes(weekday);
+}
+
 function distanceKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -99,7 +112,6 @@ function estimateRouteMinutes(routeStores, startPos = null) {
   const adjustedRoadKm = totalStraightKm * ROAD_FACTOR;
   const driveMinutes = (adjustedRoadKm / AVG_SPEED_KMH) * 60;
   const stopMinutes = validStopCount * PER_STORE_STOP_MIN;
-
   const totalMinutes = driveMinutes + stopMinutes;
 
   return Math.max(1, Math.round(totalMinutes));
@@ -127,13 +139,10 @@ function matchesQuery(s, q) {
     s.pref,
     s.address,
     s.defaultCategory,
+    s.memo,
     cats
   ].join(" ").toLowerCase();
   return text.includes(String(q).toLowerCase());
-}
-
-function isProfitLikeLogType(type) {
-  return type === "profit" || type === "profit_adjust";
 }
 
 function addLog(storeId, type, delta, category = "") {
@@ -145,14 +154,6 @@ function addLog(storeId, type, delta, category = "") {
     category: String(category || "")
   });
   categoryHistoryDirty = true;
-}
-
-function getStoreProfitFromLogs(storeId) {
-  return (logs || []).reduce((sum, log) => {
-    if (String(log?.storeId || "") !== String(storeId)) return sum;
-    if (!isProfitLikeLogType(String(log?.type || ""))) return sum;
-    return sum + Number(log?.delta || 0);
-  }, 0);
 }
 
 function getStoreSuccessDates(storeId) {
@@ -202,30 +203,10 @@ function calcRateAdjustedRestockCycleDays(storeId, rate) {
 }
 
 function getMetrics(s) {
-  const storeId = String(s?.id || "");
-
-  const visitsFromLogs = (logs || []).reduce((sum, log) => {
-    if (String(log?.storeId || "") !== storeId) return sum;
-    if (String(log?.type || "") !== "visit") return sum;
-    return sum + Number(log?.delta || 0);
-  }, 0);
-
-  const successFromLogs = (logs || []).reduce((sum, log) => {
-    if (String(log?.storeId || "") !== storeId) return sum;
-    if (String(log?.type || "") !== "success") return sum;
-    return sum + Number(log?.delta || 0);
-  }, 0);
-
-  const itemsFromLogs = (logs || []).reduce((sum, log) => {
-    if (String(log?.storeId || "") !== storeId) return sum;
-    if (String(log?.type || "") !== "items") return sum;
-    return sum + Number(log?.delta || 0);
-  }, 0);
-
-  const visits = Math.max(0, visitsFromLogs || Number(s.visits || 0));
-  const success = Math.max(0, successFromLogs || Number(s.buyDays || 0));
-  const items = Math.max(0, itemsFromLogs || Number(s.items || 0));
-  const profit = getStoreProfitFromLogs(storeId);
+  const visits = Number(s.visits || 0);
+  const success = Number(s.buyDays || 0);
+  const items = Number(s.items || 0);
+  const profit = Number(s.profit || 0);
 
   const rate = visits > 0 ? (success / visits) * 100 : 0;
   const avgProfit = success > 0 ? profit / success : 0;
