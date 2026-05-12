@@ -71,6 +71,49 @@
         >
       </div>
 
+      <div class="mt12">
+        <div class="mini" style="font-weight:700; margin-bottom:8px;">📅 定休日</div>
+        <div class="closedDaysGrid">
+          <label class="closedDayChip">
+            <input type="checkbox" name="regularClosedDays" value="月">
+            <span>月</span>
+          </label>
+          <label class="closedDayChip">
+            <input type="checkbox" name="regularClosedDays" value="火">
+            <span>火</span>
+          </label>
+          <label class="closedDayChip">
+            <input type="checkbox" name="regularClosedDays" value="水">
+            <span>水</span>
+          </label>
+          <label class="closedDayChip">
+            <input type="checkbox" name="regularClosedDays" value="木">
+            <span>木</span>
+          </label>
+          <label class="closedDayChip">
+            <input type="checkbox" name="regularClosedDays" value="金">
+            <span>金</span>
+          </label>
+          <label class="closedDayChip">
+            <input type="checkbox" name="regularClosedDays" value="土">
+            <span>土</span>
+          </label>
+          <label class="closedDayChip">
+            <input type="checkbox" name="regularClosedDays" value="日">
+            <span>日</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="mt12">
+        <textarea
+          id="storeMemo"
+          class="storeMemoInput"
+          placeholder="メモ（例: 5/20 棚卸し休み、入口は裏側 など）"
+          rows="3"
+        ></textarea>
+      </div>
+
       <div class="formActions">
         <button class="primaryBtn" onclick="addStore()">店舗追加</button>
         <button class="ghostBtn" onclick="refreshAllCoordinates()">座標一括再取得</button>
@@ -81,6 +124,9 @@
       </div>
       <div class="mini mt8">
         開店時間・閉店時間を入れると、店舗カードに営業時間を表示でき、今日のルートで閉店1時間前アラートにも使えます。
+      </div>
+      <div class="mini mt8">
+        定休日は曜日で選択、臨時休業はメモ欄に自由に残せます。
       </div>
     </section>
 
