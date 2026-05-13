@@ -4307,3 +4307,388 @@ button {
     font-size: 22px;
   }
 }
+/* =========================
+   レポート：記録追加 / 個数・カテゴリ・利益モーダル
+========================= */
+
+#reportRecordModal,
+#reportQtyModal,
+#reportRecordModal *,
+#reportQtyModal *,
+#reportRecordModal *::before,
+#reportQtyModal *::before,
+#reportRecordModal *::after,
+#reportQtyModal *::after {
+  box-sizing: border-box;
+}
+
+/* 店舗選択モーダル */
+.reportRecordCard {
+  width: calc(100vw - 32px);
+  max-width: 680px;
+  max-height: calc(100vh - 56px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 26px;
+  padding: 22px 18px calc(18px + env(safe-area-inset-bottom));
+}
+
+/* 個数・カテゴリ・利益モーダル */
+.reportQtyCard {
+  width: calc(100vw - 32px);
+  max-width: 720px;
+  max-height: calc(100vh - 52px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 26px;
+  padding: 22px 18px calc(20px + env(safe-area-inset-bottom));
+}
+
+.reportRecordCard .qtyCategoryTitle,
+.reportQtyCard .qtyCategoryTitle {
+  font-size: 23px;
+  line-height: 1.28;
+  margin-bottom: 6px;
+}
+
+.reportRecordCard .qtyCategorySub,
+.reportQtyCard .qtyCategorySub {
+  font-size: 14px;
+  line-height: 1.55;
+  color: #6b7280;
+}
+
+.reportRecordCard .qtyCategorySectionTitle,
+.reportQtyCard .qtyCategorySectionTitle {
+  font-size: 17px;
+  font-weight: 900;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+/* 店舗検索・店舗選択 */
+#reportRecordStoreSearch,
+#reportRecordStoreSelect {
+  width: 100%;
+  min-width: 0;
+  height: 50px;
+  border-radius: 17px;
+  border: 1.5px solid #dbe2ee;
+  background: #fff;
+  color: #1f2340;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 0 14px;
+  outline: none;
+}
+
+#reportRecordStoreSearch:focus,
+#reportRecordStoreSelect:focus,
+#reportQtyManualInput:focus,
+#reportQtyProfitInput:focus,
+#reportQtyNewCategoryInput:focus {
+  border-color: #3976f6;
+  box-shadow: 0 0 0 4px rgba(57, 118, 246, 0.12);
+}
+
+#reportRecordStoreInfo {
+  text-align: left;
+  border-radius: 18px;
+  padding: 14px;
+}
+
+/* 訪問・成功ボタン */
+#reportRecordVisitBtn,
+#reportRecordSuccessBtn {
+  min-height: 52px;
+  border-radius: 18px;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+/* 1〜5の個数ボタン */
+.reportQtyCard .qtyQuickButtons {
+  gap: 10px;
+}
+
+.reportQtyCard .qtyQuickBtn {
+  min-height: 48px;
+  border-radius: 17px;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.reportQtyCard .qtyQuickBtn.active {
+  background: #3976f6;
+  color: #fff;
+}
+
+/* 手入力欄 */
+.reportQtyCard .qtyManualRow {
+  gap: 10px;
+  margin-top: 10px;
+}
+
+#reportQtyManualInput,
+#reportQtyProfitInput {
+  width: 100%;
+  min-width: 0;
+  height: 50px;
+  border-radius: 17px;
+  border: 1.5px solid #dbe2ee;
+  background: #fff;
+  color: #1f2340;
+  font-size: 17px;
+  font-weight: 800;
+  padding: 0 14px;
+  outline: none;
+}
+
+.reportQtyCard .qtyManualBtn {
+  min-height: 50px;
+  border-radius: 17px;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+/* 合計個数・利益表示ボックス */
+.reportQtyCard .qtySelectedBox {
+  border-radius: 18px;
+  padding: 14px;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+/* カテゴリチップ */
+#reportQtyCategoryChipWrap {
+  gap: 8px;
+}
+
+#reportQtyCategoryChipWrap .categoryChip {
+  min-height: 42px;
+  padding: 0 15px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+#reportQtyCategoryChipWrap .categoryChip.active {
+  background: #3976f6;
+  color: #fff;
+}
+
+/* 新しいカテゴリ追加 */
+.reportQtyCard .categoryAddRow {
+  gap: 10px;
+}
+
+#reportQtyNewCategoryInput {
+  width: 100%;
+  min-width: 0;
+  height: 50px;
+  border-radius: 17px;
+  border: 1.5px solid #dbe2ee;
+  background: #fff;
+  color: #1f2340;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 0 14px;
+  outline: none;
+}
+
+.reportQtyCard .categoryAddBtn {
+  min-height: 50px;
+  border-radius: 17px;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+/* カテゴリごとの個数 */
+#reportQtyCategoryCountEditor .qtyCategoryCountRow {
+  min-height: 64px;
+  padding: 12px 14px;
+  border-radius: 18px;
+}
+
+#reportQtyCategoryCountEditor .qtyCategoryCountName {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+#reportQtyCategoryCountEditor .qtyStepper {
+  gap: 10px;
+}
+
+#reportQtyCategoryCountEditor .qtyStepBtn {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  font-size: 26px;
+  font-weight: 900;
+  padding: 0;
+  line-height: 1;
+}
+
+#reportQtyCategoryCountEditor .qtyStepValue {
+  min-width: 34px;
+  text-align: center;
+  font-size: 21px;
+  font-weight: 900;
+}
+
+/* 残り個数・入力合計 */
+#reportQtyRemainPanel {
+  margin-top: 12px;
+  border-radius: 18px;
+  padding: 14px;
+}
+
+#reportQtyCategoryTotalCheck {
+  border: 2px solid transparent;
+}
+
+#reportQtyRemainPanel.is-ok,
+#reportQtyCategoryTotalCheck.is-ok {
+  background: #e9f9ef;
+  border-color: #bbf7d0;
+  color: #12824a;
+}
+
+#reportQtyRemainPanel.is-under,
+#reportQtyCategoryTotalCheck.is-under {
+  background: #fff8e6;
+  border-color: #fde68a;
+  color: #9a6700;
+}
+
+#reportQtyRemainPanel.is-over,
+#reportQtyCategoryTotalCheck.is-over {
+  background: #fff0f0;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+#reportQtyProfitValue {
+  font-size: 20px;
+  font-weight: 900;
+  color: #e4580b;
+}
+
+/* 下部ボタン */
+.reportRecordCard .categoryPickerActions,
+.reportQtyCard .categoryPickerActions {
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(
+    to top,
+    #ffffff 0%,
+    #ffffff 78%,
+    rgba(255, 255, 255, 0)
+  );
+  padding-top: 16px;
+  padding-bottom: env(safe-area-inset-bottom);
+  margin-top: 18px;
+  z-index: 5;
+  gap: 10px;
+}
+
+.reportRecordCard .categoryPickerActions button,
+.reportQtyCard .categoryPickerActions button {
+  min-height: 54px;
+  border-radius: 18px;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+/* iPhone向け */
+@media (max-width: 480px) {
+  .reportRecordCard,
+  .reportQtyCard {
+    width: calc(100vw - 22px);
+    max-height: calc(100vh - 42px);
+    padding: 20px 15px calc(18px + env(safe-area-inset-bottom));
+    border-radius: 24px;
+  }
+
+  .reportRecordCard .qtyCategoryTitle,
+  .reportQtyCard .qtyCategoryTitle {
+    font-size: 21px;
+  }
+
+  .reportRecordCard .qtyCategorySectionTitle,
+  .reportQtyCard .qtyCategorySectionTitle {
+    font-size: 16px;
+    margin-top: 18px;
+    margin-bottom: 9px;
+  }
+
+  #reportRecordStoreSearch,
+  #reportRecordStoreSelect,
+  #reportQtyManualInput,
+  #reportQtyProfitInput,
+  #reportQtyNewCategoryInput {
+    height: 47px;
+    font-size: 15px;
+    border-radius: 16px;
+  }
+
+  #reportRecordVisitBtn,
+  #reportRecordSuccessBtn,
+  .reportQtyCard .qtyManualBtn,
+  .reportQtyCard .categoryAddBtn {
+    min-height: 48px;
+    font-size: 15px;
+    border-radius: 16px;
+  }
+
+  .reportQtyCard .qtyQuickButtons {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .reportQtyCard .qtyQuickBtn {
+    min-height: 44px;
+    font-size: 16px;
+    border-radius: 15px;
+  }
+
+  .reportQtyCard .qtyManualRow,
+  .reportQtyCard .categoryAddRow {
+    grid-template-columns: 1fr;
+  }
+
+  #reportQtyCategoryChipWrap .categoryChip {
+    min-height: 40px;
+    padding: 0 13px;
+    font-size: 14px;
+  }
+
+  #reportQtyCategoryCountEditor .qtyCategoryCountRow {
+    grid-template-columns: 1fr auto;
+    min-height: 60px;
+    padding: 11px 12px;
+  }
+
+  #reportQtyCategoryCountEditor .qtyStepBtn {
+    width: 44px;
+    height: 44px;
+    border-radius: 15px;
+    font-size: 24px;
+  }
+
+  #reportQtyCategoryCountEditor .qtyStepValue {
+    font-size: 20px;
+    min-width: 30px;
+  }
+
+  .reportRecordCard .categoryPickerActions,
+  .reportQtyCard .categoryPickerActions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .reportRecordCard .categoryPickerActions button,
+  .reportQtyCard .categoryPickerActions button {
+    min-height: 50px;
+    font-size: 16px;
+  }
+}
