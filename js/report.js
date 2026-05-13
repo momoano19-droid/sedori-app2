@@ -317,8 +317,6 @@ function ensureReportRecordModal() {
         <select id="reportRecordStoreSelect" onchange="handleReportRecordStoreChange()"></select>
       </div>
 
-      <div id="reportRecordStoreInfo" class="qtySelectedBox mt12"></div>
-
       <div class="qtyCategorySectionTitle">記録内容</div>
       <div class="row2">
         <button
@@ -568,24 +566,8 @@ function handleReportRecordStoreChange() {
 }
 
 function renderReportRecordStoreInfo() {
-  const info = document.getElementById("reportRecordStoreInfo");
-  if (!info || !reportRecordModalState) return;
-
-  const store = getReportRecordStore();
-
-  if (!store) {
-    info.innerHTML = `店舗を選択してください`;
-    return;
-  }
-
-  info.innerHTML = `
-    <div style="font-weight:900; font-size:18px; margin-bottom:6px;">
-      ${escapeHtml(store.name || "店舗名なし")}
-    </div>
-    <div style="color:#6b7280; line-height:1.5;">
-      ${escapeHtml(store.pref || "")}${store.pref && store.address ? " / " : ""}${escapeHtml(store.address || "")}
-    </div>
-  `;
+  // 店舗選択欄の下に表示していた「店舗名・住所プレビュー」は非表示にしました。
+  // 店舗名は select 内で確認できるため、ここでは何も表示しません。
 }
 
 function renderReportRecordMainButtons() {
