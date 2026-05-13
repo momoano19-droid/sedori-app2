@@ -5093,3 +5093,36 @@ button {
     font-size: 15px;
   }
 }
+/* =========================
+   レポート記録追加：合計個数ボタンを横1列にする
+========================= */
+
+#reportInlineQtyQuickWrap {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+#reportInlineQtyQuickWrap .qtyQuickBtn {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 6px;
+  font-size: 15px;
+  border-radius: 14px;
+}
+
+/* iPhone幅でも5個を横1列のまま維持 */
+@media (max-width: 480px) {
+  #reportInlineQtyQuickWrap {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+  }
+
+  #reportInlineQtyQuickWrap .qtyQuickBtn {
+    min-height: 40px;
+    font-size: 14px;
+    padding: 0 4px;
+    border-radius: 13px;
+  }
+}
