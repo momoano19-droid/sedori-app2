@@ -27,12 +27,17 @@ let cachedMonthData = new Map();
 let cachedTotalData = null;
 
 /* =========================
-   カレンダー追加用カテゴリモーダル
+   レポート記録追加モーダル用
 ========================= */
-let reportCategoryModalResolver = null;
-let reportCategoryTargetQty = 0;
-let reportCategorySelected = {};
-let reportCategoryHistory = [];
+let reportRecordDayStr = "";
+let reportRecordStoreId = "";
+let reportRecordVisit = true;
+let reportRecordSuccess = true;
+let reportRecordQty = 1;
+let reportRecordProfit = 0;
+let reportRecordCategorySelected = {};
+let reportRecordCategoryHistory = [];
+let reportRecordStoreKeyword = "";
 
 /* =========================
    共通
@@ -178,9 +183,13 @@ function getStoreMap(stores) {
 }
 
 function getAvailableMonths(logs) {
-  const months = [...new Set(logs.map(l => ym(l.date)).filter(Boolean))].sort().reverse();
+  const months = [...new Set(logs.map(l => ym(l.date)).filter(Boolean))]
+    .sort()
+    .reverse();
+
   if (!months.length) return [currentMonthStr()];
   if (!months.includes(currentMonthStr())) months.unshift(currentMonthStr());
+
   return [...new Set(months)];
 }
 
@@ -214,8 +223,14 @@ function sumReportCategoryMap(map) {
   return Object.values(map || {}).reduce((sum, v) => sum + Number(v || 0), 0);
 }
 
+function clampReportNonNeg(value) {
+  const n = Number(value || 0);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, n);
+}
+
 /* =========================
-   カテゴリ選択モーダル
+   カレンダー記録追加モーダル
 ========================= */
 function getReportCategoryHistory(store = null) {
   const stores = loadStores();
@@ -223,7 +238,8 @@ function getReportCategoryHistory(store = null) {
   const set = new Set();
 
   if (store?.defaultCategory) {
-    set.add(String(store.defaultCategory).trim());
+    const name = String(store.defaultCategory).trim();
+    if (name) set.add(name);
   }
 
   Object.keys(store?.categoryCounts || {}).forEach(cat => {
@@ -254,100 +270,376 @@ function getReportCategoryHistory(store = null) {
   return [...set].filter(Boolean).slice(0, 30);
 }
 
-function ensureReportCategoryModal() {
-  if (document.getElementById("reportCategoryModal")) return;
+function getReportRecordStore() {
+  const stores = loadStores();
+  return stores.find(s => String(s.id || "") === String(reportRecordStoreId || ""));
+}
+
+function getReportRecordStoreCandidates() {
+  const stores = loadStores();
+  const q = String(reportRecordStoreKeyword || "").trim().toLowerCase();
+
+  return stores
+    .filter(s => {
+      if (!q) return true;
+
+      const text = [
+        s.name,
+        s.pref,
+        s.address
+      ].map(x => String(x || "").toLowerCase()).join(" ");
+
+      return text.includes(q);
+    })
+    .slice(0, 80);
+}
+
+function ensureReportRecordModal() {
+  if (document.getElementById("reportRecordModal")) return;
 
   const modal = document.createElement("div");
-  modal.id = "reportCategoryModal";
+  modal.id = "reportRecordModal";
   modal.className = "qtyCategoryModal";
   modal.innerHTML = `
-    <div class="qtyCategoryCard">
-      <div class="qtyCategoryTitle">カテゴリ内訳を選択</div>
+    <div class="qtyCategoryCard reportRecordCard">
+      <div class="qtyCategoryTitle" id="reportRecordTitle">記録追加</div>
       <div class="qtyCategorySub">
-        カテゴリをタップして、＋ / − で個数を調整してください
+        店舗・訪問・成功・個数・カテゴリ・利益をまとめて入力できます
       </div>
 
-      <div class="qtySelectedBox">
-        仕入れ個数: <span id="reportCategoryTargetQty">0</span>個
+      <div class="qtyCategorySectionTitle">店舗を選択</div>
+      <input
+        id="reportRecordStoreSearch"
+        class="categoryTextInput"
+        type="text"
+        placeholder="店舗名 / 都道府県 / 住所で検索"
+        oninput="setReportRecordStoreKeyword(this.value)"
+      >
+
+      <div class="mt8">
+        <select id="reportRecordStoreSelect" onchange="selectReportRecordStore(this.value)"></select>
+      </div>
+
+      <div id="reportRecordStoreInfo" class="qtySelectedBox" style="margin-top:10px;">
+        店舗を選択してください
+      </div>
+
+      <div class="qtyCategorySectionTitle">記録内容</div>
+      <div class="row2">
+        <button type="button" id="reportRecordVisitBtn" class="primaryBtn" onclick="toggleReportRecordVisit()">
+          訪問 +1
+        </button>
+        <button type="button" id="reportRecordSuccessBtn" class="primaryBtn" onclick="toggleReportRecordSuccess()">
+          成功 +1
+        </button>
+      </div>
+
+      <div class="qtyCategorySectionTitle">仕入れ個数</div>
+      <div class="qtyCategoryCountRow">
+        <div class="qtyCategoryCountName">個数</div>
+        <div class="qtyStepper">
+          <button type="button" class="qtyStepBtn minus" onclick="changeReportRecordQty(-1)">−</button>
+          <div class="qtyStepValue" id="reportRecordQtyValue">1</div>
+          <button type="button" class="qtyStepBtn plus" onclick="changeReportRecordQty(1)">＋</button>
+        </div>
       </div>
 
       <div class="qtyCategorySectionTitle">カテゴリ履歴</div>
-      <div id="reportCategoryChipWrap" class="categoryChipWrap"></div>
+      <div id="reportRecordCategoryChipWrap" class="categoryChipWrap"></div>
 
       <div class="qtyCategorySectionTitle">新しいカテゴリを追加</div>
       <div class="categoryAddRow">
-        <input id="reportNewCategoryInput" class="categoryTextInput" placeholder="新しいカテゴリ名">
-        <button type="button" class="categoryAddBtn" onclick="addReportCategoryChip()">追加</button>
+        <input id="reportRecordNewCategoryInput" class="categoryTextInput" placeholder="新しいカテゴリ名">
+        <button type="button" class="categoryAddBtn" onclick="addReportRecordCategoryChip()">追加</button>
       </div>
 
       <div class="qtyCategorySectionTitle">カテゴリごとの個数</div>
-      <div id="reportCategoryCountEditor" class="qtyCategoryCountEditor"></div>
+      <div id="reportRecordCategoryCountEditor" class="qtyCategoryCountEditor"></div>
 
-      <div class="qtySelectedBox qtyCategoryTotalCheck" id="reportCategoryTotalCheck">
-        入力合計: <span id="reportCategoryAssignedTotal">0</span> / <span id="reportCategoryAssignedTarget">0</span>個
+      <div class="qtySelectedBox qtyCategoryTotalCheck" id="reportRecordCategoryTotalCheck">
+        入力合計: <span id="reportRecordCategoryAssignedTotal">0</span> / <span id="reportRecordCategoryAssignedTarget">1</span>個
+      </div>
+
+      <div class="qtyCategorySectionTitle">利益</div>
+      <div class="qtyQuickButtons">
+        <button type="button" class="qtyQuickBtn profitQuickBtn" onclick="addReportRecordProfit(1000)">1000</button>
+        <button type="button" class="qtyQuickBtn profitQuickBtn" onclick="addReportRecordProfit(3000)">3000</button>
+        <button type="button" class="qtyQuickBtn profitQuickBtn" onclick="addReportRecordProfit(5000)">5000</button>
+        <button type="button" class="qtyQuickBtn profitQuickBtn" onclick="addReportRecordProfit(10000)">10000</button>
+      </div>
+
+      <div class="qtyManualRow">
+        <input
+          id="reportRecordProfitInput"
+          class="qtyManualInput"
+          type="number"
+          min="0"
+          step="100"
+          value="0"
+          placeholder="利益を入力"
+          oninput="syncReportRecordProfitInput()"
+        >
+        <button type="button" class="qtyManualBtn" onclick="applyReportRecordProfitInput()">利益反映</button>
+      </div>
+
+      <div class="qtySelectedBox">
+        利益: <span id="reportRecordProfitValue">0</span>円
       </div>
 
       <div class="categoryPickerActions">
-        <button type="button" class="ghostBtn" onclick="closeReportCategoryModal(null)">キャンセル</button>
-        <button type="button" class="primaryBtn" onclick="confirmReportCategoryModal()">OK</button>
+        <button type="button" class="ghostBtn" onclick="closeReportRecordModal()">キャンセル</button>
+        <button type="button" class="primaryBtn" onclick="saveReportRecordModal()">保存</button>
       </div>
     </div>
   `;
 
   modal.addEventListener("click", e => {
-    if (e.target === modal) closeReportCategoryModal(null);
+    if (e.target === modal) closeReportRecordModal();
   });
 
   document.body.appendChild(modal);
 }
 
-function openReportCategoryPicker({ totalItems = 0, store = null }) {
-  ensureReportCategoryModal();
+function openAddDayRecord(dayStr) {
+  const stores = loadStores();
 
-  reportCategoryTargetQty = Math.max(0, Number(totalItems || 0));
-  reportCategorySelected = {};
-  reportCategoryHistory = getReportCategoryHistory(store);
+  if (!stores.length) {
+    alert("店舗が登録されていません。");
+    return;
+  }
 
-  const defaultCat = String(store?.defaultCategory || reportCategoryHistory[0] || "未分類").trim() || "未分類";
+  ensureReportRecordModal();
 
-  if (reportCategoryTargetQty > 0) {
-    reportCategorySelected[defaultCat] = reportCategoryTargetQty;
-    if (!reportCategoryHistory.includes(defaultCat)) {
-      reportCategoryHistory.unshift(defaultCat);
+  reportRecordDayStr = dayStr;
+  reportRecordStoreKeyword = "";
+  reportRecordStoreId = String(stores[0]?.id || "");
+  reportRecordVisit = true;
+  reportRecordSuccess = true;
+  reportRecordQty = 1;
+  reportRecordProfit = 0;
+  reportRecordCategorySelected = {};
+
+  const store = getReportRecordStore();
+  reportRecordCategoryHistory = getReportCategoryHistory(store);
+  setDefaultReportRecordCategory();
+
+  const titleEl = document.getElementById("reportRecordTitle");
+  const searchEl = document.getElementById("reportRecordStoreSearch");
+  const profitInput = document.getElementById("reportRecordProfitInput");
+
+  if (titleEl) titleEl.textContent = `${dayStr} に記録追加`;
+  if (searchEl) searchEl.value = "";
+  if (profitInput) profitInput.value = "0";
+
+  renderReportRecordModal();
+
+  const modal = document.getElementById("reportRecordModal");
+  if (modal) modal.classList.add("show");
+}
+
+function closeReportRecordModal() {
+  const modal = document.getElementById("reportRecordModal");
+  if (modal) modal.classList.remove("show");
+}
+
+function setReportRecordStoreKeyword(value) {
+  reportRecordStoreKeyword = String(value || "");
+
+  const candidates = getReportRecordStoreCandidates();
+  if (!candidates.some(s => String(s.id || "") === String(reportRecordStoreId || ""))) {
+    reportRecordStoreId = String(candidates[0]?.id || "");
+    resetReportRecordCategoriesForStore();
+  }
+
+  renderReportRecordStoreSelect();
+  renderReportRecordStoreInfo();
+}
+
+function renderReportRecordModal() {
+  renderReportRecordStoreSelect();
+  renderReportRecordStoreInfo();
+  renderReportRecordToggleButtons();
+  renderReportRecordQty();
+  renderReportRecordCategoryChips();
+  renderReportRecordCategoryCountEditor();
+  updateReportRecordCategorySummary();
+  updateReportRecordProfitView();
+}
+
+function renderReportRecordStoreSelect() {
+  const select = document.getElementById("reportRecordStoreSelect");
+  if (!select) return;
+
+  const candidates = getReportRecordStoreCandidates();
+
+  if (!candidates.length) {
+    select.innerHTML = `<option value="">該当する店舗がありません</option>`;
+    reportRecordStoreId = "";
+    return;
+  }
+
+  if (!reportRecordStoreId) {
+    reportRecordStoreId = String(candidates[0].id || "");
+  }
+
+  select.innerHTML = candidates.map(s => {
+    const label = `${s.name || "店舗名なし"}${s.pref ? `（${s.pref}）` : ""}`;
+    return `<option value="${escapeHtml(s.id)}">${escapeHtml(label)}</option>`;
+  }).join("");
+
+  if (candidates.some(s => String(s.id || "") === String(reportRecordStoreId || ""))) {
+    select.value = reportRecordStoreId;
+  } else {
+    reportRecordStoreId = String(candidates[0].id || "");
+    select.value = reportRecordStoreId;
+  }
+}
+
+function renderReportRecordStoreInfo() {
+  const el = document.getElementById("reportRecordStoreInfo");
+  if (!el) return;
+
+  const store = getReportRecordStore();
+
+  if (!store) {
+    el.innerHTML = `店舗を選択してください`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div style="font-weight:800;">${escapeHtml(store.name || "店舗名なし")}</div>
+    <div class="mini" style="margin-top:4px;">
+      ${escapeHtml(store.pref || "都道府県なし")}
+      ${store.address ? ` / ${escapeHtml(store.address)}` : ""}
+    </div>
+  `;
+}
+
+function selectReportRecordStore(storeId) {
+  reportRecordStoreId = String(storeId || "");
+  resetReportRecordCategoriesForStore();
+  renderReportRecordModal();
+}
+
+function resetReportRecordCategoriesForStore() {
+  const store = getReportRecordStore();
+  reportRecordCategoryHistory = getReportCategoryHistory(store);
+  reportRecordCategorySelected = {};
+  setDefaultReportRecordCategory();
+}
+
+function setDefaultReportRecordCategory() {
+  if (reportRecordQty <= 0) {
+    reportRecordCategorySelected = {};
+    return;
+  }
+
+  const store = getReportRecordStore();
+  const defaultCat = String(
+    store?.defaultCategory ||
+    reportRecordCategoryHistory[0] ||
+    "未分類"
+  ).trim() || "未分類";
+
+  if (!reportRecordCategoryHistory.includes(defaultCat)) {
+    reportRecordCategoryHistory.unshift(defaultCat);
+  }
+
+  reportRecordCategorySelected = {
+    [defaultCat]: reportRecordQty
+  };
+}
+
+function toggleReportRecordVisit() {
+  reportRecordVisit = !reportRecordVisit;
+
+  if (!reportRecordVisit && reportRecordSuccess) {
+    reportRecordSuccess = false;
+  }
+
+  renderReportRecordToggleButtons();
+}
+
+function toggleReportRecordSuccess() {
+  reportRecordSuccess = !reportRecordSuccess;
+
+  if (reportRecordSuccess) {
+    reportRecordVisit = true;
+    if (reportRecordQty <= 0) {
+      reportRecordQty = 1;
+      setDefaultReportRecordCategory();
     }
   }
 
-  const modal = document.getElementById("reportCategoryModal");
-  const targetQtyEl = document.getElementById("reportCategoryTargetQty");
-  const assignedTargetEl = document.getElementById("reportCategoryAssignedTarget");
-  const newInput = document.getElementById("reportNewCategoryInput");
-
-  if (targetQtyEl) targetQtyEl.textContent = String(reportCategoryTargetQty);
-  if (assignedTargetEl) assignedTargetEl.textContent = String(reportCategoryTargetQty);
-  if (newInput) newInput.value = "";
-
-  renderReportCategoryChips();
-  renderReportCategoryCountEditor();
-  updateReportCategorySummary();
-
-  if (modal) modal.classList.add("show");
-
-  return new Promise(resolve => {
-    reportCategoryModalResolver = resolve;
-  });
+  renderReportRecordToggleButtons();
+  renderReportRecordQty();
+  renderReportRecordCategoryChips();
+  renderReportRecordCategoryCountEditor();
+  updateReportRecordCategorySummary();
 }
 
-function renderReportCategoryChips() {
-  const wrap = document.getElementById("reportCategoryChipWrap");
+function renderReportRecordToggleButtons() {
+  const visitBtn = document.getElementById("reportRecordVisitBtn");
+  const successBtn = document.getElementById("reportRecordSuccessBtn");
+
+  if (visitBtn) {
+    visitBtn.className = reportRecordVisit ? "primaryBtn" : "ghostBtn";
+    visitBtn.textContent = reportRecordVisit ? "訪問 +1" : "訪問なし";
+  }
+
+  if (successBtn) {
+    successBtn.className = reportRecordSuccess ? "primaryBtn" : "ghostBtn";
+    successBtn.textContent = reportRecordSuccess ? "成功 +1" : "成功なし";
+  }
+}
+
+function changeReportRecordQty(delta) {
+  const next = Math.max(0, Number(reportRecordQty || 0) + Number(delta || 0));
+  reportRecordQty = next;
+
+  if (reportRecordQty <= 0) {
+    reportRecordCategorySelected = {};
+    reportRecordSuccess = false;
+  } else {
+    const keys = Object.keys(reportRecordCategorySelected || {});
+    if (!keys.length) {
+      setDefaultReportRecordCategory();
+    } else if (keys.length === 1) {
+      reportRecordCategorySelected[keys[0]] = reportRecordQty;
+    }
+  }
+
+  renderReportRecordToggleButtons();
+  renderReportRecordQty();
+  renderReportRecordCategoryChips();
+  renderReportRecordCategoryCountEditor();
+  updateReportRecordCategorySummary();
+}
+
+function renderReportRecordQty() {
+  const el = document.getElementById("reportRecordQtyValue");
+  const targetEl = document.getElementById("reportRecordCategoryAssignedTarget");
+
+  if (el) el.textContent = String(reportRecordQty);
+  if (targetEl) targetEl.textContent = String(reportRecordQty);
+}
+
+function renderReportRecordCategoryChips() {
+  const wrap = document.getElementById("reportRecordCategoryChipWrap");
   if (!wrap) return;
 
-  wrap.innerHTML = reportCategoryHistory.map(cat => {
-    const active = !!reportCategorySelected[cat];
+  if (reportRecordQty <= 0) {
+    wrap.innerHTML = `<div class="qtyCategoryEmpty">仕入れ個数が0のためカテゴリ入力は不要です</div>`;
+    return;
+  }
+
+  wrap.innerHTML = reportRecordCategoryHistory.map(cat => {
+    const active = !!reportRecordCategorySelected[cat];
     return `
       <button
         type="button"
         class="categoryChip ${active ? "active" : ""}"
-        onclick="toggleReportCategoryChip('${escapeJsString(cat)}')"
+        onclick="toggleReportRecordCategoryChip('${escapeJsString(cat)}')"
       >
         ${escapeHtml(cat)}
       </button>
@@ -355,50 +647,57 @@ function renderReportCategoryChips() {
   }).join("");
 }
 
-function toggleReportCategoryChip(cat) {
+function toggleReportRecordCategoryChip(cat) {
   const name = String(cat || "").trim();
-  if (!name) return;
+  if (!name || reportRecordQty <= 0) return;
 
-  if (reportCategorySelected[name]) {
-    delete reportCategorySelected[name];
+  if (reportRecordCategorySelected[name]) {
+    delete reportRecordCategorySelected[name];
   } else {
-    const currentTotal = sumReportCategoryMap(reportCategorySelected);
-    const remain = Math.max(0, reportCategoryTargetQty - currentTotal);
-    reportCategorySelected[name] = remain > 0 ? remain : 1;
+    const currentTotal = sumReportCategoryMap(reportRecordCategorySelected);
+    const remain = Math.max(0, reportRecordQty - currentTotal);
+    reportRecordCategorySelected[name] = remain > 0 ? remain : 1;
   }
 
-  renderReportCategoryChips();
-  renderReportCategoryCountEditor();
-  updateReportCategorySummary();
+  renderReportRecordCategoryChips();
+  renderReportRecordCategoryCountEditor();
+  updateReportRecordCategorySummary();
 }
 
-function addReportCategoryChip() {
-  const input = document.getElementById("reportNewCategoryInput");
+function addReportRecordCategoryChip() {
+  const input = document.getElementById("reportRecordNewCategoryInput");
   if (!input) return;
 
   const cat = String(input.value || "").trim();
   if (!cat) return;
 
-  if (!reportCategoryHistory.includes(cat)) {
-    reportCategoryHistory.unshift(cat);
+  if (!reportRecordCategoryHistory.includes(cat)) {
+    reportRecordCategoryHistory.unshift(cat);
   }
 
-  const currentTotal = sumReportCategoryMap(reportCategorySelected);
-  const remain = Math.max(0, reportCategoryTargetQty - currentTotal);
-  reportCategorySelected[cat] = remain > 0 ? remain : 1;
+  if (reportRecordQty > 0) {
+    const currentTotal = sumReportCategoryMap(reportRecordCategorySelected);
+    const remain = Math.max(0, reportRecordQty - currentTotal);
+    reportRecordCategorySelected[cat] = remain > 0 ? remain : 1;
+  }
 
   input.value = "";
 
-  renderReportCategoryChips();
-  renderReportCategoryCountEditor();
-  updateReportCategorySummary();
+  renderReportRecordCategoryChips();
+  renderReportRecordCategoryCountEditor();
+  updateReportRecordCategorySummary();
 }
 
-function renderReportCategoryCountEditor() {
-  const wrap = document.getElementById("reportCategoryCountEditor");
+function renderReportRecordCategoryCountEditor() {
+  const wrap = document.getElementById("reportRecordCategoryCountEditor");
   if (!wrap) return;
 
-  const keys = Object.keys(reportCategorySelected || {});
+  if (reportRecordQty <= 0) {
+    wrap.innerHTML = `<div class="qtyCategoryEmpty">仕入れ個数が0のためカテゴリ入力は不要です</div>`;
+    return;
+  }
+
+  const keys = Object.keys(reportRecordCategorySelected || {});
 
   if (!keys.length) {
     wrap.innerHTML = `<div class="qtyCategoryEmpty">カテゴリを選択してください</div>`;
@@ -406,52 +705,56 @@ function renderReportCategoryCountEditor() {
   }
 
   wrap.innerHTML = keys.map(cat => {
-    const qty = Math.max(0, Number(reportCategorySelected[cat] || 0));
+    const qty = Math.max(0, Number(reportRecordCategorySelected[cat] || 0));
 
     return `
       <div class="qtyCategoryCountRow">
         <div class="qtyCategoryCountName">${escapeHtml(cat)}</div>
         <div class="qtyStepper">
-          <button type="button" class="qtyStepBtn minus" onclick="changeReportCategoryQty('${escapeJsString(cat)}', -1)">−</button>
+          <button type="button" class="qtyStepBtn minus" onclick="changeReportRecordCategoryQty('${escapeJsString(cat)}', -1)">−</button>
           <div class="qtyStepValue">${qty}</div>
-          <button type="button" class="qtyStepBtn plus" onclick="changeReportCategoryQty('${escapeJsString(cat)}', 1)">＋</button>
+          <button type="button" class="qtyStepBtn plus" onclick="changeReportRecordCategoryQty('${escapeJsString(cat)}', 1)">＋</button>
         </div>
       </div>
     `;
   }).join("");
 }
 
-function changeReportCategoryQty(cat, delta) {
+function changeReportRecordCategoryQty(cat, delta) {
   const name = String(cat || "").trim();
-  if (!name || !reportCategorySelected[name]) return;
+  if (!name || !reportRecordCategorySelected[name]) return;
 
-  const current = Math.max(0, Number(reportCategorySelected[name] || 0));
+  const current = Math.max(0, Number(reportRecordCategorySelected[name] || 0));
   const next = Math.max(0, current + Number(delta || 0));
 
   if (next <= 0) {
-    delete reportCategorySelected[name];
+    delete reportRecordCategorySelected[name];
   } else {
-    reportCategorySelected[name] = next;
+    reportRecordCategorySelected[name] = next;
   }
 
-  renderReportCategoryChips();
-  renderReportCategoryCountEditor();
-  updateReportCategorySummary();
+  renderReportRecordCategoryChips();
+  renderReportRecordCategoryCountEditor();
+  updateReportRecordCategorySummary();
 }
 
-function updateReportCategorySummary() {
-  const total = sumReportCategoryMap(reportCategorySelected);
-  const totalEl = document.getElementById("reportCategoryAssignedTotal");
-  const checkEl = document.getElementById("reportCategoryTotalCheck");
+function updateReportRecordCategorySummary() {
+  const total = sumReportCategoryMap(reportRecordCategorySelected);
+  const totalEl = document.getElementById("reportRecordCategoryAssignedTotal");
+  const targetEl = document.getElementById("reportRecordCategoryAssignedTarget");
+  const checkEl = document.getElementById("reportRecordCategoryTotalCheck");
 
   if (totalEl) totalEl.textContent = String(total);
+  if (targetEl) targetEl.textContent = String(reportRecordQty);
 
   if (checkEl) {
     checkEl.classList.remove("is-ok", "is-over", "is-under");
 
-    if (total === reportCategoryTargetQty) {
+    if (reportRecordQty <= 0) {
       checkEl.classList.add("is-ok");
-    } else if (total > reportCategoryTargetQty) {
+    } else if (total === reportRecordQty) {
+      checkEl.classList.add("is-ok");
+    } else if (total > reportRecordQty) {
       checkEl.classList.add("is-over");
     } else {
       checkEl.classList.add("is-under");
@@ -459,42 +762,106 @@ function updateReportCategorySummary() {
   }
 }
 
-function confirmReportCategoryModal() {
-  const total = sumReportCategoryMap(reportCategorySelected);
+function addReportRecordProfit(amount) {
+  reportRecordProfit += clampReportNonNeg(amount);
 
-  if (reportCategoryTargetQty <= 0) {
-    closeReportCategoryModal({});
-    return;
-  }
+  const input = document.getElementById("reportRecordProfitInput");
+  if (input) input.value = String(reportRecordProfit);
 
-  if (!Object.keys(reportCategorySelected).length) {
-    alert("カテゴリを1つ以上選択してください。");
-    return;
-  }
-
-  if (total !== reportCategoryTargetQty) {
-    alert(`カテゴリ個数の合計を仕入れ個数と一致させてください。\n\n入力合計：${total}個\n仕入れ個数：${reportCategoryTargetQty}個`);
-    return;
-  }
-
-  const result = {};
-  Object.entries(reportCategorySelected).forEach(([cat, qty]) => {
-    const name = String(cat || "").trim();
-    const n = Math.max(0, Number(qty || 0));
-    if (name && n > 0) result[name] = n;
-  });
-
-  closeReportCategoryModal(result);
+  updateReportRecordProfitView();
 }
 
-function closeReportCategoryModal(result) {
-  const modal = document.getElementById("reportCategoryModal");
-  if (modal) modal.classList.remove("show");
+function syncReportRecordProfitInput() {
+  const input = document.getElementById("reportRecordProfitInput");
+  if (!input) return;
 
-  if (reportCategoryModalResolver) {
-    reportCategoryModalResolver(result);
-    reportCategoryModalResolver = null;
+  reportRecordProfit = clampReportNonNeg(parseInt(input.value || "0", 10));
+  updateReportRecordProfitView();
+}
+
+function applyReportRecordProfitInput() {
+  const input = document.getElementById("reportRecordProfitInput");
+  if (!input) return;
+
+  reportRecordProfit = clampReportNonNeg(parseInt(input.value || "0", 10));
+  input.value = String(reportRecordProfit);
+  updateReportRecordProfitView();
+}
+
+function updateReportRecordProfitView() {
+  const valueEl = document.getElementById("reportRecordProfitValue");
+  if (valueEl) valueEl.textContent = reportRecordProfit.toLocaleString();
+}
+
+function saveReportRecordModal() {
+  const store = getReportRecordStore();
+
+  if (!store) {
+    alert("店舗を選択してください。");
+    return;
   }
+
+  const items = clampReportNonNeg(reportRecordQty);
+  const profit = clampReportNonNeg(reportRecordProfit);
+  const categoryTotal = sumReportCategoryMap(reportRecordCategorySelected);
+
+  if (items > 0) {
+    if (!Object.keys(reportRecordCategorySelected || {}).length) {
+      alert("カテゴリを1つ以上選択してください。");
+      return;
+    }
+
+    if (categoryTotal !== items) {
+      alert(`カテゴリ個数の合計を仕入れ個数と一致させてください。\n\n入力合計：${categoryTotal}個\n仕入れ個数：${items}個`);
+      return;
+    }
+  }
+
+  if (reportRecordSuccess && !reportRecordVisit) {
+    reportRecordVisit = true;
+  }
+
+  if (!reportRecordVisit && !reportRecordSuccess && items <= 0 && profit <= 0) {
+    alert("追加する内容がありません。");
+    return;
+  }
+
+  const categoryText = Object.keys(reportRecordCategorySelected).length
+    ? Object.entries(reportRecordCategorySelected).map(([cat, qty]) => `${cat}:${qty}`).join(" / ")
+    : "なし";
+
+  const confirmText = [
+    `${reportRecordDayStr} に記録を追加します。`,
+    "",
+    `店舗：${store.name || "店舗名なし"}`,
+    `訪問：${reportRecordVisit ? "+1" : "なし"}`,
+    `成功：${reportRecordSuccess ? "+1" : "なし"}`,
+    `個数：${items}個`,
+    `カテゴリ：${categoryText}`,
+    `利益：${yen(profit)}`,
+    "",
+    "この内容で保存しますか？"
+  ].join("\n");
+
+  if (!confirm(confirmText)) return;
+
+  const ok = addCalendarRecordToStoreAndLogs(reportRecordDayStr, {
+    storeId: store.id,
+    visit: reportRecordVisit,
+    success: reportRecordSuccess,
+    items,
+    profit,
+    categoryMap: reportRecordCategorySelected
+  });
+
+  if (!ok) return;
+
+  closeReportRecordModal();
+
+  alert("記録を追加しました。店舗カードにも反映されます。");
+
+  bootReport();
+  showDayDetail(reportRecordDayStr);
 }
 
 /* =========================
@@ -769,159 +1136,6 @@ function deleteStoreDayRecords(dayStr, storeId) {
   saveReportData(stores, nextLogs);
 
   alert("この日の記録を削除しました。店舗カードにも反映されます。");
-
-  bootReport();
-  showDayDetail(dayStr);
-}
-
-async function openAddDayRecord(dayStr) {
-  const stores = loadStores();
-
-  if (!stores.length) {
-    alert("店舗が登録されていません。");
-    return;
-  }
-
-  const keyword = prompt(
-    `${dayStr} に記録を追加します。\n\n店舗名の一部を入力してください。\n空欄のままOKを押すと、登録店舗一覧を表示します。`,
-    ""
-  );
-
-  if (keyword === null) return;
-
-  const q = String(keyword || "").trim().toLowerCase();
-
-  let candidates = stores.filter(s => {
-    if (!q) return true;
-
-    const text = [
-      s.name,
-      s.pref,
-      s.address
-    ].map(x => String(x || "").toLowerCase()).join(" ");
-
-    return text.includes(q);
-  });
-
-  if (!candidates.length) {
-    alert("該当する店舗が見つかりませんでした。");
-    return;
-  }
-
-  candidates = candidates.slice(0, 30);
-
-  const storeListText = candidates
-    .map((s, idx) => `${idx + 1}: ${s.name || "店舗名なし"}${s.pref ? `（${s.pref}）` : ""}`)
-    .join("\n");
-
-  const selected = prompt(
-    `店舗を番号で選んでください。\n\n${storeListText}`,
-    "1"
-  );
-
-  if (selected === null) return;
-
-  const selectedIndex = Number(selected) - 1;
-  const store = candidates[selectedIndex];
-
-  if (!store) {
-    alert("店舗番号が正しくありません。");
-    return;
-  }
-
-  let visit = confirm(`${store.name}\n\n訪問を +1 しますか？`);
-  const success = confirm(`${store.name}\n\n仕入れ成功を +1 しますか？`);
-
-  if (success && !visit) {
-    const ok = confirm("成功を追加する場合、訪問も +1 します。よろしいですか？");
-    if (!ok) return;
-    visit = true;
-  }
-
-  const itemsInput = prompt(
-    `${store.name}\n\n仕入れ個数を入力してください。\n仕入れなしの場合は 0`,
-    success ? "1" : "0"
-  );
-
-  if (itemsInput === null) return;
-
-  const items = Math.max(0, Number(String(itemsInput).replaceAll(",", "").trim() || 0));
-
-  if (!Number.isFinite(items)) {
-    alert("個数は数値で入力してください。");
-    return;
-  }
-
-  let categoryMap = {};
-
-  if (items > 0) {
-    const picked = await openReportCategoryPicker({
-      totalItems: items,
-      store
-    });
-
-    if (!picked) return;
-
-    categoryMap = picked;
-
-    const categoryTotal = sumReportCategoryMap(categoryMap);
-
-    if (categoryTotal !== items) {
-      alert(`カテゴリ個数の合計が一致していません。\n\n入力合計：${categoryTotal}個\n仕入れ個数：${items}個`);
-      return;
-    }
-  }
-
-  const profitInput = prompt(
-    `${store.name}\n\n利益を入力してください。\n利益なしの場合は 0`,
-    "0"
-  );
-
-  if (profitInput === null) return;
-
-  const profit = Math.max(0, Number(String(profitInput).replaceAll(",", "").trim() || 0));
-
-  if (!Number.isFinite(profit)) {
-    alert("利益は数値で入力してください。");
-    return;
-  }
-
-  if (!visit && !success && items <= 0 && profit <= 0) {
-    alert("追加する内容がありません。");
-    return;
-  }
-
-  const confirmText = [
-    `${dayStr} に記録を追加します。`,
-    "",
-    `店舗：${store.name}`,
-    `訪問：${visit ? "+1" : "なし"}`,
-    `成功：${success ? "+1" : "なし"}`,
-    `個数：${items}個`,
-    `カテゴリ：${
-      Object.keys(categoryMap).length
-        ? Object.entries(categoryMap).map(([cat, qty]) => `${cat}:${qty}`).join(" / ")
-        : "なし"
-    }`,
-    `利益：${yen(profit)}`,
-    "",
-    "この内容で追加しますか？"
-  ].join("\n");
-
-  if (!confirm(confirmText)) return;
-
-  const ok = addCalendarRecordToStoreAndLogs(dayStr, {
-    storeId: store.id,
-    visit,
-    success,
-    items,
-    profit,
-    categoryMap
-  });
-
-  if (!ok) return;
-
-  alert("記録を追加しました。店舗カードにも反映されます。");
 
   bootReport();
   showDayDetail(dayStr);
@@ -1466,7 +1680,7 @@ function renderPrefAnalysis() {
 
     <div class="catList">
       ${list.map(item => `
-        <div class="catItem" style="grid-template-columns:1fr; cursor:pointer;" onclick="showPrefDetail('${escapeHtml(item.pref)}')">
+        <div class="catItem" style="grid-template-columns:1fr; cursor:pointer;" onclick="showPrefDetail('${escapeJsString(item.pref)}')">
           <div class="catName">${escapeHtml(item.pref)}</div>
           <div class="detailText" style="margin-top:6px;">
             登録店舗 ${item.registeredStoreCount}件 / 対象店舗 ${item.activeStoreCount}件<br>
@@ -1665,7 +1879,7 @@ function renderMonthSummary(currentBundle, totalBundle) {
   el.innerHTML = `
     <h2 class="sectionTitle" style="margin-bottom:16px;">📌 ${escapeHtml(summary.label)} サマリー</h2>
 
-    <div class="chipRow" onclick="showMonthDetail('${escapeHtml(summary.label)}')" style="cursor:pointer;">
+    <div class="chipRow" onclick="showMonthDetail('${escapeJsString(summary.label)}')" style="cursor:pointer;">
       <div class="chip">現在登録店舗 ${summary.registeredStoreCount}件</div>
       <div class="chip">対象店舗 ${summary.activeStoreCount}件</div>
       <div class="chip">利益 ${yen(summary.profit)}</div>
@@ -2059,8 +2273,7 @@ function showDayDetail(dayStr) {
     <div class="detailBlock">
       <div class="detailTitle">この日に記録追加</div>
       <div class="detailText">
-        過去日付に、訪問・成功・個数・カテゴリ・利益を追加できます。<br>
-        カテゴリはタップ式で入力できます。<br>
+        店舗・訪問・成功・個数・カテゴリ・利益を1画面で入力できます。<br>
         追加した内容は店舗カードにも反映されます。
       </div>
       <div style="margin-top:10px;">
