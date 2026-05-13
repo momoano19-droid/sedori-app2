@@ -27,6 +27,14 @@ let cachedMonthData = new Map();
 let cachedTotalData = null;
 
 /* =========================
+   カレンダー追加用カテゴリモーダル
+========================= */
+let reportCategoryModalResolver = null;
+let reportCategoryTargetQty = 0;
+let reportCategorySelected = {};
+let reportCategoryHistory = [];
+
+/* =========================
    共通
 ========================= */
 function readFirstAvailable(keys) {
@@ -103,6 +111,14 @@ function escapeHtml(str) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function escapeJsString(str) {
+  return String(str || "")
+    .replaceAll("\\", "\\\\")
+    .replaceAll("'", "\\'")
+    .replaceAll("\n", "\\n")
+    .replaceAll("\r", "");
 }
 
 function yen(n) {
@@ -194,36 +210,296 @@ function maxDateStr(a, b) {
   return aa >= bb ? aa : bb;
 }
 
-function parseReportCategoryInput(text, totalItems) {
-  const raw = String(text || "").trim();
-  const total = Number(totalItems || 0);
-
-  if (total <= 0) return {};
-
-  if (!raw) {
-    return { "未分類": total };
-  }
-
-  const map = {};
-
-  raw.split(",").forEach(part => {
-    const [nameRaw, qtyRaw] = String(part || "").split(":");
-    const name = String(nameRaw || "").trim();
-    const qty = Number(String(qtyRaw || "").trim());
-
-    if (!name) return;
-    if (!Number.isFinite(qty) || qty <= 0) return;
-
-    map[name] = (map[name] || 0) + qty;
-  });
-
-  return map;
-}
-
 function sumReportCategoryMap(map) {
   return Object.values(map || {}).reduce((sum, v) => sum + Number(v || 0), 0);
 }
 
+/* =========================
+   カテゴリ選択モーダル
+========================= */
+function getReportCategoryHistory(store = null) {
+  const stores = loadStores();
+  const logs = loadLogs();
+  const set = new Set();
+
+  if (store?.defaultCategory) {
+    set.add(String(store.defaultCategory).trim());
+  }
+
+  Object.keys(store?.categoryCounts || {}).forEach(cat => {
+    const name = String(cat || "").trim();
+    if (name) set.add(name);
+  });
+
+  stores.forEach(s => {
+    if (s.defaultCategory) {
+      const name = String(s.defaultCategory).trim();
+      if (name) set.add(name);
+    }
+
+    Object.keys(s.categoryCounts || {}).forEach(cat => {
+      const name = String(cat || "").trim();
+      if (name) set.add(name);
+    });
+  });
+
+  logs.forEach(log => {
+    if (log.type !== "category") return;
+    const name = String(log.category || "").trim();
+    if (name) set.add(name);
+  });
+
+  if (!set.size) set.add("未分類");
+
+  return [...set].filter(Boolean).slice(0, 30);
+}
+
+function ensureReportCategoryModal() {
+  if (document.getElementById("reportCategoryModal")) return;
+
+  const modal = document.createElement("div");
+  modal.id = "reportCategoryModal";
+  modal.className = "qtyCategoryModal";
+  modal.innerHTML = `
+    <div class="qtyCategoryCard">
+      <div class="qtyCategoryTitle">カテゴリ内訳を選択</div>
+      <div class="qtyCategorySub">
+        カテゴリをタップして、＋ / − で個数を調整してください
+      </div>
+
+      <div class="qtySelectedBox">
+        仕入れ個数: <span id="reportCategoryTargetQty">0</span>個
+      </div>
+
+      <div class="qtyCategorySectionTitle">カテゴリ履歴</div>
+      <div id="reportCategoryChipWrap" class="categoryChipWrap"></div>
+
+      <div class="qtyCategorySectionTitle">新しいカテゴリを追加</div>
+      <div class="categoryAddRow">
+        <input id="reportNewCategoryInput" class="categoryTextInput" placeholder="新しいカテゴリ名">
+        <button type="button" class="categoryAddBtn" onclick="addReportCategoryChip()">追加</button>
+      </div>
+
+      <div class="qtyCategorySectionTitle">カテゴリごとの個数</div>
+      <div id="reportCategoryCountEditor" class="qtyCategoryCountEditor"></div>
+
+      <div class="qtySelectedBox qtyCategoryTotalCheck" id="reportCategoryTotalCheck">
+        入力合計: <span id="reportCategoryAssignedTotal">0</span> / <span id="reportCategoryAssignedTarget">0</span>個
+      </div>
+
+      <div class="categoryPickerActions">
+        <button type="button" class="ghostBtn" onclick="closeReportCategoryModal(null)">キャンセル</button>
+        <button type="button" class="primaryBtn" onclick="confirmReportCategoryModal()">OK</button>
+      </div>
+    </div>
+  `;
+
+  modal.addEventListener("click", e => {
+    if (e.target === modal) closeReportCategoryModal(null);
+  });
+
+  document.body.appendChild(modal);
+}
+
+function openReportCategoryPicker({ totalItems = 0, store = null }) {
+  ensureReportCategoryModal();
+
+  reportCategoryTargetQty = Math.max(0, Number(totalItems || 0));
+  reportCategorySelected = {};
+  reportCategoryHistory = getReportCategoryHistory(store);
+
+  const defaultCat = String(store?.defaultCategory || reportCategoryHistory[0] || "未分類").trim() || "未分類";
+
+  if (reportCategoryTargetQty > 0) {
+    reportCategorySelected[defaultCat] = reportCategoryTargetQty;
+    if (!reportCategoryHistory.includes(defaultCat)) {
+      reportCategoryHistory.unshift(defaultCat);
+    }
+  }
+
+  const modal = document.getElementById("reportCategoryModal");
+  const targetQtyEl = document.getElementById("reportCategoryTargetQty");
+  const assignedTargetEl = document.getElementById("reportCategoryAssignedTarget");
+  const newInput = document.getElementById("reportNewCategoryInput");
+
+  if (targetQtyEl) targetQtyEl.textContent = String(reportCategoryTargetQty);
+  if (assignedTargetEl) assignedTargetEl.textContent = String(reportCategoryTargetQty);
+  if (newInput) newInput.value = "";
+
+  renderReportCategoryChips();
+  renderReportCategoryCountEditor();
+  updateReportCategorySummary();
+
+  if (modal) modal.classList.add("show");
+
+  return new Promise(resolve => {
+    reportCategoryModalResolver = resolve;
+  });
+}
+
+function renderReportCategoryChips() {
+  const wrap = document.getElementById("reportCategoryChipWrap");
+  if (!wrap) return;
+
+  wrap.innerHTML = reportCategoryHistory.map(cat => {
+    const active = !!reportCategorySelected[cat];
+    return `
+      <button
+        type="button"
+        class="categoryChip ${active ? "active" : ""}"
+        onclick="toggleReportCategoryChip('${escapeJsString(cat)}')"
+      >
+        ${escapeHtml(cat)}
+      </button>
+    `;
+  }).join("");
+}
+
+function toggleReportCategoryChip(cat) {
+  const name = String(cat || "").trim();
+  if (!name) return;
+
+  if (reportCategorySelected[name]) {
+    delete reportCategorySelected[name];
+  } else {
+    const currentTotal = sumReportCategoryMap(reportCategorySelected);
+    const remain = Math.max(0, reportCategoryTargetQty - currentTotal);
+    reportCategorySelected[name] = remain > 0 ? remain : 1;
+  }
+
+  renderReportCategoryChips();
+  renderReportCategoryCountEditor();
+  updateReportCategorySummary();
+}
+
+function addReportCategoryChip() {
+  const input = document.getElementById("reportNewCategoryInput");
+  if (!input) return;
+
+  const cat = String(input.value || "").trim();
+  if (!cat) return;
+
+  if (!reportCategoryHistory.includes(cat)) {
+    reportCategoryHistory.unshift(cat);
+  }
+
+  const currentTotal = sumReportCategoryMap(reportCategorySelected);
+  const remain = Math.max(0, reportCategoryTargetQty - currentTotal);
+  reportCategorySelected[cat] = remain > 0 ? remain : 1;
+
+  input.value = "";
+
+  renderReportCategoryChips();
+  renderReportCategoryCountEditor();
+  updateReportCategorySummary();
+}
+
+function renderReportCategoryCountEditor() {
+  const wrap = document.getElementById("reportCategoryCountEditor");
+  if (!wrap) return;
+
+  const keys = Object.keys(reportCategorySelected || {});
+
+  if (!keys.length) {
+    wrap.innerHTML = `<div class="qtyCategoryEmpty">カテゴリを選択してください</div>`;
+    return;
+  }
+
+  wrap.innerHTML = keys.map(cat => {
+    const qty = Math.max(0, Number(reportCategorySelected[cat] || 0));
+
+    return `
+      <div class="qtyCategoryCountRow">
+        <div class="qtyCategoryCountName">${escapeHtml(cat)}</div>
+        <div class="qtyStepper">
+          <button type="button" class="qtyStepBtn minus" onclick="changeReportCategoryQty('${escapeJsString(cat)}', -1)">−</button>
+          <div class="qtyStepValue">${qty}</div>
+          <button type="button" class="qtyStepBtn plus" onclick="changeReportCategoryQty('${escapeJsString(cat)}', 1)">＋</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function changeReportCategoryQty(cat, delta) {
+  const name = String(cat || "").trim();
+  if (!name || !reportCategorySelected[name]) return;
+
+  const current = Math.max(0, Number(reportCategorySelected[name] || 0));
+  const next = Math.max(0, current + Number(delta || 0));
+
+  if (next <= 0) {
+    delete reportCategorySelected[name];
+  } else {
+    reportCategorySelected[name] = next;
+  }
+
+  renderReportCategoryChips();
+  renderReportCategoryCountEditor();
+  updateReportCategorySummary();
+}
+
+function updateReportCategorySummary() {
+  const total = sumReportCategoryMap(reportCategorySelected);
+  const totalEl = document.getElementById("reportCategoryAssignedTotal");
+  const checkEl = document.getElementById("reportCategoryTotalCheck");
+
+  if (totalEl) totalEl.textContent = String(total);
+
+  if (checkEl) {
+    checkEl.classList.remove("is-ok", "is-over", "is-under");
+
+    if (total === reportCategoryTargetQty) {
+      checkEl.classList.add("is-ok");
+    } else if (total > reportCategoryTargetQty) {
+      checkEl.classList.add("is-over");
+    } else {
+      checkEl.classList.add("is-under");
+    }
+  }
+}
+
+function confirmReportCategoryModal() {
+  const total = sumReportCategoryMap(reportCategorySelected);
+
+  if (reportCategoryTargetQty <= 0) {
+    closeReportCategoryModal({});
+    return;
+  }
+
+  if (!Object.keys(reportCategorySelected).length) {
+    alert("カテゴリを1つ以上選択してください。");
+    return;
+  }
+
+  if (total !== reportCategoryTargetQty) {
+    alert(`カテゴリ個数の合計を仕入れ個数と一致させてください。\n\n入力合計：${total}個\n仕入れ個数：${reportCategoryTargetQty}個`);
+    return;
+  }
+
+  const result = {};
+  Object.entries(reportCategorySelected).forEach(([cat, qty]) => {
+    const name = String(cat || "").trim();
+    const n = Math.max(0, Number(qty || 0));
+    if (name && n > 0) result[name] = n;
+  });
+
+  closeReportCategoryModal(result);
+}
+
+function closeReportCategoryModal(result) {
+  const modal = document.getElementById("reportCategoryModal");
+  if (modal) modal.classList.remove("show");
+
+  if (reportCategoryModalResolver) {
+    reportCategoryModalResolver(result);
+    reportCategoryModalResolver = null;
+  }
+}
+
+/* =========================
+   カレンダーから記録追加・削除
+========================= */
 function addCalendarRecordToStoreAndLogs(dayStr, payload) {
   const stores = loadStores();
   const logs = loadLogs();
@@ -498,7 +774,7 @@ function deleteStoreDayRecords(dayStr, storeId) {
   showDayDetail(dayStr);
 }
 
-function openAddDayRecord(dayStr) {
+async function openAddDayRecord(dayStr) {
   const stores = loadStores();
 
   if (!stores.length) {
@@ -579,16 +855,14 @@ function openAddDayRecord(dayStr) {
   let categoryMap = {};
 
   if (items > 0) {
-    const defaultCat = store.defaultCategory || "未分類";
+    const picked = await openReportCategoryPicker({
+      totalItems: items,
+      store
+    });
 
-    const categoryInput = prompt(
-      `カテゴリ内訳を入力してください。\n\n例：ゲーム:2, 家電:1\n空欄の場合は「${defaultCat}:${items}」で登録します。`,
-      `${defaultCat}:${items}`
-    );
+    if (!picked) return;
 
-    if (categoryInput === null) return;
-
-    categoryMap = parseReportCategoryInput(categoryInput, items);
+    categoryMap = picked;
 
     const categoryTotal = sumReportCategoryMap(categoryMap);
 
@@ -653,6 +927,9 @@ function openAddDayRecord(dayStr) {
   showDayDetail(dayStr);
 }
 
+/* =========================
+   月・期間選択
+========================= */
 function renderMonthPicker(logs) {
   const selectEl = document.getElementById("monthPicker");
   const rangeWrap = document.getElementById("reportRangeButtons");
@@ -1783,6 +2060,7 @@ function showDayDetail(dayStr) {
       <div class="detailTitle">この日に記録追加</div>
       <div class="detailText">
         過去日付に、訪問・成功・個数・カテゴリ・利益を追加できます。<br>
+        カテゴリはタップ式で入力できます。<br>
         追加した内容は店舗カードにも反映されます。
       </div>
       <div style="margin-top:10px;">
@@ -1883,6 +2161,7 @@ function bootReport() {
 }
 
 window.addEventListener("load", bootReport);
+
 window.addEventListener("resize", () => {
   const stores = loadStores();
   const logs = loadLogs();
