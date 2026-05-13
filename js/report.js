@@ -212,12 +212,6 @@ function maxDateStr(a, b) {
   return aa >= bb ? aa : bb;
 }
 
-function clampReportNonNeg(value) {
-  const n = Number(value || 0);
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, n);
-}
-
 function reportToNonNegInt(value) {
   const n = parseInt(String(value ?? "").replaceAll(",", "").trim(), 10);
   if (!Number.isFinite(n) || n < 0) return 0;
@@ -264,8 +258,6 @@ function getReportRecordCategoryHistory(storeId = "") {
   const list = [...set];
   list.sort((a, b) => String(a).localeCompare(String(b), "ja"));
 
-  if (!list.length) list.push("未分類");
-
   return list.slice(0, 40);
 }
 
@@ -275,19 +267,8 @@ function refreshReportRecordAvailableCategories() {
   const storeId = reportRecordModalState.storeId || "";
   reportRecordAvailableCategories = getReportRecordCategoryHistory(storeId);
 
-  if (!Object.keys(reportRecordModalState.categoryMap || {}).length) {
-    const store = getReportRecordStore();
-    const firstCat =
-      String(store?.defaultCategory || "").trim() ||
-      reportRecordAvailableCategories[0] ||
-      "未分類";
-
-    if (firstCat && Number(reportRecordModalState.qty || 0) > 0) {
-      reportRecordModalState.categoryMap = {
-        [firstCat]: Number(reportRecordModalState.qty || 1)
-      };
-    }
-  }
+  // デフォルトではカテゴリを自動選択しない
+  // 店舗を選んだ後も、ユーザーがカテゴリをタップするまで未選択のままにする
 }
 
 function ensureReportRecordModal() {
@@ -450,13 +431,15 @@ function openReportRecordModal(dayStr) {
 
   reportRecordModalState = {
     day: String(dayStr || todayStr()),
-    storeId: String(stores[0]?.id || ""),
+    storeId: "",
     visit: true,
     success: true,
     qty: 1,
     categoryMap: {},
     profit: 0
   };
+
+  reportRecordAvailableCategories = getReportRecordCategoryHistory("");
 
   const title = document.getElementById("reportRecordTitle");
   if (title) {
@@ -474,7 +457,6 @@ function openReportRecordModal(dayStr) {
   if (profitEl) profitEl.value = "0";
 
   renderReportRecordStoreSelectOptions();
-  refreshReportRecordAvailableCategories();
   renderReportRecordMainButtons();
   renderReportInlineAll();
 
@@ -526,28 +508,33 @@ function renderReportRecordStoreSelectOptions() {
   if (!filtered.length) {
     select.innerHTML = `<option value="">該当する店舗がありません</option>`;
     reportRecordModalState.storeId = "";
+    reportRecordModalState.categoryMap = {};
+    reportRecordAvailableCategories = getReportRecordCategoryHistory("");
     renderReportRecordStoreInfo();
+    renderReportInlineAll();
     return;
   }
 
-  if (
-    !reportRecordModalState.storeId ||
-    !filtered.some(s => String(s.id || "") === String(reportRecordModalState.storeId || ""))
-  ) {
-    reportRecordModalState.storeId = String(filtered[0].id || "");
+  const currentId = String(reportRecordModalState.storeId || "");
+  const hasCurrent = filtered.some(s => String(s.id || "") === currentId);
+
+  if (currentId && !hasCurrent) {
+    reportRecordModalState.storeId = "";
     reportRecordModalState.categoryMap = {};
   }
 
-  select.innerHTML = filtered.map(store => {
-    const name = String(store.name || "店舗名なし");
-    const pref = String(store.pref || "");
-    return `<option value="${escapeHtml(String(store.id || ""))}">${escapeHtml(name)}${pref ? `（${escapeHtml(pref)}）` : ""}</option>`;
-  }).join("");
+  select.innerHTML =
+    `<option value="">店舗を選択してください</option>` +
+    filtered.map(store => {
+      const name = String(store.name || "店舗名なし");
+      const pref = String(store.pref || "");
+      return `<option value="${escapeHtml(String(store.id || ""))}">${escapeHtml(name)}${pref ? `（${escapeHtml(pref)}）` : ""}</option>`;
+    }).join("");
 
   select.value = String(reportRecordModalState.storeId || "");
 
-  renderReportRecordStoreInfo();
   refreshReportRecordAvailableCategories();
+  renderReportRecordStoreInfo();
   renderReportInlineAll();
 }
 
@@ -560,14 +547,13 @@ function handleReportRecordStoreChange() {
   reportRecordModalState.storeId = String(select.value || "");
   reportRecordModalState.categoryMap = {};
 
-  renderReportRecordStoreInfo();
   refreshReportRecordAvailableCategories();
+  renderReportRecordStoreInfo();
   renderReportInlineAll();
 }
 
 function renderReportRecordStoreInfo() {
-  // 店舗選択欄の下に表示していた「店舗名・住所プレビュー」は非表示にしました。
-  // 店舗名は select 内で確認できるため、ここでは何も表示しません。
+  // 店舗選択欄の下に表示していた「店舗名・住所プレビュー」は非表示にしています。
 }
 
 function renderReportRecordMainButtons() {
@@ -681,6 +667,11 @@ function applyReportInlineManualQty() {
 function renderReportInlineCategoryChips() {
   const wrap = document.getElementById("reportInlineCategoryChipWrap");
   if (!wrap || !reportRecordModalState) return;
+
+  if (!reportRecordAvailableCategories.length) {
+    wrap.innerHTML = `<div class="qtyCategoryEmpty">カテゴリ履歴がありません。新しいカテゴリを追加してください。</div>`;
+    return;
+  }
 
   wrap.innerHTML = reportRecordAvailableCategories.map(cat => `
     <button
@@ -891,12 +882,7 @@ function buildReportRecordItemPayload() {
   });
 
   if (!Object.keys(categoryMap).length) {
-    const store = getReportRecordStore();
-    const fallback =
-      String(store?.defaultCategory || "").trim() ||
-      reportRecordAvailableCategories[0] ||
-      "未分類";
-    categoryMap[fallback] = qty;
+    throw new Error("カテゴリを選択してください。");
   }
 
   const total = sumReportCategoryMap(categoryMap);
