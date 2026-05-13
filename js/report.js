@@ -2484,7 +2484,7 @@ function showDayDetail(dayStr) {
             利益を修正
           </button>
           <button class="dangerBtn" type="button" onclick="deleteStoreDayRecords('${escapeHtml(dayStr)}', '${escapeHtml(x.id)}')">
-            この日の記録を削除
+            記録削除
           </button>
         </div>
       </div>
