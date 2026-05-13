@@ -334,6 +334,170 @@ function addCalendarRecordToStoreAndLogs(dayStr, payload) {
   return true;
 }
 
+function recalcStoreLastVisitDate(store) {
+  if (!store?.id) return;
+
+  const logs = loadLogs();
+  const storeId = String(store.id || "");
+
+  const visitDates = logs
+    .filter(log => String(log.storeId || "") === storeId)
+    .filter(log => log.type === "visit" || log.type === "success" || log.type === "items")
+    .map(log => ymd(log.date))
+    .filter(Boolean)
+    .sort();
+
+  store.lastVisitDate = visitDates.length ? visitDates[visitDates.length - 1] : "";
+}
+
+function subtractStoreValuesFromLogs(store, targetLogs) {
+  if (!store || !Array.isArray(targetLogs)) return;
+
+  targetLogs.forEach(log => {
+    const delta = Number(log.delta || 0);
+
+    if (log.type === "visit") {
+      store.visits = Math.max(0, Number(store.visits || 0) - delta);
+    }
+
+    if (log.type === "success") {
+      store.buyDays = Math.max(0, Number(store.buyDays || 0) - delta);
+    }
+
+    if (log.type === "items") {
+      store.items = Math.max(0, Number(store.items || 0) - delta);
+    }
+
+    if (log.type === "profit" || log.type === "profit_adjust") {
+      store.profit = Math.max(0, Number(store.profit || 0) - delta);
+    }
+
+    if (log.type === "category" && log.category) {
+      const cat = String(log.category || "").trim();
+      if (!cat) return;
+
+      if (!store.categoryCounts || typeof store.categoryCounts !== "object") {
+        store.categoryCounts = {};
+      }
+
+      const current = Number(store.categoryCounts[cat] || 0);
+      const next = Math.max(0, current - delta);
+
+      if (next <= 0) {
+        delete store.categoryCounts[cat];
+      } else {
+        store.categoryCounts[cat] = next;
+      }
+    }
+  });
+
+  if (Number(store.buyDays || 0) > Number(store.visits || 0)) {
+    store.visits = Number(store.buyDays || 0);
+  }
+}
+
+function deleteStoreDayRecords(dayStr, storeId) {
+  const stores = loadStores();
+  const logs = loadLogs();
+
+  const targetStoreId = String(storeId || "");
+  const store = stores.find(s => String(s.id || "") === targetStoreId);
+
+  if (!store) {
+    alert("店舗が見つかりませんでした。");
+    return;
+  }
+
+  const removableTypes = ["visit", "success", "items", "category", "profit", "profit_adjust"];
+
+  const targetLogs = logs.filter(log =>
+    ymd(log.date) === dayStr &&
+    String(log.storeId || "") === targetStoreId &&
+    removableTypes.includes(log.type)
+  );
+
+  if (!targetLogs.length) {
+    alert("削除できる記録がありません。");
+    return;
+  }
+
+  const summary = targetLogs.reduce((acc, log) => {
+    const delta = Number(log.delta || 0);
+
+    if (log.type === "visit") acc.visits += delta;
+    if (log.type === "success") acc.success += delta;
+    if (log.type === "items") acc.items += delta;
+    if (log.type === "profit" || log.type === "profit_adjust") acc.profit += delta;
+
+    if (log.type === "category" && log.category) {
+      const cat = String(log.category || "").trim();
+      if (cat) {
+        acc.categories[cat] = (acc.categories[cat] || 0) + delta;
+      }
+    }
+
+    return acc;
+  }, {
+    visits: 0,
+    success: 0,
+    items: 0,
+    profit: 0,
+    categories: {}
+  });
+
+  const categoryText = Object.entries(summary.categories)
+    .filter(([, qty]) => Number(qty) > 0)
+    .map(([cat, qty]) => `${cat}:${qty}`)
+    .join(" / ") || "なし";
+
+  const ok = confirm(
+    [
+      `${dayStr} の記録を削除します。`,
+      "",
+      `店舗：${store.name || "店舗名なし"}`,
+      `訪問：${summary.visits}回`,
+      `成功：${summary.success}回`,
+      `個数：${summary.items}個`,
+      `カテゴリ：${categoryText}`,
+      `利益：${yen(summary.profit)}`,
+      "",
+      "この日のこの店舗の記録をまとめて削除します。",
+      "店舗カードの数字にも反映されます。",
+      "",
+      "よろしいですか？"
+    ].join("\n")
+  );
+
+  if (!ok) return;
+
+  const targetLogIds = new Set(targetLogs.map(log => String(log.id || "")));
+
+  const nextLogs = logs.filter(log => {
+    const id = String(log.id || "");
+
+    if (id && targetLogIds.has(id)) {
+      return false;
+    }
+
+    return !(
+      ymd(log.date) === dayStr &&
+      String(log.storeId || "") === targetStoreId &&
+      removableTypes.includes(log.type)
+    );
+  });
+
+  subtractStoreValuesFromLogs(store, targetLogs);
+  saveLogs(nextLogs);
+  invalidateReportCache();
+  recalcStoreLastVisitDate(store);
+  saveReportData(stores, nextLogs);
+
+  alert("この日の記録を削除しました。店舗カードにも反映されます。");
+
+  bootReport();
+  showDayDetail(dayStr);
+}
+
 function openAddDayRecord(dayStr) {
   const stores = loadStores();
 
@@ -570,6 +734,7 @@ function getAdjustStoreDayProfit(dayStr, storeId, logs) {
 }
 
 function saveStoreDayProfitCorrection(dayStr, storeId, nextProfit) {
+  const stores = loadStores();
   const logs = loadLogs();
   const baseProfit = getBaseStoreDayProfit(dayStr, storeId, logs);
   const adjustProfit = getAdjustStoreDayProfit(dayStr, storeId, logs);
@@ -593,8 +758,12 @@ function saveStoreDayProfitCorrection(dayStr, storeId, nextProfit) {
     note: "日次利益修正"
   }));
 
-  saveLogs(logs);
-  invalidateReportCache();
+  const store = stores.find(s => String(s.id || "") === String(storeId || ""));
+  if (store) {
+    store.profit = Math.max(0, Number(store.profit || 0) + diff);
+  }
+
+  saveReportData(stores, logs);
   return true;
 }
 
@@ -1656,9 +1825,12 @@ function showDayDetail(dayStr) {
           成功率：${rate.toFixed(1)}%<br>
           ${cats ? `カテゴリ：${cats}` : "カテゴリ：なし"}
         </div>
-        <div style="margin-top:8px;">
+        <div class="row2" style="margin-top:8px;">
           <button class="ghostBtn" type="button" onclick="editStoreDayProfit('${escapeHtml(dayStr)}', '${escapeHtml(x.id)}')">
             利益を修正
+          </button>
+          <button class="dangerBtn" type="button" onclick="deleteStoreDayRecords('${escapeHtml(dayStr)}', '${escapeHtml(x.id)}')">
+            この日の記録を削除
           </button>
         </div>
       </div>
