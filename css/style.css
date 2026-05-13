@@ -5126,3 +5126,44 @@ button {
     border-radius: 13px;
   }
 }
+/* =========================
+   レポート記録追加モーダル：iPhone上部見切れ対策
+========================= */
+
+#reportRecordModal {
+  align-items: flex-start !important;
+  justify-content: center !important;
+  padding-top: calc(env(safe-area-inset-top) + 14px) !important;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 90px) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+#reportRecordModal .reportRecordCard {
+  margin-top: 0 !important;
+  margin-bottom: 24px !important;
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 34px) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* iPhone Safari / PWAで100vhがズレる時の保険 */
+@supports not (height: 100dvh) {
+  #reportRecordModal .reportRecordCard {
+    max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 34px) !important;
+  }
+}
+
+/* 小さいiPhoneではさらに上に余白を確保 */
+@media (max-width: 480px) {
+  #reportRecordModal {
+    padding-top: calc(env(safe-area-inset-top) + 10px) !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  #reportRecordModal .reportRecordCard {
+    width: calc(100vw - 18px) !important;
+    border-radius: 22px !important;
+  }
+}
