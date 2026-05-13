@@ -53,6 +53,23 @@ function saveLogs(logs) {
   });
 }
 
+function saveStores(stores) {
+  const json = JSON.stringify(Array.isArray(stores) ? stores : []);
+  STORE_KEYS.forEach(key => {
+    try {
+      localStorage.setItem(key, json);
+    } catch (e) {
+      console.error("save store error:", key, e);
+    }
+  });
+}
+
+function saveReportData(stores, logs) {
+  saveStores(stores);
+  saveLogs(logs);
+  invalidateReportCache();
+}
+
 function loadStores() {
   if (cachedStores) return cachedStores;
   const parsed = readFirstAvailable(STORE_KEYS);
@@ -165,6 +182,311 @@ function normalizeLog(log) {
     category: String(log?.category || ""),
     note: String(log?.note || "")
   };
+}
+
+function maxDateStr(a, b) {
+  const aa = String(a || "").slice(0, 10);
+  const bb = String(b || "").slice(0, 10);
+
+  if (!aa) return bb;
+  if (!bb) return aa;
+
+  return aa >= bb ? aa : bb;
+}
+
+function parseReportCategoryInput(text, totalItems) {
+  const raw = String(text || "").trim();
+  const total = Number(totalItems || 0);
+
+  if (total <= 0) return {};
+
+  if (!raw) {
+    return { "未分類": total };
+  }
+
+  const map = {};
+
+  raw.split(",").forEach(part => {
+    const [nameRaw, qtyRaw] = String(part || "").split(":");
+    const name = String(nameRaw || "").trim();
+    const qty = Number(String(qtyRaw || "").trim());
+
+    if (!name) return;
+    if (!Number.isFinite(qty) || qty <= 0) return;
+
+    map[name] = (map[name] || 0) + qty;
+  });
+
+  return map;
+}
+
+function sumReportCategoryMap(map) {
+  return Object.values(map || {}).reduce((sum, v) => sum + Number(v || 0), 0);
+}
+
+function addCalendarRecordToStoreAndLogs(dayStr, payload) {
+  const stores = loadStores();
+  const logs = loadLogs();
+
+  const storeId = String(payload.storeId || "");
+  const store = stores.find(s => String(s.id || "") === storeId);
+
+  if (!store) {
+    alert("店舗が見つかりませんでした。");
+    return false;
+  }
+
+  const visit = !!payload.visit;
+  const success = !!payload.success;
+  const items = Math.max(0, Number(payload.items || 0));
+  const profit = Math.max(0, Number(payload.profit || 0));
+  const categoryMap = payload.categoryMap || {};
+  const note = "カレンダーから追加";
+
+  if (visit) {
+    logs.push(normalizeLog({
+      id: ensureLogId(),
+      storeId,
+      type: "visit",
+      delta: 1,
+      date: dayStr,
+      note
+    }));
+
+    store.visits = Number(store.visits || 0) + 1;
+  }
+
+  if (success) {
+    logs.push(normalizeLog({
+      id: ensureLogId(),
+      storeId,
+      type: "success",
+      delta: 1,
+      date: dayStr,
+      note
+    }));
+
+    store.buyDays = Number(store.buyDays || 0) + 1;
+
+    if (Number(store.buyDays || 0) > Number(store.visits || 0)) {
+      store.visits = Number(store.buyDays || 0);
+    }
+  }
+
+  if (items > 0) {
+    logs.push(normalizeLog({
+      id: ensureLogId(),
+      storeId,
+      type: "items",
+      delta: items,
+      date: dayStr,
+      note
+    }));
+
+    store.items = Number(store.items || 0) + items;
+
+    if (!store.categoryCounts || typeof store.categoryCounts !== "object") {
+      store.categoryCounts = {};
+    }
+
+    Object.entries(categoryMap).forEach(([cat, qty]) => {
+      const name = String(cat || "").trim();
+      const n = Number(qty || 0);
+      if (!name || n <= 0) return;
+
+      logs.push(normalizeLog({
+        id: ensureLogId(),
+        storeId,
+        type: "category",
+        delta: n,
+        date: dayStr,
+        category: name,
+        note
+      }));
+
+      store.categoryCounts[name] = Number(store.categoryCounts[name] || 0) + n;
+    });
+
+    const firstCategory = Object.keys(categoryMap)[0];
+    if (firstCategory) {
+      store.defaultCategory = firstCategory;
+    }
+  }
+
+  if (profit > 0) {
+    logs.push(normalizeLog({
+      id: ensureLogId(),
+      storeId,
+      type: "profit",
+      delta: profit,
+      date: dayStr,
+      note
+    }));
+
+    store.profit = Number(store.profit || 0) + profit;
+  }
+
+  if (visit || success || items > 0 || profit > 0) {
+    store.lastVisitDate = maxDateStr(store.lastVisitDate, dayStr);
+  }
+
+  saveReportData(stores, logs);
+  return true;
+}
+
+function openAddDayRecord(dayStr) {
+  const stores = loadStores();
+
+  if (!stores.length) {
+    alert("店舗が登録されていません。");
+    return;
+  }
+
+  const keyword = prompt(
+    `${dayStr} に記録を追加します。\n\n店舗名の一部を入力してください。\n空欄のままOKを押すと、登録店舗一覧を表示します。`,
+    ""
+  );
+
+  if (keyword === null) return;
+
+  const q = String(keyword || "").trim().toLowerCase();
+
+  let candidates = stores.filter(s => {
+    if (!q) return true;
+
+    const text = [
+      s.name,
+      s.pref,
+      s.address
+    ].map(x => String(x || "").toLowerCase()).join(" ");
+
+    return text.includes(q);
+  });
+
+  if (!candidates.length) {
+    alert("該当する店舗が見つかりませんでした。");
+    return;
+  }
+
+  candidates = candidates.slice(0, 30);
+
+  const storeListText = candidates
+    .map((s, idx) => `${idx + 1}: ${s.name || "店舗名なし"}${s.pref ? `（${s.pref}）` : ""}`)
+    .join("\n");
+
+  const selected = prompt(
+    `店舗を番号で選んでください。\n\n${storeListText}`,
+    "1"
+  );
+
+  if (selected === null) return;
+
+  const selectedIndex = Number(selected) - 1;
+  const store = candidates[selectedIndex];
+
+  if (!store) {
+    alert("店舗番号が正しくありません。");
+    return;
+  }
+
+  let visit = confirm(`${store.name}\n\n訪問を +1 しますか？`);
+  const success = confirm(`${store.name}\n\n仕入れ成功を +1 しますか？`);
+
+  if (success && !visit) {
+    const ok = confirm("成功を追加する場合、訪問も +1 します。よろしいですか？");
+    if (!ok) return;
+    visit = true;
+  }
+
+  const itemsInput = prompt(
+    `${store.name}\n\n仕入れ個数を入力してください。\n仕入れなしの場合は 0`,
+    success ? "1" : "0"
+  );
+
+  if (itemsInput === null) return;
+
+  const items = Math.max(0, Number(String(itemsInput).replaceAll(",", "").trim() || 0));
+
+  if (!Number.isFinite(items)) {
+    alert("個数は数値で入力してください。");
+    return;
+  }
+
+  let categoryMap = {};
+
+  if (items > 0) {
+    const defaultCat = store.defaultCategory || "未分類";
+
+    const categoryInput = prompt(
+      `カテゴリ内訳を入力してください。\n\n例：ゲーム:2, 家電:1\n空欄の場合は「${defaultCat}:${items}」で登録します。`,
+      `${defaultCat}:${items}`
+    );
+
+    if (categoryInput === null) return;
+
+    categoryMap = parseReportCategoryInput(categoryInput, items);
+
+    const categoryTotal = sumReportCategoryMap(categoryMap);
+
+    if (categoryTotal !== items) {
+      alert(`カテゴリ個数の合計が一致していません。\n\n入力合計：${categoryTotal}個\n仕入れ個数：${items}個`);
+      return;
+    }
+  }
+
+  const profitInput = prompt(
+    `${store.name}\n\n利益を入力してください。\n利益なしの場合は 0`,
+    "0"
+  );
+
+  if (profitInput === null) return;
+
+  const profit = Math.max(0, Number(String(profitInput).replaceAll(",", "").trim() || 0));
+
+  if (!Number.isFinite(profit)) {
+    alert("利益は数値で入力してください。");
+    return;
+  }
+
+  if (!visit && !success && items <= 0 && profit <= 0) {
+    alert("追加する内容がありません。");
+    return;
+  }
+
+  const confirmText = [
+    `${dayStr} に記録を追加します。`,
+    "",
+    `店舗：${store.name}`,
+    `訪問：${visit ? "+1" : "なし"}`,
+    `成功：${success ? "+1" : "なし"}`,
+    `個数：${items}個`,
+    `カテゴリ：${
+      Object.keys(categoryMap).length
+        ? Object.entries(categoryMap).map(([cat, qty]) => `${cat}:${qty}`).join(" / ")
+        : "なし"
+    }`,
+    `利益：${yen(profit)}`,
+    "",
+    "この内容で追加しますか？"
+  ].join("\n");
+
+  if (!confirm(confirmText)) return;
+
+  const ok = addCalendarRecordToStoreAndLogs(dayStr, {
+    storeId: store.id,
+    visit,
+    success,
+    items,
+    profit,
+    categoryMap
+  });
+
+  if (!ok) return;
+
+  alert("記録を追加しました。店舗カードにも反映されます。");
+
+  bootReport();
+  showDayDetail(dayStr);
 }
 
 function renderMonthPicker(logs) {
@@ -1287,10 +1609,23 @@ function showDayDetail(dayStr) {
         成功率：${summary.rate.toFixed(1)}%
       </div>
     </div>
+
+    <div class="detailBlock">
+      <div class="detailTitle">この日に記録追加</div>
+      <div class="detailText">
+        過去日付に、訪問・成功・個数・カテゴリ・利益を追加できます。<br>
+        追加した内容は店舗カードにも反映されます。
+      </div>
+      <div style="margin-top:10px;">
+        <button class="primaryBtn" type="button" onclick="openAddDayRecord('${escapeHtml(dayStr)}')">
+          この日に記録追加
+        </button>
+      </div>
+    </div>
   `;
 
   if (!rows.length) {
-    html += `<div class="emptyText">この日のデータはありません。</div>`;
+    html += `<div class="emptyText">この日のデータはまだありません。</div>`;
     body.innerHTML = html;
     showDetailModal();
     return;
@@ -1302,7 +1637,10 @@ function showDayDetail(dayStr) {
       .map(([cat, qty]) => `${escapeHtml(cat)}:${qty}`)
       .join(" / ");
 
-    const rate = Number(x.visits || 0) > 0 ? (Number(x.success || 0) / Number(x.visits || 0)) * 100 : 0;
+    const rate = Number(x.visits || 0) > 0
+      ? (Number(x.success || 0) / Number(x.visits || 0)) * 100
+      : 0;
+
     const pRow = profitRows.find(r => r.id === x.id);
     const baseProfit = Number(pRow?.baseProfit || 0);
     const adjustProfit = Number(pRow?.adjustProfit || 0);
