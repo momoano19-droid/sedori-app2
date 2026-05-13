@@ -3888,3 +3888,223 @@ button {
   -webkit-appearance: none !important;
   appearance: none !important;
 }
+/* =========================
+   レポート：カレンダー記録追加モーダル
+========================= */
+
+.reportRecordCard {
+  max-width: 720px;
+  width: calc(100vw - 28px);
+  max-height: calc(100vh - 52px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(22px + env(safe-area-inset-bottom));
+}
+
+#reportRecordTitle {
+  font-size: 24px;
+  line-height: 1.25;
+  margin-bottom: 6px;
+}
+
+#reportRecordStoreSearch,
+#reportRecordStoreSelect,
+#reportRecordProfitInput {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#reportRecordStoreSelect {
+  min-height: 54px;
+  border-radius: 18px;
+  border: 1.5px solid #dbe2ee;
+  background: #fff;
+  color: #1f2340;
+  font-size: 17px;
+  font-weight: 700;
+  padding: 0 14px;
+  outline: none;
+}
+
+#reportRecordStoreSelect:focus,
+#reportRecordStoreSearch:focus,
+#reportRecordProfitInput:focus,
+#reportRecordNewCategoryInput:focus {
+  border-color: #3976f6;
+  box-shadow: 0 0 0 4px rgba(57, 118, 246, 0.12);
+}
+
+#reportRecordStoreInfo {
+  text-align: left;
+  line-height: 1.45;
+}
+
+#reportRecordVisitBtn,
+#reportRecordSuccessBtn {
+  min-height: 56px;
+  font-size: 17px;
+  border-radius: 18px;
+}
+
+#reportRecordQtyValue {
+  min-width: 42px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 900;
+  color: #1f2340;
+}
+
+#reportRecordCategoryChipWrap {
+  gap: 8px;
+}
+
+#reportRecordCategoryChipWrap .categoryChip {
+  min-height: 46px;
+  padding: 0 18px;
+  font-size: 15px;
+  border-radius: 999px;
+}
+
+#reportRecordCategoryCountEditor .qtyCategoryCountRow {
+  min-height: 68px;
+  padding: 14px;
+  border-radius: 18px;
+}
+
+#reportRecordCategoryCountEditor .qtyCategoryCountName {
+  font-size: 17px;
+  font-weight: 900;
+}
+
+#reportRecordCategoryCountEditor .qtyStepper {
+  gap: 12px;
+}
+
+#reportRecordCategoryCountEditor .qtyStepBtn {
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+#reportRecordCategoryCountEditor .qtyStepValue {
+  min-width: 36px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+#reportRecordCategoryTotalCheck {
+  border: 2px solid transparent;
+}
+
+#reportRecordCategoryTotalCheck.is-ok {
+  background: #e9f9ef;
+  border-color: #bbf7d0;
+  color: #12824a;
+}
+
+#reportRecordCategoryTotalCheck.is-under {
+  background: #fff8e6;
+  border-color: #fde68a;
+  color: #9a6700;
+}
+
+#reportRecordCategoryTotalCheck.is-over {
+  background: #fff0f0;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+#reportRecordProfitValue {
+  font-size: 20px;
+  font-weight: 900;
+  color: #e4580b;
+}
+
+.reportRecordCard .profitQuickBtn {
+  min-height: 48px;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.reportRecordCard .categoryPickerActions {
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(
+    to top,
+    #ffffff 0%,
+    #ffffff 78%,
+    rgba(255, 255, 255, 0)
+  );
+  padding-top: 18px;
+  padding-bottom: env(safe-area-inset-bottom);
+  margin-top: 18px;
+  z-index: 3;
+}
+
+.reportRecordCard .categoryPickerActions button {
+  min-height: 58px;
+  border-radius: 18px;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+/* iPhone幅でさらに押しやすく */
+@media (max-width: 480px) {
+  .reportRecordCard {
+    width: calc(100vw - 22px);
+    max-height: calc(100vh - 42px);
+    padding: 22px 16px calc(20px + env(safe-area-inset-bottom));
+    border-radius: 24px;
+  }
+
+  #reportRecordTitle {
+    font-size: 22px;
+  }
+
+  #reportRecordStoreSelect {
+    min-height: 52px;
+    font-size: 16px;
+  }
+
+  #reportRecordVisitBtn,
+  #reportRecordSuccessBtn {
+    min-height: 54px;
+    font-size: 16px;
+  }
+
+  #reportRecordCategoryChipWrap .categoryChip {
+    min-height: 44px;
+    padding: 0 15px;
+    font-size: 14px;
+  }
+
+  #reportRecordCategoryCountEditor .qtyCategoryCountRow {
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+  }
+
+  #reportRecordCategoryCountEditor .qtyStepBtn {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+  }
+
+  .reportRecordCard .qtyQuickButtons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reportRecordCard .qtyManualRow {
+    grid-template-columns: 1fr;
+  }
+
+  .reportRecordCard .categoryAddRow {
+    grid-template-columns: 1fr;
+  }
+
+  .reportRecordCard .categoryPickerActions {
+    grid-template-columns: 1fr 1fr;
+  }
+}
