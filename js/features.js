@@ -974,12 +974,71 @@ function visit(i) {
   render();
 }
 
+function removeLatestPositiveLog(storeId, type) {
+  const targetStoreId = String(storeId || "");
+  const targetType = String(type || "");
+
+  for (let i = logs.length - 1; i >= 0; i--) {
+    const log = logs[i];
+
+    if (String(log.storeId || "") !== targetStoreId) continue;
+    if (String(log.type || "") !== targetType) continue;
+    if (Number(log.delta || 0) <= 0) continue;
+
+    logs.splice(i, 1);
+    return true;
+  }
+
+  return false;
+}
+
+function recalcStoreLastVisitDateFromLogs(store) {
+  if (!store || !store.id) return;
+
+  const dates = logs
+    .filter(log => String(log.storeId || "") === String(store.id))
+    .filter(log => ["visit", "success", "items"].includes(String(log.type || "")))
+    .filter(log => Number(log.delta || 0) > 0)
+    .map(log => String(log.date || "").slice(0, 10))
+    .filter(Boolean)
+    .sort();
+
+  store.lastVisitDate = dates.length ? dates[dates.length - 1] : "";
+}
+
+function forceStoreRenderRefresh() {
+  lastListRenderSignature = "";
+  lastMapRenderSignature = "";
+}
+
 function visitMinus(i) {
   const s = stores[i];
   if (!s) return;
-  s.visits = clampNonNeg(s.visits - 1);
-  if (s.buyDays > s.visits) s.buyDays = s.visits;
-  addLog(s.id, "visit", -1);
+
+  const currentVisits = Number(s.visits || 0);
+  const currentSuccess = Number(s.buyDays || 0);
+
+  if (currentVisits <= 0) {
+    alert("減らせる訪問回数がありません。");
+    return;
+  }
+
+  if (currentVisits <= currentSuccess) {
+    alert("成功回数より訪問回数を少なくできません。先に成功回数を減らしてください。");
+    return;
+  }
+
+  s.visits = clampNonNeg(currentVisits - 1);
+
+  const removed = removeLatestPositiveLog(s.id, "visit");
+
+  if (!removed) {
+    addLog(s.id, "visit", -1);
+  }
+
+  recalcStoreLastVisitDateFromLogs(s);
+  forceStoreRenderRefresh();
+
   saveAll();
   render();
 }
