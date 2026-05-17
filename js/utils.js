@@ -523,29 +523,95 @@ function getStaleCardClass(lastVisitDate) {
   return "";
 }
 
+/* =========================
+   訪問履歴の有効化処理
+   visit -1 / success -1 を考慮して
+   直近3回・連続成功なしを正しく出す
+========================= */
+function buildEffectiveVisitEvents(storeId) {
+  const targetId = String(storeId || "");
+
+  const targetLogs = (logs || [])
+    .filter(l => String(l.storeId || "") === targetId)
+    .filter(l => l.date)
+    .map((l, idx) => ({
+      ...l,
+      _idx: idx,
+      date: String(l.date || "").slice(0, 10),
+      type: String(l.type || ""),
+      delta: Number(l.delta || 0)
+    }))
+    .sort((a, b) => {
+      const dateCompare = String(a.date).localeCompare(String(b.date));
+      if (dateCompare !== 0) return dateCompare;
+      return a._idx - b._idx;
+    });
+
+  const visitEvents = [];
+
+  targetLogs.forEach(log => {
+    if (log.type === "visit") {
+      if (log.delta > 0) {
+        for (let i = 0; i < log.delta; i++) {
+          visitEvents.push({
+            date: log.date,
+            success: false
+          });
+        }
+      }
+
+      if (log.delta < 0) {
+        for (let i = 0; i < Math.abs(log.delta); i++) {
+          visitEvents.pop();
+        }
+      }
+    }
+
+    if (log.type === "success") {
+      if (log.delta > 0) {
+        for (let i = 0; i < log.delta; i++) {
+          const sameDayTarget = [...visitEvents]
+            .reverse()
+            .find(v => v.date === log.date && !v.success);
+
+          if (sameDayTarget) {
+            sameDayTarget.success = true;
+          } else {
+            const fallback = [...visitEvents].reverse().find(v => !v.success);
+            if (fallback) fallback.success = true;
+          }
+        }
+      }
+
+      if (log.delta < 0) {
+        for (let i = 0; i < Math.abs(log.delta); i++) {
+          const target = [...visitEvents].reverse().find(v => v.success);
+          if (target) target.success = false;
+        }
+      }
+    }
+  });
+
+  const store = (stores || []).find(s => String(s.id || "") === targetId);
+  const maxVisits = Number(store?.visits || 0);
+
+  if (maxVisits >= 0 && visitEvents.length > maxVisits) {
+    return visitEvents.slice(Math.max(0, visitEvents.length - maxVisits));
+  }
+
+  return visitEvents;
+}
+
 function getRecentStats(storeId) {
-  const visitLogs = logs
-    .filter(l => l.storeId === storeId && l.type === "visit" && l.date)
-    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const events = buildEffectiveVisitEvents(storeId);
+  const recent = events.slice(-3);
 
-  const recentVisitLogs = visitLogs.slice(0, 3);
-  const recentDates = recentVisitLogs.map(l => l.date);
-
-  const recentVisitCount = recentVisitLogs.reduce(
-    (sum, l) => sum + Math.max(1, Number(l.delta || 1)),
-    0
-  );
-
-  const recentSuccess = logs
-    .filter(l =>
-      l.storeId === storeId &&
-      l.type === "success" &&
-      recentDates.includes(l.date) &&
-      Number(l.delta || 0) > 0
-    )
-    .reduce((sum, l) => sum + Number(l.delta || 0), 0);
-
-  const recentRate = recentVisitCount > 0 ? (recentSuccess / recentVisitCount) * 100 : 0;
+  const recentVisitCount = recent.length;
+  const recentSuccess = recent.filter(e => e.success).length;
+  const recentRate =
+    recentVisitCount > 0
+      ? (recentSuccess / recentVisitCount) * 100
+      : 0;
 
   return {
     recentVisitCount,
@@ -555,25 +621,19 @@ function getRecentStats(storeId) {
 }
 
 function getNoSuccessStreak(storeId) {
-  const visitLogs = logs
-    .filter(l => l.storeId === storeId && l.type === "visit" && l.date)
-    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const events = buildEffectiveVisitEvents(storeId);
 
   let streak = 0;
 
-  for (const v of visitLogs) {
-    const hasSuccess = logs.some(l =>
-      l.storeId === storeId &&
-      l.type === "success" &&
-      l.date === v.date &&
-      Number(l.delta || 0) > 0
-    );
-
-    if (hasSuccess) break;
-    streak += Math.max(1, Number(v.delta || 1));
+  for (let i = events.length - 1; i >= 0; i--) {
+    if (events[i].success) break;
+    streak++;
   }
 
-  return streak;
+  const store = (stores || []).find(s => String(s.id || "") === String(storeId || ""));
+  const maxVisits = Number(store?.visits || 0);
+
+  return Math.min(streak, maxVisits);
 }
 
 function getStoreEvaluationLabel(m) {
@@ -595,6 +655,7 @@ function getStoreEvaluationLabel(m) {
 
   return { label: "❌ スキップ推奨", class: "eval-bad" };
 }
+
 function getStoreProfitFromLogs(storeId) {
   return logs
     .filter(l =>
