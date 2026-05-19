@@ -27,9 +27,6 @@ function makeStatBadge({
 }
 
 const BADGE_DEFINITIONS = [
-  // =========================
-  // 累計実績 / 初級（6個）
-  // =========================
   makeStatBadge({
     id: "all_visit_1",
     icon: "👣",
@@ -97,9 +94,6 @@ const BADGE_DEFINITIONS = [
     target: 1
   }),
 
-  // =========================
-  // 累計実績 / 中級（6個）
-  // =========================
   makeStatBadge({
     id: "all_visit_50",
     icon: "👣",
@@ -167,9 +161,6 @@ const BADGE_DEFINITIONS = [
     target: 5
   }),
 
-  // =========================
-  // 累計実績 / 上級（6個）
-  // =========================
   makeStatBadge({
     id: "all_visit_200",
     icon: "👣",
@@ -237,9 +228,6 @@ const BADGE_DEFINITIONS = [
     target: 20
   }),
 
-  // =========================
-  // 月間実績 / 初級（6個）
-  // =========================
   makeStatBadge({
     id: "month_visit_1",
     icon: "📅",
@@ -307,9 +295,6 @@ const BADGE_DEFINITIONS = [
     target: 1
   }),
 
-  // =========================
-  // 月間実績 / 中級（6個）
-  // =========================
   makeStatBadge({
     id: "month_visit_30",
     icon: "📅",
@@ -377,9 +362,6 @@ const BADGE_DEFINITIONS = [
     target: 3
   }),
 
-  // =========================
-  // 月間実績 / 上級（6個）
-  // =========================
   makeStatBadge({
     id: "month_visit_100",
     icon: "📅",
@@ -447,9 +429,6 @@ const BADGE_DEFINITIONS = [
     target: 10
   }),
 
-  // =========================
-  // 年間実績 / 初級（6個）
-  // =========================
   makeStatBadge({
     id: "year_visit_10",
     icon: "🎍",
@@ -517,9 +496,6 @@ const BADGE_DEFINITIONS = [
     target: 3
   }),
 
-  // =========================
-  // 年間実績 / 中級（6個）
-  // =========================
   makeStatBadge({
     id: "year_visit_100",
     icon: "🎍",
@@ -587,9 +563,6 @@ const BADGE_DEFINITIONS = [
     target: 10
   }),
 
-  // =========================
-  // 年間実績 / 上級（6個）
-  // =========================
   makeStatBadge({
     id: "year_visit_500",
     icon: "🎍",
@@ -699,12 +672,15 @@ function getBadgeStores() {
   try {
     if (typeof stores !== "undefined" && Array.isArray(stores)) return stores;
   } catch {}
+
   try {
     if (Array.isArray(window.stores)) return window.stores;
   } catch {}
+
   try {
     if (typeof loadStores === "function") return loadStores();
   } catch {}
+
   return [];
 }
 
@@ -712,12 +688,15 @@ function getBadgeLogs() {
   try {
     if (typeof logs !== "undefined" && Array.isArray(logs)) return logs;
   } catch {}
+
   try {
     if (Array.isArray(window.logs)) return window.logs;
   } catch {}
+
   try {
     if (typeof loadLogs === "function") return loadLogs();
   } catch {}
+
   return [];
 }
 
@@ -725,10 +704,24 @@ function badgeSafeNumber(n) {
   return Number(n || 0);
 }
 
+function isBadgeProfitLog(log) {
+  return (
+    log?.type === "profit" ||
+    log?.type === "profit_adjust"
+  );
+}
+
 function getBadgeMetricsForStore(store) {
   const visits = badgeSafeNumber(store?.visits);
   const success = badgeSafeNumber(store?.buyDays);
-  const profit = badgeSafeNumber(store?.profit);
+
+  let profit = badgeSafeNumber(store?.profit);
+
+  try {
+    if (typeof getStoreProfitFromLogs === "function" && store?.id) {
+      profit = badgeSafeNumber(getStoreProfitFromLogs(store.id));
+    }
+  } catch {}
 
   return {
     visits,
@@ -750,22 +743,29 @@ function getEmptyStorePeriodMetric() {
 
 function ensureStoreMetric(map, storeId) {
   if (!storeId) return null;
+
   if (!map[storeId]) {
     map[storeId] = getEmptyStorePeriodMetric();
   }
+
   return map[storeId];
 }
 
 function calcPeriodStoreCounts(metricMap) {
   const metrics = Object.values(metricMap || {});
+
   const highExpectedStoreCount = metrics.filter(m => {
-    const expected = m.visits > 0 ? m.profit / m.visits : 0;
+    const visits = Math.max(0, badgeSafeNumber(m.visits));
+    const profit = badgeSafeNumber(m.profit);
+    const expected = visits > 0 ? profit / visits : 0;
     return expected >= 3000;
   }).length;
 
   const stableStoreCount = metrics.filter(m => {
-    const rate = m.visits > 0 ? (m.success / m.visits) * 100 : 0;
-    return m.visits > 0 && rate >= 30;
+    const visits = Math.max(0, badgeSafeNumber(m.visits));
+    const success = Math.max(0, badgeSafeNumber(m.success));
+    const rate = visits > 0 ? (success / visits) * 100 : 0;
+    return visits > 0 && rate >= 30;
   }).length;
 
   return {
@@ -806,14 +806,17 @@ function getBadgeStats() {
     const logMonth = dateStr.slice(0, 7);
     const logYear = dateStr.slice(0, 4);
     const storeId = String(log?.storeId || "");
+    const type = String(log?.type || "");
 
-    if (log?.type === "visit") {
+    if (type === "visit") {
       totalVisits += delta;
+
       if (logMonth === currentMonth) {
         monthVisits += delta;
         const m = ensureStoreMetric(monthStoreMetricMap, storeId);
         if (m) m.visits += delta;
       }
+
       if (logYear === currentYear) {
         yearVisits += delta;
         const y = ensureStoreMetric(yearStoreMetricMap, storeId);
@@ -821,13 +824,15 @@ function getBadgeStats() {
       }
     }
 
-    if (log?.type === "success") {
+    if (type === "success") {
       totalSuccess += delta;
+
       if (logMonth === currentMonth) {
         monthSuccess += delta;
         const m = ensureStoreMetric(monthStoreMetricMap, storeId);
         if (m) m.success += delta;
       }
+
       if (logYear === currentYear) {
         yearSuccess += delta;
         const y = ensureStoreMetric(yearStoreMetricMap, storeId);
@@ -835,13 +840,15 @@ function getBadgeStats() {
       }
     }
 
-    if (log?.type === "items") {
+    if (type === "items") {
       totalItems += delta;
+
       if (logMonth === currentMonth) {
         monthItems += delta;
         const m = ensureStoreMetric(monthStoreMetricMap, storeId);
         if (m) m.items += delta;
       }
+
       if (logYear === currentYear) {
         yearItems += delta;
         const y = ensureStoreMetric(yearStoreMetricMap, storeId);
@@ -849,13 +856,15 @@ function getBadgeStats() {
       }
     }
 
-    if (log?.type === "profit") {
+    if (isBadgeProfitLog(log)) {
       totalProfit += delta;
+
       if (logMonth === currentMonth) {
         monthProfit += delta;
         const m = ensureStoreMetric(monthStoreMetricMap, storeId);
         if (m) m.profit += delta;
       }
+
       if (logYear === currentYear) {
         yearProfit += delta;
         const y = ensureStoreMetric(yearStoreMetricMap, storeId);
@@ -968,6 +977,7 @@ function getLockedBadges() {
 
 function getBadgeProgressText(badge, current = 0) {
   if (!badge || !badge.target) return "";
+
   const cur = Math.max(0, badgeSafeNumber(current));
   const remain = Math.max(0, badge.target - cur);
 
@@ -988,6 +998,7 @@ function getNextBadge() {
     .map(badge => {
       const target = Math.max(1, badgeSafeNumber(badge.target));
       const current = Math.max(0, badgeSafeNumber(badge.current));
+
       return {
         ...badge,
         ratio: current / target,
@@ -1006,9 +1017,11 @@ function getNextBadge() {
 function getBadgeHistoryMap() {
   const history = loadBadgeUnlockedHistory();
   const map = {};
+
   history.forEach(item => {
     if (item?.id) map[item.id] = item.unlockedAt || "";
   });
+
   return map;
 }
 
@@ -1075,34 +1088,42 @@ function getBadgeEvolutionState() {
     rank = 2;
     title = "巡回アタッカー";
   }
+
   if (totalUnlocked >= 12) {
     rank = 3;
     title = "仕入れハンター";
   }
+
   if (totalUnlocked >= 20) {
     rank = 4;
     title = "店舗攻略家";
   }
+
   if (totalUnlocked >= 28) {
     rank = 5;
     title = "ルートマスター";
   }
+
   if (advancedUnlocked >= 6) {
     rank = 6;
     title = "戦略の覇者";
   }
+
   if (advancedUnlocked >= 10 && yearUnlocked >= 6) {
     rank = 7;
     title = "伝説の商人";
   }
+
   if (advancedUnlocked >= 14 && intermediateUnlocked >= 12 && monthUnlocked >= 8) {
     rank = 8;
     title = "神域の仕入れ人";
   }
+
   if (advancedUnlocked >= 18 && yearUnlocked >= 12 && totalUnlocked >= 42) {
     rank = 9;
     title = "王冠の支配者";
   }
+
   if (
     advancedUnlocked >= 18 &&
     intermediateUnlocked >= 15 &&
@@ -1249,12 +1270,14 @@ function checkAndCountCompletedRoute() {
 
   localStorage.setItem(dayKey, "1");
   syncUnlockedBadgeHistory();
+
   return true;
 }
 
 function resetRouteBadgeCompletionForTodayIfNeeded() {
   const total = getTodayRouteTotalCount();
   const done = getCompletedTodayRouteCount();
+
   if (total > 0 && done < total) {
     return;
   }
@@ -1343,6 +1366,7 @@ function renderBadgeList() {
   if (!el) return;
 
   let list = [];
+
   try {
     list = getBadgeListViewData();
   } catch (e) {
@@ -1371,6 +1395,7 @@ function syncBadgeAccordionUI() {
   const body = document.getElementById("badgeAccordionBody");
   const header = document.getElementById("badgeAccordionHeader");
   const chevron = document.getElementById("badgeAccordionChevron");
+
   if (!body || !header || !chevron) return;
 
   body.style.display = badgeAccordionOpen ? "block" : "none";
