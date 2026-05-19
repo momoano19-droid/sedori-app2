@@ -659,8 +659,11 @@ function getStoreEvaluationLabel(m) {
 function getStoreProfitFromLogs(storeId) {
   return logs
     .filter(l =>
-      l.storeId === storeId &&
-      l.type === "profit"
+      String(l.storeId || "") === String(storeId || "") &&
+      (
+        l.type === "profit" ||
+        l.type === "profit_adjust"
+      )
     )
     .reduce((sum, l) => sum + Number(l.delta || 0), 0);
 }
