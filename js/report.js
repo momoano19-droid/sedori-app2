@@ -1526,7 +1526,6 @@ function buildBundle(stores, logs, label) {
   let success = 0;
   let items = 0;
 
-  const activeDates = new Set();
   const targetStoreIds = new Set();
 
   const daily = {};
@@ -1535,9 +1534,20 @@ function buildBundle(stores, logs, label) {
   targetLogs.forEach(log => {
     const date = ymd(log.date);
     const storeId = String(log.storeId || "").trim();
+    const type = String(log.type || "");
+    const delta = Number(log.delta || 0);
 
-    if (date) activeDates.add(date);
-    if (storeId) targetStoreIds.add(storeId);
+    const isMainActivityLog = [
+      "profit",
+      "profit_adjust",
+      "visit",
+      "success",
+      "items"
+    ].includes(type);
+
+    if (storeId && isMainActivityLog) {
+      targetStoreIds.add(storeId);
+    }
 
     if (date && !daily[date]) {
       daily[date] = {
@@ -1563,37 +1573,35 @@ function buildBundle(stores, logs, label) {
       };
     }
 
-    const delta = Number(log.delta || 0);
-
-    if (log.type === "profit" || log.type === "profit_adjust") {
+    if (type === "profit" || type === "profit_adjust") {
       profit += delta;
       if (daily[date]) daily[date].profit += delta;
       if (perStore[storeId]) perStore[storeId].profit += delta;
     }
 
-    if (log.type === "visit") {
+    if (type === "visit") {
       visits += delta;
       if (daily[date]) daily[date].visits += delta;
       if (perStore[storeId]) perStore[storeId].visits += delta;
     }
 
-    if (log.type === "success") {
+    if (type === "success") {
       success += delta;
       if (daily[date]) daily[date].success += delta;
       if (perStore[storeId]) perStore[storeId].success += delta;
     }
 
-    if (log.type === "items") {
+    if (type === "items") {
       items += delta;
       if (daily[date]) daily[date].items += delta;
       if (perStore[storeId]) perStore[storeId].items += delta;
     }
 
-    if (daily[date] && storeId) {
+    if (daily[date] && storeId && isMainActivityLog) {
       daily[date].storeIds.add(storeId);
     }
 
-    if (log.type === "category" && log.category) {
+    if (type === "category" && log.category) {
       const cat = String(log.category).trim();
       if (cat) {
         if (daily[date]) {
@@ -1606,6 +1614,35 @@ function buildBundle(stores, logs, label) {
     }
   });
 
+  Object.keys(daily).forEach(date => {
+    const day = daily[date];
+
+    day.profit = Number(day.profit || 0);
+    day.visits = Math.max(0, Number(day.visits || 0));
+    day.success = Math.max(0, Number(day.success || 0));
+    day.items = Math.max(0, Number(day.items || 0));
+
+    Object.keys(day.categories || {}).forEach(cat => {
+      if (Number(day.categories[cat] || 0) <= 0) {
+        delete day.categories[cat];
+      }
+    });
+  });
+
+  const activeDayCount = Object.values(daily).filter(day => {
+    const profit = Number(day.profit || 0);
+    const visits = Number(day.visits || 0);
+    const success = Number(day.success || 0);
+    const items = Number(day.items || 0);
+
+    return (
+      profit !== 0 ||
+      visits > 0 ||
+      success > 0 ||
+      items > 0
+    );
+  }).length;
+
   const categoriesFromLogs = buildCategorySummaryFromLogs(targetLogs);
   const storeCurrentCategories = buildCurrentStoreCategorySummary(stores);
   const mergedCategories =
@@ -1617,17 +1654,17 @@ function buildBundle(stores, logs, label) {
     label,
     registeredStoreCount: stores.length,
     activeStoreCount: targetStoreIds.size,
-    activeDayCount: activeDates.size,
+    activeDayCount,
     profit,
-    visits,
-    success,
-    items,
+    visits: Math.max(0, visits),
+    success: Math.max(0, success),
+    items: Math.max(0, items),
     rate: visits > 0 ? (success / visits) * 100 : 0,
     categories: mergedCategories,
     profitPerStore: safeDivide(profit, targetStoreIds.size),
     profitPerVisit: safeDivide(profit, visits),
     profitPerSuccess: safeDivide(profit, success),
-    profitPerDay: safeDivide(profit, activeDates.size)
+    profitPerDay: safeDivide(profit, activeDayCount)
   };
 
   const topLists = buildTopListsFromStoreStats(Object.values(perStore));
