@@ -1176,7 +1176,17 @@ function openGoogleMapsSearch(query) {
   const text = String(query || "").trim() || "店舗";
   const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}`;
 
-  window.location.href = url;
+  const opened = window.open(url, "_blank");
+
+  if (!opened) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
 }
 
 function openStoreSearchFromForm() {
@@ -1189,12 +1199,7 @@ function openStoreSearchFromForm() {
     .join(" ")
     .trim();
 
-  if (!keyword) {
-    openGoogleMapsSearch("リサイクルショップ");
-    return;
-  }
-
-  openGoogleMapsSearch(keyword);
+  openGoogleMapsSearch(keyword || "リサイクルショップ");
 }
 
 /* 旧ボタン名が残っていても動くようにする保険 */
