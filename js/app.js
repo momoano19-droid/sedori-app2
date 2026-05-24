@@ -1160,7 +1160,7 @@ function formatTimeInputValue(value) {
 
 /* =========================
    APIキーなし：Googleマップ店舗検索補助
-   店舗検索 / マップURL貼付
+   店舗検索 / マップURL貼付 / 住所候補自動入力
 ========================= */
 function getStoreAddSearchAreaText() {
   const pref = document.getElementById("prefName")?.value?.trim() || "";
@@ -1247,7 +1247,80 @@ function hasGoogleMapCoordinateHint(url) {
   );
 }
 
-function pasteGoogleMapUrlToForm() {
+function extractPrefFromAddressText(text) {
+  const value = String(text || "").trim();
+
+  const prefs = [
+    "北海道",
+    "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
+    "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
+    "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県",
+    "岐阜県", "静岡県", "愛知県", "三重県",
+    "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県",
+    "鳥取県", "島根県", "岡山県", "広島県", "山口県",
+    "徳島県", "香川県", "愛媛県", "高知県",
+    "福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県",
+    "沖縄県"
+  ];
+
+  return prefs.find(pref => value.includes(pref)) || "";
+}
+
+function buildJapaneseAddressFromNominatimAddress(addr) {
+  if (!addr || typeof addr !== "object") return "";
+
+  const parts = [
+    addr.province || addr.state || "",
+    addr.city || addr.town || addr.village || addr.county || "",
+    addr.city_district || addr.suburb || addr.quarter || "",
+    addr.neighbourhood || "",
+    addr.road || "",
+    addr.house_number || ""
+  ]
+    .map(x => String(x || "").trim())
+    .filter(Boolean);
+
+  return [...new Set(parts)].join("");
+}
+
+async function reverseGeocodeLatLng(lat, lng) {
+  const safeLat = Number(lat);
+  const safeLng = Number(lng);
+
+  if (!Number.isFinite(safeLat) || !Number.isFinite(safeLng)) {
+    return null;
+  }
+
+  try {
+    const url =
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(safeLat)}&lon=${encodeURIComponent(safeLng)}&zoom=18&addressdetails=1`;
+
+    const res = await fetch(url, {
+      headers: {
+        Accept: "application/json"
+      }
+    });
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const displayName = String(data?.display_name || "").trim();
+    const addressText = buildJapaneseAddressFromNominatimAddress(data?.address) || displayName;
+
+    if (!addressText) return null;
+
+    return {
+      pref: extractPrefFromAddressText(addressText),
+      address: addressText,
+      raw: data
+    };
+  } catch (e) {
+    console.error("reverseGeocodeLatLng error:", e);
+    return null;
+  }
+}
+
+async function pasteGoogleMapUrlToForm() {
   const input = prompt(
     "Googleマップの共有URLを貼り付けてください。\n\nGoogleマップで店舗を開く → 共有 → リンクをコピー",
     ""
@@ -1264,6 +1337,8 @@ function pasteGoogleMapUrlToForm() {
 
   const mapUrlEl = document.getElementById("mapUrl");
   const storeNameEl = document.getElementById("storeName");
+  const prefEl = document.getElementById("prefName");
+  const addressEl = document.getElementById("address");
 
   if (mapUrlEl) {
     mapUrlEl.value = url;
@@ -1279,13 +1354,45 @@ function pasteGoogleMapUrlToForm() {
     storeNameEl.value = extractedName;
   }
 
-  const hasCoord = hasGoogleMapCoordinateHint(url);
+  let coord = null;
 
-  alert(
-    hasCoord
-      ? "GoogleマップURLを入力しました。URL内に座標らしき情報があります。店舗名・住所を確認してから店舗追加してください。"
-      : "GoogleマップURLを入力しました。店舗名・住所を確認してから店舗追加してください。"
-  );
+  try {
+    if (
+      typeof expandShortUrlIfNeeded === "function" &&
+      typeof extractLatLngFromMapUrl === "function"
+    ) {
+      const expanded = await expandShortUrlIfNeeded(url);
+      coord = extractLatLngFromMapUrl(expanded);
+    }
+  } catch (e) {
+    console.error("map url coord extract error:", e);
+  }
+
+  if (!coord && typeof extractLatLngFromMapUrl === "function") {
+    coord = extractLatLngFromMapUrl(url);
+  }
+
+  if (coord) {
+    const result = await reverseGeocodeLatLng(coord.lat, coord.lng);
+
+    if (result) {
+      if (prefEl && !String(prefEl.value || "").trim() && result.pref) {
+        prefEl.value = result.pref;
+      }
+
+      if (addressEl && !String(addressEl.value || "").trim() && result.address) {
+        addressEl.value = result.address;
+      }
+
+      alert("GoogleマップURLを入力し、座標から住所候補を自動入力しました。内容を確認してから店舗追加してください。");
+      return;
+    }
+
+    alert("GoogleマップURLを入力しました。座標は取れましたが、住所の自動取得はできませんでした。住所を確認して入力してください。");
+    return;
+  }
+
+  alert("GoogleマップURLを入力しました。URLから座標を取得できなかったため、住所は自動入力できませんでした。");
 }
 
 function setupTimeInputAutoFormat() {
