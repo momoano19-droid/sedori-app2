@@ -870,7 +870,11 @@ function render() {
   syncTodayRouteAccordionUI();
 
   if (typeof renderBadgesIfExists === "function") {
-    renderBadgesIfExists();
+    try {
+      renderBadgesIfExists();
+    } catch (e) {
+      console.error("renderBadgesIfExists error:", e);
+    }
   }
 
   maybeNotifyClosingSoonStores();
@@ -1154,6 +1158,144 @@ function formatTimeInputValue(value) {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
+/* =========================
+   APIキーなし：Googleマップ検索補助
+   リサイクルショップ検索 / マップURL貼付
+========================= */
+function getStoreAddSearchAreaText() {
+  const pref = document.getElementById("prefName")?.value?.trim() || "";
+  const address = document.getElementById("address")?.value?.trim() || "";
+
+  return [pref, address]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
+
+function openGoogleMapsSearch(query) {
+  const text = String(query || "").trim() || "リサイクルショップ";
+  const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}`;
+  window.open(url, "_blank");
+}
+
+function openRecycleShopSearchFromForm() {
+  const areaText = getStoreAddSearchAreaText();
+
+  if (areaText) {
+    openGoogleMapsSearch(`${areaText} リサイクルショップ`);
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    openGoogleMapsSearch("リサイクルショップ");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      window.lastPos = { lat, lng };
+
+      const url =
+        `https://www.google.com/maps/search/${encodeURIComponent("リサイクルショップ")}/@${lat},${lng},14z`;
+
+      window.open(url, "_blank");
+    },
+    err => {
+      console.error("recycle shop search geolocation error:", err);
+      openGoogleMapsSearch("リサイクルショップ");
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 60000
+    }
+  );
+}
+
+function extractStoreNameFromGoogleMapUrl(url) {
+  const text = String(url || "").trim();
+  if (!text) return "";
+
+  try {
+    const decoded = decodeURIComponent(text);
+
+    const placeMatch = decoded.match(/\/maps\/place\/([^/]+)/);
+    if (placeMatch && placeMatch[1]) {
+      const name = String(placeMatch[1])
+        .replaceAll("+", " ")
+        .trim();
+
+      if (name && name !== "リサイクルショップ") return name;
+    }
+
+    const searchMatch = decoded.match(/\/maps\/search\/([^/@]+)/);
+    if (searchMatch && searchMatch[1]) {
+      const name = String(searchMatch[1])
+        .replaceAll("+", " ")
+        .trim();
+
+      if (name && name !== "リサイクルショップ") return name;
+    }
+  } catch (e) {
+    console.error("extractStoreNameFromGoogleMapUrl error:", e);
+  }
+
+  return "";
+}
+
+function hasGoogleMapCoordinateHint(url) {
+  const text = String(url || "");
+
+  return (
+    /@-?\d+(\.\d+)?,-?\d+(\.\d+)?/.test(text) ||
+    /!3d-?\d+(\.\d+)?!4d-?\d+(\.\d+)?/.test(text)
+  );
+}
+
+function pasteGoogleMapUrlToForm() {
+  const input = prompt(
+    "Googleマップの共有URLを貼り付けてください。\n\nGoogleマップで店舗を開く → 共有 → リンクをコピー",
+    ""
+  );
+
+  if (input === null) return;
+
+  const url = String(input || "").trim();
+
+  if (!url) {
+    alert("URLが入力されていません。");
+    return;
+  }
+
+  const mapUrlEl = document.getElementById("mapUrl");
+  const storeNameEl = document.getElementById("storeName");
+
+  if (mapUrlEl) {
+    mapUrlEl.value = url;
+  }
+
+  const extractedName = extractStoreNameFromGoogleMapUrl(url);
+
+  if (
+    extractedName &&
+    storeNameEl &&
+    !String(storeNameEl.value || "").trim()
+  ) {
+    storeNameEl.value = extractedName;
+  }
+
+  const hasCoord = hasGoogleMapCoordinateHint(url);
+
+  alert(
+    hasCoord
+      ? "GoogleマップURLを入力しました。URL内に座標らしき情報があります。店舗名・住所を確認してから店舗追加してください。"
+      : "GoogleマップURLを入力しました。店舗名・住所を確認してから店舗追加してください。"
+  );
+}
+
 function setupTimeInputAutoFormat() {
   const ids = ["openTime", "closeTime"];
 
@@ -1190,7 +1332,11 @@ window.addEventListener("load", () => {
     render();
 
     if (typeof renderBadgesIfExists === "function") {
-      renderBadgesIfExists();
+      try {
+        renderBadgesIfExists();
+      } catch (e) {
+        console.error("renderBadgesIfExists load error:", e);
+      }
     }
 
     if (typeof autoDetectNearbyStores === "function") {
