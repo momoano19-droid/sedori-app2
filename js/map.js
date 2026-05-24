@@ -1,21 +1,55 @@
 function initMap() {
   if (typeof L === "undefined") return;
+
   const el = document.getElementById("map");
   if (!el) return;
 
-  map = L.map("map").setView([35.681236, 139.767125], 6);
+  if (mapInitialized && map) {
+    setTimeout(() => {
+      try {
+        map.invalidateSize();
+      } catch (e) {
+        console.error("map invalidateSize error:", e);
+      }
+    }, 100);
+    return;
+  }
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: "&copy; OpenStreetMap"
-  }).addTo(map);
+  try {
+    map = L.map("map").setView([35.681236, 139.767125], 6);
 
-  mapInitialized = true;
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap"
+    }).addTo(map);
+
+    mapInitialized = true;
+
+    setTimeout(() => {
+      try {
+        if (map) map.invalidateSize();
+      } catch (e) {
+        console.error("map invalidateSize init error:", e);
+      }
+    }, 150);
+  } catch (e) {
+    console.error("initMap error:", e);
+    mapInitialized = false;
+    map = null;
+  }
 }
 
 function clearMapMarkers() {
   if (!map) return;
-  mapMarkers.forEach(m => map.removeLayer(m));
+
+  mapMarkers.forEach(marker => {
+    try {
+      map.removeLayer(marker);
+    } catch (e) {
+      console.error("remove marker error:", e);
+    }
+  });
+
   mapMarkers = [];
 }
 
@@ -27,6 +61,8 @@ function getMarkerColor(expected) {
 }
 
 function makeMarkerIcon(color) {
+  if (typeof L === "undefined") return null;
+
   return L.divIcon({
     className: "",
     html: `<div style="width:18px;height:18px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25);"></div>`,
@@ -36,10 +72,22 @@ function makeMarkerIcon(color) {
 }
 
 function renderCurrentLocationMarker() {
+  if (typeof L === "undefined") return;
+
+  if (!map && typeof initMap === "function") {
+    try {
+      initMap();
+    } catch (e) {
+      console.error("renderCurrentLocationMarker initMap error:", e);
+    }
+  }
+
   if (!map || !window.lastPos) return;
 
-  const { lat, lng } = window.lastPos;
-  if (typeof lat !== "number" || typeof lng !== "number") return;
+  const lat = Number(window.lastPos.lat);
+  const lng = Number(window.lastPos.lng);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
   const currentLocationIcon = L.divIcon({
     className: "current-location-marker-wrap",
@@ -54,18 +102,27 @@ function renderCurrentLocationMarker() {
     iconAnchor: [15, 15]
   });
 
-  if (currentLocationMarker) {
-    currentLocationMarker.setLatLng([lat, lng]);
-    currentLocationMarker.setIcon(currentLocationIcon);
-    return;
+  try {
+    if (currentLocationMarker) {
+      currentLocationMarker.setLatLng([lat, lng]);
+      currentLocationMarker.setIcon(currentLocationIcon);
+
+      if (!map.hasLayer(currentLocationMarker)) {
+        currentLocationMarker.addTo(map);
+      }
+
+      return;
+    }
+
+    currentLocationMarker = L.marker([lat, lng], {
+      icon: currentLocationIcon,
+      zIndexOffset: 1000
+    }).addTo(map);
+
+    currentLocationMarker.bindPopup("現在地");
+  } catch (e) {
+    console.error("renderCurrentLocationMarker error:", e);
   }
-
-  currentLocationMarker = L.marker([lat, lng], {
-    icon: currentLocationIcon,
-    zIndexOffset: 1000
-  }).addTo(map);
-
-  currentLocationMarker.bindPopup("現在地");
 }
 
 function renderMapMarkersNow() {
@@ -73,6 +130,7 @@ function renderMapMarkersNow() {
 
   const filterValues = getFilterValues();
   const list = buildFilteredStoreList().filter(s => hasCoords(s));
+
   const signature = JSON.stringify({
     ids: list.map(s => s.id),
     nearbyMode,
@@ -103,27 +161,35 @@ function renderMapMarkersNow() {
   const bounds = [];
 
   list.forEach(s => {
+    const icon = makeMarkerIcon(getMarkerColor(s._m.expected));
+    if (!icon) return;
+
     const marker = L.marker([s.lat, s.lng], {
-      icon: makeMarkerIcon(getMarkerColor(s._m.expected))
+      icon
     }).addTo(map);
 
     const navUrl = hasCoords(s)
       ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${s.lat},${s.lng}`)}&travelmode=driving`
-      : (s.address
+      : (
+        s.address
           ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}`
-          : "");
+          : ""
+      );
 
     marker.bindPopup(`
       <div style="min-width:170px; max-width:200px;">
         <div style="font-weight:800; font-size:14px; margin-bottom:4px; line-height:1.35;">
           ${escapeHtml(s.name)}
         </div>
+
         <div style="font-size:11px; color:#6b7280; margin-bottom:6px;">
           ${escapeHtml(s.pref || "未設定")}
         </div>
+
         <div style="font-size:12px; margin-bottom:3px; line-height:1.4;">
           期待値：${Math.round(s._m.expected).toLocaleString()}円
         </div>
+
         <div style="font-size:12px; margin-bottom:8px; line-height:1.4;">
           成功率：${s._m.rate.toFixed(1)}%
         </div>
@@ -185,15 +251,27 @@ function renderMapMarkersNow() {
 
   renderCurrentLocationMarker();
 
-  if (shouldPreserveView && currentCenter && typeof currentZoom === "number") {
-    map.setView(currentCenter, currentZoom);
-  } else if (window.lastPos && bounds.length) {
-    const allBounds = [...bounds, [window.lastPos.lat, window.lastPos.lng]];
-    map.fitBounds(allBounds, { padding: [20, 20] });
-  } else if (bounds.length === 1) {
-    map.setView(bounds[0], 15);
-  } else {
-    map.fitBounds(bounds, { padding: [20, 20] });
+  try {
+    if (shouldPreserveView && currentCenter && typeof currentZoom === "number") {
+      map.setView(currentCenter, currentZoom);
+    } else if (
+      window.lastPos &&
+      Number.isFinite(Number(window.lastPos.lat)) &&
+      Number.isFinite(Number(window.lastPos.lng)) &&
+      bounds.length
+    ) {
+      const allBounds = [
+        ...bounds,
+        [Number(window.lastPos.lat), Number(window.lastPos.lng)]
+      ];
+      map.fitBounds(allBounds, { padding: [20, 20] });
+    } else if (bounds.length === 1) {
+      map.setView(bounds[0], 15);
+    } else if (bounds.length) {
+      map.fitBounds(bounds, { padding: [20, 20] });
+    }
+  } catch (e) {
+    console.error("map bounds error:", e);
   }
 
   preserveMapViewOnNextRender = false;
@@ -201,6 +279,7 @@ function renderMapMarkersNow() {
 
 function scheduleRenderMapMarkers() {
   if (mapRenderRafId) cancelAnimationFrame(mapRenderRafId);
+
   mapRenderRafId = requestAnimationFrame(() => {
     mapRenderRafId = null;
     renderMapMarkersNow();
@@ -208,23 +287,31 @@ function scheduleRenderMapMarkers() {
 }
 
 async function expandShortUrlIfNeeded(url) {
-  try {
-    const text = String(url || "").trim();
-    if (!text) return text;
+  const text = String(url || "").trim();
+  if (!text) return text;
 
-    const lower = text.toLowerCase();
-    if (
-      lower.includes("maps.app.goo.gl") ||
-      lower.includes("goo.gl/maps") ||
-      lower.includes("g.co/kgs")
-    ) {
-      const res = await fetch(text, { redirect: "follow", mode: "cors" });
-      return res.url || text;
+  const lower = text.toLowerCase();
+
+  const isShortGoogleMapUrl =
+    lower.includes("maps.app.goo.gl") ||
+    lower.includes("goo.gl/maps") ||
+    lower.includes("g.co/kgs");
+
+  if (!isShortGoogleMapUrl) return text;
+
+  try {
+    const res = await fetch(text, {
+      redirect: "follow"
+    });
+
+    if (res && res.url) {
+      return res.url;
     }
 
     return text;
-  } catch {
-    return url;
+  } catch (e) {
+    console.warn("短縮URLの展開に失敗しました。元URLのまま処理します:", e);
+    return text;
   }
 }
 
@@ -232,26 +319,34 @@ function extractLatLngFromMapUrl(url) {
   const text = String(url || "").trim();
   if (!text) return null;
 
-  let m = text.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
-  if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+  const decodedCandidates = [text];
 
-  m = text.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
-  if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+  try {
+    decodedCandidates.push(decodeURIComponent(text));
+  } catch {}
 
-  m = text.match(/[?&](?:q|query|destination)=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
-  if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+  for (const candidate of decodedCandidates) {
+    let m = candidate.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
 
-  m = text.match(/[?&]ll=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
-  if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+    m = candidate.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+    if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
 
-  m = text.match(/[?&]sll=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
-  if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+    m = candidate.match(/[?&](?:q|query|destination)=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
 
-  m = text.match(/\/search\/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
-  if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+    m = candidate.match(/[?&]ll=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
 
-  m = text.match(/\/place\/.*?\/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
-  if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+    m = candidate.match(/[?&]sll=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+
+    m = candidate.match(/\/search\/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+
+    m = candidate.match(/\/place\/.*?\/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    if (m) return { lat: Number(m[1]), lng: Number(m[2]) };
+  }
 
   return null;
 }
@@ -265,6 +360,7 @@ async function geocodeAddress(pref, address, name) {
     const res = await fetch(url, {
       headers: { Accept: "application/json" }
     });
+
     if (!res.ok) return null;
 
     const data = await res.json();
@@ -272,10 +368,12 @@ async function geocodeAddress(pref, address, name) {
 
     const lat = Number(data[0].lat);
     const lng = Number(data[0].lon);
-    if (isNaN(lat) || isNaN(lng)) return null;
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
     return { lat, lng };
-  } catch {
+  } catch (e) {
+    console.error("geocodeAddress error:", e);
     return null;
   }
 }
@@ -284,6 +382,7 @@ async function resolveStoreLatLng(pref, address, name, mapUrl, showFailMessage =
   if (mapUrl) {
     const expanded = await expandShortUrlIfNeeded(mapUrl);
     const fromUrl = extractLatLngFromMapUrl(expanded);
+
     if (fromUrl) return fromUrl;
 
     if (showFailMessage) {
