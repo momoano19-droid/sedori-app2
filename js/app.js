@@ -1159,8 +1159,8 @@ function formatTimeInputValue(value) {
 }
 
 /* =========================
-   APIキーなし：Googleマップ検索補助
-   リサイクルショップ検索 / マップURL貼付
+   APIキーなし：Googleマップ店舗検索補助
+   店舗検索 / マップURL貼付
 ========================= */
 function getStoreAddSearchAreaText() {
   const pref = document.getElementById("prefName")?.value?.trim() || "";
@@ -1173,46 +1173,33 @@ function getStoreAddSearchAreaText() {
 }
 
 function openGoogleMapsSearch(query) {
-  const text = String(query || "").trim() || "リサイクルショップ";
+  const text = String(query || "").trim() || "店舗";
   const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}`;
-  window.open(url, "_blank");
+
+  window.location.href = url;
 }
 
-function openRecycleShopSearchFromForm() {
-  const areaText = getStoreAddSearchAreaText();
+function openStoreSearchFromForm() {
+  const pref = document.getElementById("prefName")?.value?.trim() || "";
+  const address = document.getElementById("address")?.value?.trim() || "";
+  const storeName = document.getElementById("storeName")?.value?.trim() || "";
 
-  if (areaText) {
-    openGoogleMapsSearch(`${areaText} リサイクルショップ`);
-    return;
-  }
+  const keyword = [pref, address, storeName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
 
-  if (!navigator.geolocation) {
+  if (!keyword) {
     openGoogleMapsSearch("リサイクルショップ");
     return;
   }
 
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
+  openGoogleMapsSearch(keyword);
+}
 
-      window.lastPos = { lat, lng };
-
-      const url =
-        `https://www.google.com/maps/search/${encodeURIComponent("リサイクルショップ")}/@${lat},${lng},14z`;
-
-      window.open(url, "_blank");
-    },
-    err => {
-      console.error("recycle shop search geolocation error:", err);
-      openGoogleMapsSearch("リサイクルショップ");
-    },
-    {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 60000
-    }
-  );
+/* 旧ボタン名が残っていても動くようにする保険 */
+function openRecycleShopSearchFromForm() {
+  openStoreSearchFromForm();
 }
 
 function extractStoreNameFromGoogleMapUrl(url) {
