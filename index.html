@@ -66,31 +66,44 @@
           <input id="mapUrl" type="text" placeholder="GoogleマップURL（任意）">
         </div>
 
-        <div class="storeHoursGrid mt12">
-  <label class="storeFieldBlock">
-    <span class="storeFieldLabel">🕒 開店時間</span>
-    <input
-      id="openTime"
-      type="text"
-      inputmode="numeric"
-      maxlength="5"
-      placeholder="例：10:00"
-      autocomplete="off"
-    >
-  </label>
+        <div class="row2 mt8">
+          <button type="button" class="ghostBtn" onclick="openRecycleShopSearchFromForm()">
+            🔎 リサイクルショップ検索
+          </button>
+          <button type="button" class="ghostBtn" onclick="pasteGoogleMapUrlToForm()">
+            📋 マップURL貼付
+          </button>
+        </div>
 
-  <label class="storeFieldBlock">
-    <span class="storeFieldLabel">🌙 閉店時間</span>
-    <input
-      id="closeTime"
-      type="text"
-      inputmode="numeric"
-      maxlength="5"
-      placeholder="例：19:00"
-      autocomplete="off"
-    >
-  </label>
-</div>
+        <div class="mini mt8">
+          Googleマップで店舗を開き「共有」→ URLをコピーして貼り付けると、座標取得しやすくなります。
+        </div>
+
+        <div class="storeHoursGrid mt12">
+          <label class="storeFieldBlock">
+            <span class="storeFieldLabel">🕒 開店時間</span>
+            <input
+              id="openTime"
+              type="text"
+              inputmode="numeric"
+              maxlength="5"
+              autocomplete="off"
+              placeholder="例 1000"
+            >
+          </label>
+
+          <label class="storeFieldBlock">
+            <span class="storeFieldLabel">🌙 閉店時間</span>
+            <input
+              id="closeTime"
+              type="text"
+              inputmode="numeric"
+              maxlength="5"
+              autocomplete="off"
+              placeholder="例 1900"
+            >
+          </label>
+        </div>
 
         <div class="storeClosedDaysWrap mt12">
           <div class="mini storeClosedDaysLabel">📅 定休日</div>
