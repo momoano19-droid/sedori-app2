@@ -1236,7 +1236,22 @@ function showNearbyStores() {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
       window.lastPos = { lat, lng };
-      renderCurrentLocationMarker();
+
+      try {
+        if (!map && typeof initMap === "function") {
+          initMap();
+        }
+      } catch (e) {
+        console.error("initMap showNearbyStores error:", e);
+      }
+
+      try {
+        if (typeof renderCurrentLocationMarker === "function") {
+          renderCurrentLocationMarker();
+        }
+      } catch (e) {
+        console.error("renderCurrentLocationMarker showNearbyStores error:", e);
+      }
 
       nearbyStoreIds = new Set();
       const distances = [];
@@ -1263,10 +1278,33 @@ function showNearbyStores() {
       noCoordsOnlyMode = false;
       lastListRenderSignature = "";
       lastMapRenderSignature = "";
-      render();
+
+      try {
+        render();
+      } catch (e) {
+        console.error("showNearbyStores render error:", e);
+      }
     },
-    () => alert("現在地を取得できませんでした。"),
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    err => {
+      console.error("showNearbyStores geolocation error:", err);
+
+      let msg = "現在地を取得できませんでした。";
+
+      if (err.code === 1) {
+        msg = "位置情報の許可がオフになっています。iPhoneの設定から位置情報を許可してください。";
+      } else if (err.code === 2) {
+        msg = "現在地を特定できませんでした。屋外や電波の良い場所で再度お試しください。";
+      } else if (err.code === 3) {
+        msg = "位置情報の取得がタイムアウトしました。もう一度お試しください。";
+      }
+
+      alert(msg);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 60000
+    }
   );
 }
 
@@ -1280,21 +1318,45 @@ function autoDetectNearbyStores() {
         lng: pos.coords.longitude
       };
 
-      renderCurrentLocationMarker();
+      try {
+        if (!map && typeof initMap === "function") {
+          initMap();
+        }
+      } catch (e) {
+        console.error("initMap autoDetectNearbyStores error:", e);
+      }
+
+      try {
+        if (typeof renderCurrentLocationMarker === "function") {
+          renderCurrentLocationMarker();
+        }
+      } catch (e) {
+        console.error("renderCurrentLocationMarker autoDetectNearbyStores error:", e);
+      }
 
       lastListRenderSignature = "";
       lastMapRenderSignature = "";
 
       const sortType = document.getElementById("sortType")?.value || "expected";
 
-      if (sortType === "route" || nearbyMode) {
-        render();
-      } else {
-        scheduleRenderMapMarkers();
+      try {
+        if (sortType === "route" || nearbyMode) {
+          render();
+        } else if (typeof scheduleRenderMapMarkers === "function") {
+          scheduleRenderMapMarkers();
+        }
+      } catch (e) {
+        console.error("autoDetectNearbyStores render error:", e);
       }
     },
-    () => {},
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    err => {
+      console.error("autoDetectNearbyStores geolocation error:", err);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 60000
+    }
   );
 }
 
@@ -1311,30 +1373,63 @@ function moveToCurrentLocation() {
 
       window.lastPos = { lat, lng };
 
-      if (map) {
-        map.setView([lat, lng], 15);
+      try {
+        if (!map && typeof initMap === "function") {
+          initMap();
+        }
+      } catch (e) {
+        console.error("initMap moveToCurrentLocation error:", e);
       }
 
-      renderCurrentLocationMarker();
+      try {
+        if (map) {
+          map.setView([lat, lng], 15);
+        }
+      } catch (e) {
+        console.error("map setView error:", e);
+      }
+
+      try {
+        if (typeof renderCurrentLocationMarker === "function") {
+          renderCurrentLocationMarker();
+        }
+      } catch (e) {
+        console.error("renderCurrentLocationMarker moveToCurrentLocation error:", e);
+      }
 
       lastListRenderSignature = "";
       lastMapRenderSignature = "";
       preserveMapViewOnNextRender = true;
 
-      render();
+      try {
+        render();
+      } catch (e) {
+        console.error("moveToCurrentLocation render error:", e);
+      }
 
       setTimeout(() => {
         preserveMapViewOnNextRender = false;
       }, 300);
     },
     err => {
-      console.error(err);
-      alert("現在地を取得できませんでした。位置情報の許可を確認してください。");
+      console.error("moveToCurrentLocation geolocation error:", err);
+
+      let msg = "現在地を取得できませんでした。";
+
+      if (err.code === 1) {
+        msg = "位置情報の許可がオフになっています。iPhoneの設定から位置情報を許可してください。";
+      } else if (err.code === 2) {
+        msg = "現在地を特定できませんでした。屋外や電波の良い場所で再度お試しください。";
+      } else if (err.code === 3) {
+        msg = "位置情報の取得がタイムアウトしました。もう一度お試しください。";
+      }
+
+      alert(msg);
     },
     {
       enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0
+      timeout: 20000,
+      maximumAge: 60000
     }
   );
 }
