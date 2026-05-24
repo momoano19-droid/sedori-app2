@@ -1355,44 +1355,72 @@ async function pasteGoogleMapUrlToForm() {
   }
 
   let coord = null;
+  let expandedUrl = url;
 
   try {
-    if (
-      typeof expandShortUrlIfNeeded === "function" &&
-      typeof extractLatLngFromMapUrl === "function"
-    ) {
-      const expanded = await expandShortUrlIfNeeded(url);
-      coord = extractLatLngFromMapUrl(expanded);
+    if (typeof expandShortUrlIfNeeded === "function") {
+      expandedUrl = await expandShortUrlIfNeeded(url);
     }
   } catch (e) {
-    console.error("map url coord extract error:", e);
+    console.error("expandShortUrlIfNeeded error:", e);
+    expandedUrl = url;
   }
 
-  if (!coord && typeof extractLatLngFromMapUrl === "function") {
-    coord = extractLatLngFromMapUrl(url);
-  }
-
-  if (coord) {
-    const result = await reverseGeocodeLatLng(coord.lat, coord.lng);
-
-    if (result) {
-      if (prefEl && !String(prefEl.value || "").trim() && result.pref) {
-        prefEl.value = result.pref;
-      }
-
-      if (addressEl && !String(addressEl.value || "").trim() && result.address) {
-        addressEl.value = result.address;
-      }
-
-      alert("GoogleマップURLを入力し、座標から住所候補を自動入力しました。内容を確認してから店舗追加してください。");
-      return;
+  try {
+    if (typeof extractLatLngFromMapUrl === "function") {
+      coord = extractLatLngFromMapUrl(expandedUrl) || extractLatLngFromMapUrl(url);
     }
+  } catch (e) {
+    console.error("extractLatLngFromMapUrl error:", e);
+  }
 
-    alert("GoogleマップURLを入力しました。座標は取れましたが、住所の自動取得はできませんでした。住所を確認して入力してください。");
+  if (!coord) {
+    alert(
+      "GoogleマップURLを入力しました。\n\nただし、このURLから座標を取得できませんでした。\nURL内に @緯度,経度 または !3d緯度!4d経度 が含まれているか確認してください。"
+    );
     return;
   }
 
-  alert("GoogleマップURLを入力しました。URLから座標を取得できなかったため、住所は自動入力できませんでした。");
+  const result = await reverseGeocodeLatLng(coord.lat, coord.lng);
+
+  if (!result || !result.address) {
+    alert(
+      `GoogleマップURLを入力しました。\n\n座標は取得できました。\n緯度: ${coord.lat}\n経度: ${coord.lng}\n\nただし、住所の自動取得に失敗しました。`
+    );
+    return;
+  }
+
+  const nextPref = result.pref || extractPrefFromAddressText(result.address);
+  const nextAddress = result.address;
+
+  const currentPref = prefEl ? String(prefEl.value || "").trim() : "";
+  const currentAddress = addressEl ? String(addressEl.value || "").trim() : "";
+
+  if (prefEl && nextPref) {
+    if (!currentPref) {
+      prefEl.value = nextPref;
+    } else if (currentPref !== nextPref) {
+      const ok = confirm(
+        `都道府県を自動取得しました。\n\n現在: ${currentPref}\n取得: ${nextPref}\n\n取得した都道府県で上書きしますか？`
+      );
+      if (ok) prefEl.value = nextPref;
+    }
+  }
+
+  if (addressEl && nextAddress) {
+    if (!currentAddress) {
+      addressEl.value = nextAddress;
+    } else if (currentAddress !== nextAddress) {
+      const ok = confirm(
+        `住所候補を自動取得しました。\n\n現在:\n${currentAddress}\n\n取得:\n${nextAddress}\n\n取得した住所で上書きしますか？`
+      );
+      if (ok) addressEl.value = nextAddress;
+    }
+  }
+
+  alert(
+    `GoogleマップURLを入力しました。\n\n座標と住所候補を取得しました。\n\n緯度: ${coord.lat}\n経度: ${coord.lng}\n\n住所:\n${nextAddress}\n\n内容を確認してから店舗追加してください。`
+  );
 }
 
 function setupTimeInputAutoFormat() {
