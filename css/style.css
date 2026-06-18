@@ -5167,3 +5167,423 @@ button {
     border-radius: 22px !important;
   }
 }
+/* =========================================================
+   保存ルート：巡回実績・複数ルート合算
+   ========================================================= */
+
+#savedRoutesList,
+#savedRoutesList *{
+  box-sizing:border-box;
+}
+
+.savedRouteSelectedBadge{
+  display:inline-flex;
+  align-items:center;
+  min-height:26px;
+  padding:0 10px;
+  border-radius:999px;
+  background:#dff7e8;
+  color:#129b52;
+  border:1px solid #b9e8cb;
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+.routeCombinedSummary{
+  margin:0 0 14px;
+  padding:15px;
+  border:2px solid #bfd5ff;
+  border-radius:20px;
+  background:linear-gradient(135deg,#eef5ff 0%,#f8fbff 55%,#ffffff 100%);
+  box-shadow:0 10px 24px rgba(57,118,246,.10);
+  overflow:hidden;
+}
+
+.routeCombinedHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.routeCombinedHeader > div{
+  min-width:0;
+}
+
+.routeCombinedTitle{
+  color:#1f2340;
+  font-size:18px;
+  font-weight:900;
+  line-height:1.35;
+  word-break:break-word;
+}
+
+.routeCombinedSub{
+  margin-top:4px;
+  color:#64748b;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.5;
+}
+
+.routeCombinedClearBtn{
+  flex:0 0 auto;
+  min-height:40px;
+  padding:0 13px;
+  border-radius:14px;
+  font-size:13px;
+}
+
+.routeRunSummaryCard{
+  width:100%;
+  min-width:0;
+  margin:12px 0;
+  padding:14px;
+  border:1px solid #dbe5f0;
+  border-radius:18px;
+  background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);
+  box-shadow:0 5px 16px rgba(15,23,42,.045);
+  overflow:hidden;
+}
+
+.routeRunSummaryTitle{
+  margin:0 0 11px;
+  color:#1f2340;
+  font-size:15px;
+  font-weight:900;
+  line-height:1.4;
+}
+
+.routeRunMetricGrid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:9px;
+  width:100%;
+}
+
+.routeRunMetric{
+  min-width:0;
+  padding:11px 10px;
+  border:1px solid #e5eaf2;
+  border-radius:14px;
+  background:#ffffff;
+  text-align:center;
+  overflow:hidden;
+}
+
+.routeRunMetricLabel{
+  color:#6b7280;
+  font-size:11px;
+  font-weight:800;
+  line-height:1.35;
+  word-break:break-word;
+}
+
+.routeRunMetricValue{
+  margin-top:6px;
+  color:#1f2340;
+  font-size:16px;
+  font-weight:900;
+  line-height:1.25;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+
+.routeRunMetric:nth-child(2) .routeRunMetricValue,
+.routeRunMetric:nth-child(3) .routeRunMetricValue,
+.routeRunMetric:nth-child(8) .routeRunMetricValue{
+  color:#e4580b;
+}
+
+.routeRunMainActions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+  margin:12px 0 15px;
+}
+
+.routeRunMainActions button{
+  width:100%;
+  min-width:0;
+  min-height:48px;
+  padding:8px 10px;
+  border-radius:16px;
+  font-size:14px;
+  font-weight:900;
+  white-space:normal;
+  line-height:1.35;
+}
+
+.routeRunHistoryTitle{
+  margin:16px 0 9px;
+  padding-top:3px;
+  color:#1f2340;
+  font-size:15px;
+  font-weight:900;
+  line-height:1.4;
+}
+
+.routeRunHistoryList{
+  display:flex;
+  flex-direction:column;
+  gap:9px;
+  width:100%;
+  margin-bottom:14px;
+}
+
+.routeRunHistoryItem{
+  min-width:0;
+  padding:12px;
+  border:1px solid #dfe6ef;
+  border-radius:16px;
+  background:#ffffff;
+  box-shadow:0 3px 11px rgba(15,23,42,.04);
+}
+
+.routeRunHistoryTop{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  align-items:start;
+}
+
+.routeRunHistoryTop > div:first-child{
+  min-width:0;
+}
+
+.routeRunHistoryDate{
+  color:#1f2340;
+  font-size:15px;
+  font-weight:900;
+  line-height:1.35;
+}
+
+.routeRunHistoryMeta{
+  margin-top:4px;
+  color:#475569;
+  font-size:13px;
+  font-weight:800;
+  line-height:1.5;
+  overflow-wrap:anywhere;
+}
+
+.routeRunHistoryVisit{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:30px;
+  padding:0 10px;
+  border-radius:999px;
+  background:#e7f0ff;
+  color:#2563eb;
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+.routeRunHistorySub{
+  margin-top:8px;
+  color:#64748b;
+  font-size:12px;
+  font-weight:700;
+  line-height:1.65;
+  overflow-wrap:anywhere;
+}
+
+.routeRunHistoryActions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:10px;
+}
+
+.routeRunHistoryActions button{
+  width:100%;
+  min-width:0;
+  min-height:40px;
+  padding:0 10px;
+  border-radius:13px;
+  font-size:13px;
+  font-weight:900;
+}
+
+.routeRunHistoryEmpty{
+  margin-bottom:14px;
+  padding:13px 14px;
+  border:1px dashed #cfd8e6;
+  border-radius:15px;
+  background:#f8fafc;
+  color:#64748b;
+  font-size:13px;
+  font-weight:700;
+  line-height:1.7;
+}
+
+.routeRunStoreList{
+  margin-top:14px;
+  padding-top:13px;
+  border-top:1px solid #e9edf5;
+}
+
+.savedRouteAccordion.open{
+  border-color:#cfdcff;
+  box-shadow:0 8px 22px rgba(57,118,246,.08);
+}
+
+.savedRouteAccordion.open .savedRouteDetail{
+  background:linear-gradient(180deg,#fcfdff 0%,#f8fbff 100%);
+}
+
+.savedRouteAccordion.open .savedRouteSummary{
+  background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%);
+}
+
+.savedRouteSummary,
+.savedRouteDetail,
+.routeCombinedSummary,
+.routeRunSummaryCard,
+.routeRunHistoryItem{
+  max-width:100%;
+}
+
+.savedRouteTitle,
+.savedRouteMeta,
+.savedRouteCount,
+.savedRouteStoreLine{
+  overflow-wrap:anywhere;
+}
+
+@media (max-width:760px){
+  .routeRunMetricGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .routeRunMetricValue{
+    font-size:15px;
+  }
+}
+
+@media (max-width:640px){
+  .routeCombinedSummary{
+    padding:13px;
+    border-radius:18px;
+  }
+
+  .routeCombinedHeader{
+    align-items:flex-start;
+  }
+
+  .routeCombinedTitle{
+    font-size:17px;
+  }
+
+  .routeCombinedClearBtn{
+    min-height:38px;
+    padding:0 11px;
+    font-size:12px;
+  }
+
+  .routeRunSummaryCard{
+    padding:12px;
+    border-radius:16px;
+  }
+
+  .routeRunSummaryTitle{
+    font-size:14px;
+  }
+
+  .routeRunMetricGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+
+  .routeRunMetric{
+    padding:10px 7px;
+    border-radius:13px;
+  }
+
+  .routeRunMetricLabel{
+    font-size:10px;
+  }
+
+  .routeRunMetricValue{
+    margin-top:5px;
+    font-size:14px;
+  }
+
+  .routeRunMainActions{
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+
+  .routeRunMainActions button{
+    min-height:46px;
+    padding:7px 8px;
+    border-radius:14px;
+    font-size:13px;
+  }
+
+  .routeRunHistoryTitle{
+    font-size:14px;
+  }
+
+  .routeRunHistoryItem{
+    padding:11px;
+    border-radius:15px;
+  }
+
+  .routeRunHistoryDate{
+    font-size:14px;
+  }
+
+  .routeRunHistoryMeta{
+    font-size:12px;
+  }
+
+  .routeRunHistoryVisit{
+    min-height:28px;
+    padding:0 9px;
+    font-size:11px;
+  }
+
+  .routeRunHistorySub{
+    font-size:11px;
+  }
+
+  .routeRunHistoryActions button{
+    min-height:39px;
+    font-size:12px;
+  }
+
+  .savedRouteSelectedBadge{
+    min-height:24px;
+    padding:0 9px;
+    font-size:11px;
+  }
+}
+
+@media (max-width:390px){
+  .routeCombinedHeader{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:8px;
+  }
+
+  .routeCombinedClearBtn{
+    padding:0 9px;
+  }
+
+  .routeRunMainActions{
+    grid-template-columns:1fr;
+  }
+
+  .routeRunHistoryTop{
+    grid-template-columns:minmax(0,1fr);
+  }
+
+  .routeRunHistoryVisit{
+    justify-self:start;
+  }
+}
