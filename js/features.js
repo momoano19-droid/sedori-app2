@@ -1,3 +1,345 @@
+/* =========================
+   保存ルート巡回実績
+========================= */
+
+const SELECTED_ROUTE_RUN_IDS_KEY = "selected_route_run_ids";
+
+function loadSelectedRouteRunIds() {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(SELECTED_ROUTE_RUN_IDS_KEY) || "[]"
+    );
+
+    return new Set(
+      Array.isArray(parsed)
+        ? parsed.map(x => String(x || "")).filter(Boolean)
+        : []
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+let selectedRouteRunIds = loadSelectedRouteRunIds();
+
+function saveSelectedRouteRunIds() {
+  try {
+    localStorage.setItem(
+      SELECTED_ROUTE_RUN_IDS_KEY,
+      JSON.stringify([...selectedRouteRunIds])
+    );
+  } catch (e) {
+    console.error("saveSelectedRouteRunIds error:", e);
+  }
+}
+
+function isSavedRouteSelectedForSummary(routeId) {
+  return selectedRouteRunIds.has(String(routeId || ""));
+}
+
+function toggleSavedRouteSummarySelection(routeId) {
+  const id = String(routeId || "");
+  if (!id) return;
+
+  if (selectedRouteRunIds.has(id)) {
+    selectedRouteRunIds.delete(id);
+  } else {
+    selectedRouteRunIds.add(id);
+  }
+
+  saveSelectedRouteRunIds();
+  forceStoreRenderRefresh();
+  render();
+}
+
+function clearSavedRouteSummarySelection() {
+  selectedRouteRunIds.clear();
+  saveSelectedRouteRunIds();
+  forceStoreRenderRefresh();
+  render();
+}
+
+function normalizeRouteRunDate(value) {
+  const text = String(value || "").trim().slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
+}
+
+function getRouteRunHistoryForRoute(routeId) {
+  const id = String(routeId || "");
+
+  return routeRunHistory
+    .filter(item => String(item.routeId || "") === id)
+    .sort((a, b) => {
+      const dateDiff = String(b.date || "").localeCompare(String(a.date || ""));
+      if (dateDiff !== 0) return dateDiff;
+
+      return String(b.updatedAt || b.createdAt || "")
+        .localeCompare(String(a.updatedAt || a.createdAt || ""));
+    });
+}
+
+function getRouteRunHistoryItem(historyId) {
+  const id = String(historyId || "");
+  return routeRunHistory.find(item => String(item.id || "") === id) || null;
+}
+
+function calcSavedRouteRunSnapshot(route, dayStr) {
+  if (!route) return null;
+
+  const date = normalizeRouteRunDate(dayStr);
+  if (!date) return null;
+
+  const routeStoreIds = Array.isArray(route.storeIds)
+    ? route.storeIds.map(x => String(x || "")).filter(Boolean)
+    : [];
+
+  const routeStoreIdSet = new Set(routeStoreIds);
+  const perStore = {};
+
+  logs.forEach(log => {
+    const logDate = String(log.date || "").slice(0, 10);
+    const storeId = String(log.storeId || "");
+
+    if (logDate !== date || !routeStoreIdSet.has(storeId)) return;
+
+    if (!perStore[storeId]) {
+      perStore[storeId] = {
+        storeId,
+        profit: 0,
+        items: 0,
+        visits: 0,
+        success: 0
+      };
+    }
+
+    const delta = Number(log.delta || 0);
+    const type = String(log.type || "");
+
+    if (type === "profit" || type === "profit_adjust") {
+      perStore[storeId].profit += delta;
+    } else if (type === "items") {
+      perStore[storeId].items += delta;
+    } else if (type === "visit") {
+      perStore[storeId].visits += delta;
+    } else if (type === "success") {
+      perStore[storeId].success += delta;
+    }
+  });
+
+  const rows = Object.values(perStore);
+
+  const profit = rows.reduce((sum, row) => sum + Number(row.profit || 0), 0);
+  const items = rows.reduce((sum, row) => sum + Number(row.items || 0), 0);
+  const visitCount = rows.reduce((sum, row) => sum + Number(row.visits || 0), 0);
+  const successCount = rows.reduce((sum, row) => sum + Number(row.success || 0), 0);
+
+  const visitedStoreIds = rows
+    .filter(row => Number(row.visits || 0) > 0)
+    .map(row => row.storeId);
+
+  const successStoreIds = rows
+    .filter(row => Number(row.success || 0) > 0)
+    .map(row => row.storeId);
+
+  const activeStoreIds = rows
+    .filter(row =>
+      Number(row.profit || 0) !== 0 ||
+      Number(row.items || 0) !== 0 ||
+      Number(row.visits || 0) !== 0 ||
+      Number(row.success || 0) !== 0
+    )
+    .map(row => row.storeId);
+
+  return {
+    date,
+    routeId: String(route.id || ""),
+    routeName: String(route.name || "保存ルート"),
+    profit: Number(profit || 0),
+    items: Math.max(0, Number(items || 0)),
+    visitCount: Math.max(0, Number(visitCount || 0)),
+    successCount: Math.max(0, Number(successCount || 0)),
+    visitedStoreCount: visitedStoreIds.length,
+    successStoreCount: successStoreIds.length,
+    storeIds: routeStoreIds,
+    visitedStoreIds,
+    successStoreIds,
+    activeStoreIds
+  };
+}
+
+function formatSavedRouteRunConfirmText(route, snapshot) {
+  return [
+    `${snapshot.date} の巡回実績を記録します。`,
+    "",
+    `ルート：${route.name || "保存ルート"}`,
+    `ルート登録店舗：${snapshot.storeIds.length}件`,
+    `記録がある店舗：${snapshot.activeStoreIds.length}件`,
+    "",
+    `利益：${Number(snapshot.profit || 0).toLocaleString()}円`,
+    `仕入れ個数：${Number(snapshot.items || 0).toLocaleString()}個`,
+    `訪問店舗数：${snapshot.visitedStoreCount}件`,
+    `訪問記録：${snapshot.visitCount}回`,
+    `成功店舗数：${snapshot.successStoreCount}件`,
+    `成功記録：${snapshot.successCount}回`,
+    "",
+    "この内容で保存しますか？"
+  ].join("\n");
+}
+
+function recordSavedRouteRun(routeId) {
+  const route = savedRoutes.find(
+    item => String(item.id || "") === String(routeId || "")
+  );
+
+  if (!route) {
+    alert("保存ルートが見つかりません。");
+    return;
+  }
+
+  const input = prompt(
+    "巡回した日付を入力してください。\n例：2026-06-18",
+    tokyoDateStr()
+  );
+
+  if (input === null) return;
+
+  const date = normalizeRouteRunDate(input);
+  if (!date) {
+    alert("日付は YYYY-MM-DD の形式で入力してください。");
+    return;
+  }
+
+  const snapshot = calcSavedRouteRunSnapshot(route, date);
+  if (!snapshot) {
+    alert("巡回実績を集計できませんでした。");
+    return;
+  }
+
+  if (!snapshot.activeStoreIds.length) {
+    if (!confirm(
+      `${date} は、このルート内店舗の記録がありません。\n\n利益0円・個数0個として巡回履歴を保存しますか？`
+    )) return;
+  } else if (!confirm(formatSavedRouteRunConfirmText(route, snapshot))) {
+    return;
+  }
+
+  const existing = routeRunHistory.find(item =>
+    String(item.routeId || "") === String(route.id || "") &&
+    String(item.date || "") === date
+  );
+
+  const nowIso = new Date().toISOString();
+
+  if (existing) {
+    if (!confirm(
+      `${date} の「${route.name}」はすでに記録されています。\n\nカレンダーの現在の内容で上書きしますか？`
+    )) return;
+
+    Object.assign(
+      existing,
+      normalizeRouteRunHistoryItem({
+        ...existing,
+        ...snapshot,
+        id: existing.id,
+        createdAt: existing.createdAt,
+        updatedAt: nowIso
+      })
+    );
+  } else {
+    routeRunHistory.push(
+      normalizeRouteRunHistoryItem({
+        id: ensureId(),
+        ...snapshot,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      })
+    );
+  }
+
+  openSavedRouteId = route.id;
+  saveAll();
+  forceStoreRenderRefresh();
+  render();
+  alert("巡回実績を保存しました。");
+}
+
+function recalculateSavedRouteRun(historyId) {
+  const history = getRouteRunHistoryItem(historyId);
+
+  if (!history) {
+    alert("巡回履歴が見つかりません。");
+    return;
+  }
+
+  const route = savedRoutes.find(
+    item => String(item.id || "") === String(history.routeId || "")
+  );
+
+  if (!route) {
+    alert("この履歴に対応する保存ルートが見つかりません。");
+    return;
+  }
+
+  const snapshot = calcSavedRouteRunSnapshot(route, history.date);
+  if (!snapshot) {
+    alert("再集計できませんでした。");
+    return;
+  }
+
+  if (!confirm([
+    `${history.date} の巡回実績を再集計します。`,
+    "",
+    `現在の利益：${Number(history.profit || 0).toLocaleString()}円`,
+    `再集計後：${Number(snapshot.profit || 0).toLocaleString()}円`,
+    "",
+    `現在の個数：${Number(history.items || 0).toLocaleString()}個`,
+    `再集計後：${Number(snapshot.items || 0).toLocaleString()}個`,
+    "",
+    "カレンダーの最新記録で上書きしますか？"
+  ].join("\n"))) return;
+
+  Object.assign(
+    history,
+    normalizeRouteRunHistoryItem({
+      ...history,
+      ...snapshot,
+      id: history.id,
+      createdAt: history.createdAt,
+      updatedAt: new Date().toISOString()
+    })
+  );
+
+  openSavedRouteId = route.id;
+  saveAll();
+  forceStoreRenderRefresh();
+  render();
+  alert("巡回実績を再集計しました。");
+}
+
+function deleteSavedRouteRun(historyId) {
+  const history = getRouteRunHistoryItem(historyId);
+  if (!history) return;
+
+  if (!confirm([
+    `${history.date} の巡回履歴を削除しますか？`,
+    "",
+    `ルート：${history.routeName || "保存ルート"}`,
+    `利益：${Number(history.profit || 0).toLocaleString()}円`,
+    `個数：${Number(history.items || 0).toLocaleString()}個`,
+    "",
+    "店舗の訪問・利益ログ自体は削除されません。"
+  ].join("\n"))) return;
+
+  routeRunHistory = routeRunHistory.filter(
+    item => String(item.id || "") !== String(historyId || "")
+  );
+
+  saveAll();
+  forceStoreRenderRefresh();
+  render();
+  alert("巡回履歴を削除しました。");
+}
+
 function toggleBackupAccordion(forceOpen = null) {
   const body = document.getElementById("backupAccordionBody");
   const header = document.getElementById("backupAccordionHeader");
@@ -16,12 +358,13 @@ function toggleBackupAccordion(forceOpen = null) {
 
 function exportBackup() {
   const data = {
-    version: 3,
+    version: 4,
     exportedAt: new Date().toISOString(),
     stores,
     logs,
     savedRoutes,
-    todayRouteOrder
+    todayRouteOrder,
+    routeRunHistory
   };
 
   const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -63,6 +406,10 @@ function importBackup(event) {
         ? normalizeTodayRouteOrder(parsed.todayRouteOrder)
         : [];
 
+      routeRunHistory = Array.isArray(parsed.routeRunHistory)
+        ? normalizeRouteRunHistory(parsed.routeRunHistory)
+        : [];
+
       syncStoreProfitsFromLogs();
 
       nearbyMode = false;
@@ -71,6 +418,8 @@ function importBackup(event) {
       clearSplitRouteCache();
       openSavedRouteId = null;
       todayRouteVisitedIds = [];
+      selectedRouteRunIds = new Set();
+      saveSelectedRouteRunIds();
 
       syncTodayRouteOrder();
       saveTodayRouteVisitedIds();
@@ -106,6 +455,10 @@ function restoreAutoBackup() {
     ? normalizeTodayRouteOrder(data.todayRouteOrder)
     : [];
 
+  routeRunHistory = Array.isArray(data.routeRunHistory)
+    ? normalizeRouteRunHistory(data.routeRunHistory)
+    : [];
+
   syncStoreProfitsFromLogs();
 
   nearbyMode = false;
@@ -114,6 +467,8 @@ function restoreAutoBackup() {
   clearSplitRouteCache();
   openSavedRouteId = null;
   todayRouteVisitedIds = [];
+  selectedRouteRunIds = new Set();
+  saveSelectedRouteRunIds();
 
   syncTodayRouteOrder();
   saveTodayRouteVisitedIds();
@@ -129,9 +484,13 @@ function showAutoBackupInfo() {
     return;
   }
 
-  alert(
-    `保存日時: ${data.savedAt || "不明"}\n店舗数: ${data.stores.length}件\nログ数: ${data.logs.length}件\n保存ルート数: ${data.savedRoutes.length}件`
-  );
+  alert([
+    `保存日時: ${data.savedAt || "不明"}`,
+    `店舗数: ${data.stores.length}件`,
+    `ログ数: ${data.logs.length}件`,
+    `保存ルート数: ${data.savedRoutes.length}件`,
+    `巡回履歴数: ${data.routeRunHistory.length}件`
+  ].join("\n"));
 }
 
 function syncTodayRouteOrder() {
@@ -529,15 +888,44 @@ function editSavedRoute(routeId) {
 }
 
 function deleteSavedRoute(routeId) {
-  const route = savedRoutes.find(r => r.id === routeId);
-  if (!route) return;
-  if (!confirm(`「${route.name}」を削除しますか？`)) return;
+  const route = savedRoutes.find(
+    r => String(r.id || "") === String(routeId || "")
+  );
 
-  savedRoutes = savedRoutes.filter(r => r.id !== routeId);
+  if (!route) return;
+
+  const relatedHistory = routeRunHistory.filter(
+    item => String(item.routeId || "") === String(routeId || "")
+  );
+
+  const message = relatedHistory.length
+    ? [
+        `「${route.name}」を削除しますか？`,
+        "",
+        `このルートには巡回履歴が ${relatedHistory.length}件あります。`,
+        "ルートを削除すると、関連する巡回履歴も削除されます。"
+      ].join("\n")
+    : `「${route.name}」を削除しますか？`;
+
+  if (!confirm(message)) return;
+
+  savedRoutes = savedRoutes.filter(
+    r => String(r.id || "") !== String(routeId || "")
+  );
+
+  routeRunHistory = routeRunHistory.filter(
+    item => String(item.routeId || "") !== String(routeId || "")
+  );
+
+  selectedRouteRunIds.delete(String(routeId || ""));
+  saveSelectedRouteRunIds();
+
   if (openSavedRouteId === routeId) {
     openSavedRouteId = null;
   }
+
   saveAll();
+  forceStoreRenderRefresh();
   render();
 }
 
