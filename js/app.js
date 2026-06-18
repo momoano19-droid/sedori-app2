@@ -2,6 +2,7 @@ let stores = loadStores();
 let logs = loadLogs();
 let savedRoutes = loadSavedRoutes();
 let todayRouteOrder = loadTodayRouteOrder();
+let routeRunHistory = loadRouteRunHistory();
 
 let nearbyMode = false;
 let nearbyStoreIds = new Set();
@@ -130,14 +131,14 @@ function formatStoreHours(store) {
   const openTime = String(store?.openTime || "").trim();
   const closeTime = String(store?.closeTime || "").trim();
 
-  if (!openTime && !closeTime) return "未設定";
-  if (openTime && closeTime) return `${openTime}〜${closeTime}`;
-  return `${openTime || "--:--"}〜${closeTime || "--:--"}`;
+  if (!openTime && !closeTime) return "æªè¨­å®";
+  if (openTime && closeTime) return `${openTime}ã${closeTime}`;
+  return `${openTime || "--:--"}ã${closeTime || "--:--"}`;
 }
 
 function formatClosedDays(store) {
   const days = Array.isArray(store?.regularClosedDays) ? store.regularClosedDays : [];
-  return days.length ? days.join("・") : "なし";
+  return days.length ? days.join("ã»") : "ãªã";
 }
 
 function hasRegularClosedDays(store) {
@@ -158,13 +159,13 @@ function renderBusinessInfoHtml(store, options = {}) {
   return `
     <div class="businessInfo ${options.className || ""}">
       <div class="businessInfoRow">
-        <div class="businessInfoLabel">🕒 営業時間</div>
+        <div class="businessInfoLabel">ð å¶æ¥­æé</div>
         <div class="businessInfoValue">${escapeHtml(hoursText)}</div>
       </div>
 
       ${showClosedDays ? `
         <div class="businessInfoRow">
-          <div class="businessInfoLabel">📌 定休日</div>
+          <div class="businessInfoLabel">ð å®ä¼æ¥</div>
           <div class="businessInfoValue">${escapeHtml(closedDaysText)}</div>
         </div>
       ` : ``}
@@ -186,13 +187,13 @@ function renderTodayRouteBusinessInfoHtml(store, visited) {
   return `
     <div class="businessInfo todayRouteBusinessInfo">
       <div class="businessInfoRow">
-        <div class="businessInfoLabel">🕒 営業時間</div>
+        <div class="businessInfoLabel">ð å¶æ¥­æé</div>
         <div class="businessInfoValue">${escapeHtml(formatStoreHours(store))}</div>
       </div>
 
       ${hasRegularClosedDays(store) ? `
         <div class="businessInfoRow">
-          <div class="businessInfoLabel">📌 定休日</div>
+          <div class="businessInfoLabel">ð å®ä¼æ¥</div>
           <div class="businessInfoValue">${escapeHtml(formatClosedDays(store))}</div>
         </div>
       ` : ``}
@@ -204,7 +205,7 @@ function getStoreBusinessStatus(store) {
   if (typeof isRegularClosedToday === "function" && isRegularClosedToday(store)) {
     return {
       code: "regular_closed",
-      label: "📅 定休日",
+      label: "ð å®ä¼æ¥",
       className: "statusClosedDay",
       isBeforeOpen: false,
       isOpen: false,
@@ -220,7 +221,7 @@ function getStoreBusinessStatus(store) {
   if (openMinutes === null || closeMinutes === null) {
     return {
       code: "unknown",
-      label: "📝 未設定",
+      label: "ð æªè¨­å®",
       className: "statusUnknown",
       isBeforeOpen: false,
       isOpen: false,
@@ -235,7 +236,7 @@ function getStoreBusinessStatus(store) {
   if (nowMinutes < openMinutes) {
     return {
       code: "before_open",
-      label: `🕒 開店前（${store.openTime}開店）`,
+      label: `ð éåºåï¼${store.openTime}éåºï¼`,
       className: "statusBeforeOpen",
       isBeforeOpen: true,
       isOpen: false,
@@ -248,7 +249,7 @@ function getStoreBusinessStatus(store) {
   if (nowMinutes >= closeMinutes) {
     return {
       code: "closed",
-      label: `🚫 閉店済み（${store.closeTime}閉店）`,
+      label: `ð« éåºæ¸ã¿ï¼${store.closeTime}éåºï¼`,
       className: "statusClosed",
       isBeforeOpen: false,
       isOpen: false,
@@ -263,7 +264,7 @@ function getStoreBusinessStatus(store) {
   if (remainingMinutes <= 60) {
     return {
       code: "closing_soon",
-      label: `⚠️ まもなく閉店（あと${remainingMinutes}分）`,
+      label: `â ï¸ ã¾ããªãéåºï¼ãã¨${remainingMinutes}åï¼`,
       className: "statusClosingSoon",
       isBeforeOpen: false,
       isOpen: true,
@@ -275,7 +276,7 @@ function getStoreBusinessStatus(store) {
 
   return {
     code: "open",
-    label: "✅ 営業中",
+    label: "â å¶æ¥­ä¸­",
     className: "statusOpen",
     isBeforeOpen: false,
     isOpen: true,
@@ -309,11 +310,11 @@ function maybeNotifyClosingSoonStores() {
   const message = notifyTargets
     .map(store => {
       const status = getStoreBusinessStatus(store);
-      return `・${store.name}（${formatStoreHours(store)} / あと${status.remainingMinutes}分）`;
+      return `ã»${store.name}ï¼${formatStoreHours(store)} / ãã¨${status.remainingMinutes}åï¼`;
     })
     .join("\n");
 
-  alert(`閉店1時間前の店舗があります。\n\n${message}`);
+  alert(`éåº1æéåã®åºèãããã¾ãã\n\n${message}`);
 }
 
 let todayRouteVisitedIds = loadTodayRouteVisitedIds();
@@ -329,7 +330,7 @@ function toggleStoreAddAccordion(forceOpen = null) {
 
   body.style.display = willOpen ? "block" : "none";
   header.setAttribute("aria-expanded", willOpen ? "true" : "false");
-  chevron.textContent = willOpen ? "▲" : "▼";
+  chevron.textContent = willOpen ? "â²" : "â¼";
 
   localStorage.setItem(
     STORE_ADD_ACCORDION_KEY,
@@ -359,7 +360,7 @@ function toggleTodayRouteAccordion(forceOpen = null) {
 
   body.style.display = willOpen ? "block" : "none";
   header.setAttribute("aria-expanded", willOpen ? "true" : "false");
-  chevron.textContent = willOpen ? "▲" : "▼";
+  chevron.textContent = willOpen ? "â²" : "â¼";
 }
 
 function syncTodayRouteAccordionUI() {
@@ -458,7 +459,7 @@ function buildPrefFilter() {
 
   const current = sel.value || "__ALL__";
   sel.innerHTML =
-    `<option value="__ALL__">全て（都道府県ごと）</option>` +
+    `<option value="__ALL__">å¨ã¦ï¼é½éåºçãã¨ï¼</option>` +
     prefs.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("");
 
   if (["__ALL__", ...prefs].includes(current)) {
@@ -486,11 +487,11 @@ function updateLayoutButtons() {
 function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedClass, staleClass) {
   const expectedHighClass = m.expected >= 10000 ? "high" : "";
   const compactBadges = [
-    `<span class="badge">${escapeHtml(s.pref || "未設定")}</span>`,
-    typeof dist === "number" ? `<span class="badge near">📍 ${dist.toFixed(1)}km</span>` : ``,
-    s.mapUrl ? `<span class="badge map">🗺 MAPあり</span>` : ``,
-    hasCoords(s) ? `<span class="badge">📡 座標あり</span>` : ``,
-    `<span class="badge freq">補充頻度 ${formatRestockDays(m.freq)}</span>`
+    `<span class="badge">${escapeHtml(s.pref || "æªè¨­å®")}</span>`,
+    typeof dist === "number" ? `<span class="badge near">ð ${dist.toFixed(1)}km</span>` : ``,
+    s.mapUrl ? `<span class="badge map">ðº MAPãã</span>` : ``,
+    hasCoords(s) ? `<span class="badge">ð¡ åº§æ¨ãã</span>` : ``,
+    `<span class="badge freq">è£åé »åº¦ ${formatRestockDays(m.freq)}</span>`
   ].filter(Boolean).join("");
 
   return `
@@ -509,20 +510,20 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
 
       ${s.memo ? `
         <div class="mini mt6">
-          📝 ${escapeHtml(s.memo)}
+          ð ${escapeHtml(s.memo)}
         </div>
       ` : ``}
 
       <div class="mini compactMainRow">
-        <span>期待値 <span class="mainExpected ${expectedHighClass}">${Math.round(m.expected).toLocaleString()}円</span></span>
-        <span class="${rateClass}">成功率 ${m.rate.toFixed(1)}%</span>
-        <span>利益 <span class="mainProfit">${m.profit.toLocaleString()}円</span></span>
+        <span>æå¾å¤ <span class="mainExpected ${expectedHighClass}">${Math.round(m.expected).toLocaleString()}å</span></span>
+        <span class="${rateClass}">æåç ${m.rate.toFixed(1)}%</span>
+        <span>å©ç <span class="mainProfit">${m.profit.toLocaleString()}å</span></span>
       </div>
 
       <div class="mini compactSubRow">
-        <span>訪問 ${m.visits}回</span>
-        <span>成功 ${m.success}回</span>
-        <span>個数 ${m.items}個</span>
+        <span>è¨ªå ${m.visits}å</span>
+        <span>æå ${m.success}å</span>
+        <span>åæ° ${m.items}å</span>
       </div>
 
       <div class="mt10">
@@ -530,13 +531,13 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
       </div>
 
       <div class="row2 mt8">
-        <button ${makeButtonStyle("#dff7e8", "#129b52")} onclick="visit(${idx})">訪問＋</button>
-        <button ${makeButtonStyle("#e7f0ff", "#2563eb")} onclick="itemsPlus(${idx})">個数＋</button>
+        <button ${makeButtonStyle("#dff7e8", "#129b52")} onclick="visit(${idx})">è¨ªåï¼</button>
+        <button ${makeButtonStyle("#e7f0ff", "#2563eb")} onclick="itemsPlus(${idx})">åæ°ï¼</button>
       </div>
 
       <div class="row2 mt8">
-        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="navigateToStore(${idx})">ナビ</button>
-        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="editStore(${idx})">設定</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="navigateToStore(${idx})">ãã</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="editStore(${idx})">è¨­å®</button>
       </div>
     </div>
   `;
@@ -561,39 +562,39 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
       <div class="name">${escapeHtml(s.name)}</div>
 
       <div class="mt8">
-        <span class="badge">${escapeHtml(s.pref || "未設定")}</span>
-        ${typeof dist === "number" ? `<span class="badge near">📍 ${dist.toFixed(1)}km</span>` : ``}
-        ${s.mapUrl ? `<span class="badge map">🗺 MAPあり</span>` : ``}
-        ${hasCoords(s) ? `<span class="badge">📡 座標あり</span>` : ``}
-        <span class="badge freq">補充頻度 ${formatRestockDays(m.freq)}</span>
+        <span class="badge">${escapeHtml(s.pref || "æªè¨­å®")}</span>
+        ${typeof dist === "number" ? `<span class="badge near">ð ${dist.toFixed(1)}km</span>` : ``}
+        ${s.mapUrl ? `<span class="badge map">ðº MAPãã</span>` : ``}
+        ${hasCoords(s) ? `<span class="badge">ð¡ åº§æ¨ãã</span>` : ``}
+        <span class="badge freq">è£åé »åº¦ ${formatRestockDays(m.freq)}</span>
       </div>
 
       ${renderBusinessInfoHtml(s)}
 
-      ${s.memo ? `<div class="mini mt8">📝 ${escapeHtml(s.memo)}</div>` : ``}
-      ${s.address ? `<div class="mini mt8">📍 ${escapeHtml(s.address)}</div>` : ``}
+      ${s.memo ? `<div class="mini mt8">ð ${escapeHtml(s.memo)}</div>` : ``}
+      ${s.address ? `<div class="mini mt8">ð ${escapeHtml(s.address)}</div>` : ``}
 
       <div class="mini mt8">
-        期待値：${Math.round(m.expected).toLocaleString()}円
+        æå¾å¤ï¼${Math.round(m.expected).toLocaleString()}å
       </div>
 
       <div class="mini mt8" style="line-height:1.6;">
-        利益：${m.profit.toLocaleString()}円 / <span class="${rateClass}">成功率：${m.rate.toFixed(1)}%</span><br>
-        平均利益：${Math.round(m.avgProfit).toLocaleString()}円 / 平均個数：${m.avgItems.toFixed(1)}個
+        å©çï¼${m.profit.toLocaleString()}å / <span class="${rateClass}">æåçï¼${m.rate.toFixed(1)}%</span><br>
+        å¹³åå©çï¼${Math.round(m.avgProfit).toLocaleString()}å / å¹³ååæ°ï¼${m.avgItems.toFixed(1)}å
       </div>
 
       <div class="mini mt8">
-        訪問：${m.visits}回 / 成功：${m.success}回 / 個数：${m.items}個
+        è¨ªåï¼${m.visits}å / æåï¼${m.success}å / åæ°ï¼${m.items}å
       </div>
 
-      ${categorySummary ? `<div class="mini mt8">📦 ${escapeHtml(categorySummary)}</div>` : ``}
+      ${categorySummary ? `<div class="mini mt8">ð¦ ${escapeHtml(categorySummary)}</div>` : ``}
 
       <div class="detailBox">
-        <div class="detailLine">📅 最終訪問：${s.lastVisitDate ? escapeHtml(s.lastVisitDate) : "なし"}</div>
-        <div class="detailLine">🕒 最終訪問から：${escapeHtml(sinceVisitText)}</div>
-        <div class="detailLine">📊 直近3回：成功 ${recent.recentSuccess}回 / ${recent.recentVisitCount}訪問（${recent.recentRate.toFixed(1)}%）</div>
-        <div class="detailLine">💰 訪問あたり期待値：${Math.round(m.expected).toLocaleString()}円</div>
-        ${streak >= 3 ? `<div class="detailLine detailWarn">⚠️ ${streak}回連続成功なし</div>` : ``}
+        <div class="detailLine">ð æçµè¨ªåï¼${s.lastVisitDate ? escapeHtml(s.lastVisitDate) : "ãªã"}</div>
+        <div class="detailLine">ð æçµè¨ªåããï¼${escapeHtml(sinceVisitText)}</div>
+        <div class="detailLine">ð ç´è¿3åï¼æå ${recent.recentSuccess}å / ${recent.recentVisitCount}è¨ªåï¼${recent.recentRate.toFixed(1)}%ï¼</div>
+        <div class="detailLine">ð° è¨ªåãããæå¾å¤ï¼${Math.round(m.expected).toLocaleString()}å</div>
+        ${streak >= 3 ? `<div class="detailLine detailWarn">â ï¸ ${streak}åé£ç¶æåãªã</div>` : ``}
       </div>
 
       <div class="mt10">
@@ -601,23 +602,23 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
       </div>
 
       <div class="row2 mt8">
-        <button ${makeButtonStyle("#dff7e8", "#129b52")} onclick="visit(${idx})">訪問＋</button>
-        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="visitMinus(${idx})">訪問−</button>
+        <button ${makeButtonStyle("#dff7e8", "#129b52")} onclick="visit(${idx})">è¨ªåï¼</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="visitMinus(${idx})">è¨ªåâ</button>
       </div>
 
       <div class="row2 mt8">
-        <button ${makeButtonStyle("#e7f0ff", "#2563eb")} onclick="itemsPlus(${idx})">個数＋</button>
-        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="itemsMinus(${idx})">個数−</button>
+        <button ${makeButtonStyle("#e7f0ff", "#2563eb")} onclick="itemsPlus(${idx})">åæ°ï¼</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="itemsMinus(${idx})">åæ°â</button>
       </div>
 
       <div class="row2 mt8">
-        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="navigateToStore(${idx})">ナビ</button>
-        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="refreshStoreCoordinates(${idx})">座標再取得</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="navigateToStore(${idx})">ãã</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="refreshStoreCoordinates(${idx})">åº§æ¨ååå¾</button>
       </div>
 
       <div class="row2 mt8">
-        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="editStore(${idx})">設定</button>
-        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="deleteStore(${idx})">削除</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="editStore(${idx})">è¨­å®</button>
+        <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="deleteStore(${idx})">åé¤</button>
       </div>
     </div>
   `;
@@ -642,95 +643,355 @@ function renderStoreCard(s, idx) {
   return renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedClass, staleClass);
 }
 
+
+/* =========================
+   ä¿å­ã«ã¼ãå·¡åå®ç¸¾è¡¨ç¤º
+========================= */
+function getRouteRunSummary(routeId) {
+  const id = String(routeId || "");
+  const history = Array.isArray(routeRunHistory)
+    ? routeRunHistory.filter(item => String(item.routeId || "") === id)
+    : [];
+
+  const runCount = history.length;
+  const totalProfit = history.reduce(
+    (sum, item) => sum + Number(item.profit || 0),
+    0
+  );
+  const totalItems = history.reduce(
+    (sum, item) => sum + Number(item.items || 0),
+    0
+  );
+  const totalVisitedStores = history.reduce(
+    (sum, item) => sum + Number(item.visitedStoreCount || 0),
+    0
+  );
+  const totalSuccessStores = history.reduce(
+    (sum, item) => sum + Number(item.successStoreCount || 0),
+    0
+  );
+
+  return {
+    history: [...history].sort((a, b) => {
+      const dateDiff = String(b.date || "").localeCompare(String(a.date || ""));
+      if (dateDiff !== 0) return dateDiff;
+      return String(b.updatedAt || b.createdAt || "")
+        .localeCompare(String(a.updatedAt || a.createdAt || ""));
+    }),
+    runCount,
+    totalProfit,
+    averageProfit: runCount > 0 ? totalProfit / runCount : 0,
+    totalItems,
+    averageItems: runCount > 0 ? totalItems / runCount : 0,
+    totalVisitedStores,
+    averageVisitedStores: runCount > 0 ? totalVisitedStores / runCount : 0,
+    totalSuccessStores,
+    averageSuccessStores: runCount > 0 ? totalSuccessStores / runCount : 0,
+    profitPerVisitedStore:
+      totalVisitedStores > 0 ? totalProfit / totalVisitedStores : 0
+  };
+}
+
+function getSelectedRouteRunSummary() {
+  const selectedIds =
+    typeof selectedRouteRunIds !== "undefined" &&
+    selectedRouteRunIds instanceof Set
+      ? [...selectedRouteRunIds]
+      : [];
+
+  const validIds = selectedIds.filter(id =>
+    savedRoutes.some(route => String(route.id || "") === String(id || ""))
+  );
+
+  const selectedHistory = (Array.isArray(routeRunHistory) ? routeRunHistory : [])
+    .filter(item => validIds.includes(String(item.routeId || "")));
+
+  const runCount = selectedHistory.length;
+  const totalProfit = selectedHistory.reduce(
+    (sum, item) => sum + Number(item.profit || 0),
+    0
+  );
+  const totalItems = selectedHistory.reduce(
+    (sum, item) => sum + Number(item.items || 0),
+    0
+  );
+  const totalVisitedStores = selectedHistory.reduce(
+    (sum, item) => sum + Number(item.visitedStoreCount || 0),
+    0
+  );
+  const totalSuccessStores = selectedHistory.reduce(
+    (sum, item) => sum + Number(item.successStoreCount || 0),
+    0
+  );
+
+  return {
+    selectedRouteCount: validIds.length,
+    selectedIds: validIds,
+    runCount,
+    totalProfit,
+    averageProfit: runCount > 0 ? totalProfit / runCount : 0,
+    totalItems,
+    averageItems: runCount > 0 ? totalItems / runCount : 0,
+    totalVisitedStores,
+    averageVisitedStores: runCount > 0 ? totalVisitedStores / runCount : 0,
+    totalSuccessStores,
+    averageSuccessStores: runCount > 0 ? totalSuccessStores / runCount : 0,
+    profitPerVisitedStore:
+      totalVisitedStores > 0 ? totalProfit / totalVisitedStores : 0
+  };
+}
+
+function renderRouteRunMetricsHtml(summary, title = "å·¡åå®ç¸¾") {
+  return `
+    <div class="routeRunSummaryCard">
+      <div class="routeRunSummaryTitle">${escapeHtml(title)}</div>
+
+      <div class="routeRunMetricGrid">
+        <div class="routeRunMetric">
+          <div class="routeRunMetricLabel">å·¡ååæ°</div>
+          <div class="routeRunMetricValue">${summary.runCount}å</div>
+        </div>
+
+        <div class="routeRunMetric">
+          <div class="routeRunMetricLabel">åè¨å©ç</div>
+          <div class="routeRunMetricValue">${Math.round(summary.totalProfit).toLocaleString()}å</div>
+        </div>
+
+        <div class="routeRunMetric">
+          <div class="routeRunMetricLabel">å¹³åå©ç</div>
+          <div class="routeRunMetricValue">${Math.round(summary.averageProfit).toLocaleString()}å</div>
+        </div>
+
+        <div class="routeRunMetric">
+          <div class="routeRunMetricLabel">åè¨åæ°</div>
+          <div class="routeRunMetricValue">${Math.round(summary.totalItems).toLocaleString()}å</div>
+        </div>
+
+        <div class="routeRunMetric">
+          <div class="routeRunMetricLabel">å¹³ååæ°</div>
+          <div class="routeRunMetricValue">${summary.averageItems.toFixed(1)}å</div>
+        </div>
+
+        <div class="routeRunMetric">
+          <div class="routeRunMetricLabel">å¹³åè¨ªååºè</div>
+          <div class="routeRunMetricValue">${summary.averageVisitedStores.toFixed(1)}ä»¶</div>
+        </div>
+
+        <div class="routeRunMetric">
+          <div class="routeRunMetricLabel">å¹³åæååºè</div>
+          <div class="routeRunMetricValue">${summary.averageSuccessStores.toFixed(1)}ä»¶</div>
+        </div>
+
+        <div class="routeRunMetric">
+          <div class="routeRunMetricLabel">è¨ªå1åºèæå¾å¤</div>
+          <div class="routeRunMetricValue">${Math.round(summary.profitPerVisitedStore).toLocaleString()}å</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderRouteRunHistoryHtml(summary) {
+  if (!summary.history.length) {
+    return `
+      <div class="routeRunHistoryEmpty">
+        å·¡åå±¥æ­´ã¯ã¾ã ããã¾ããããä»åã®å·¡åãè¨é²ãããè¿½å ã§ãã¾ãã
+      </div>
+    `;
+  }
+
+  return `
+    <div class="routeRunHistoryList">
+      ${summary.history.map(item => `
+        <div class="routeRunHistoryItem">
+          <div class="routeRunHistoryTop">
+            <div>
+              <div class="routeRunHistoryDate">${escapeHtml(item.date || "æ¥ä»ä¸æ")}</div>
+              <div class="routeRunHistoryMeta">
+                å©ç ${Number(item.profit || 0).toLocaleString()}å /
+                åæ° ${Number(item.items || 0).toLocaleString()}å
+              </div>
+            </div>
+
+            <div class="routeRunHistoryVisit">
+              è¨ªå ${Number(item.visitedStoreCount || 0)}ä»¶
+            </div>
+          </div>
+
+          <div class="routeRunHistorySub">
+            æååºè ${Number(item.successStoreCount || 0)}ä»¶ /
+            è¨ªåè¨é² ${Number(item.visitCount || 0)}å /
+            æåè¨é² ${Number(item.successCount || 0)}å
+          </div>
+
+          <div class="routeRunHistoryActions">
+            <button
+              type="button"
+              class="ghostBtn"
+              onclick="recalculateSavedRouteRun('${escapeJsString(item.id)}')"
+            >åéè¨</button>
+
+            <button
+              type="button"
+              class="dangerBtn"
+              onclick="deleteSavedRouteRun('${escapeJsString(item.id)}')"
+            >åé¤</button>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderSelectedRouteRunSummaryHtml() {
+  const summary = getSelectedRouteRunSummary();
+
+  if (!summary.selectedRouteCount) return "";
+
+  return `
+    <div class="routeCombinedSummary">
+      <div class="routeCombinedHeader">
+        <div>
+          <div class="routeCombinedTitle">é¸æã«ã¼ãåç®</div>
+          <div class="routeCombinedSub">
+            ${summary.selectedRouteCount}ã«ã¼ããé¸æä¸­
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="ghostBtn routeCombinedClearBtn"
+          onclick="clearSavedRouteSummarySelection()"
+        >é¸æè§£é¤</button>
+      </div>
+
+      ${renderRouteRunMetricsHtml(summary, "åç®å®ç¸¾")}
+    </div>
+  `;
+}
+
 function renderSavedRoutesList() {
   const el = document.getElementById("savedRoutesList");
   if (!el) return;
 
   if (!savedRoutes.length) {
-    el.innerHTML = "保存済みルートはまだありません。";
+    el.innerHTML = "ä¿å­æ¸ã¿ã«ã¼ãã¯ã¾ã ããã¾ããã";
     return;
   }
 
   sortSavedRoutes();
 
-  el.innerHTML = savedRoutes.map(route => {
-    const routeStores = buildSavedRouteStores(route);
-    const isOpen = openSavedRouteId === route.id;
-    const dueSummary = calcSavedRouteDueSummary(route);
+  const combinedSummaryHtml = renderSelectedRouteRunSummaryHtml();
 
-    return `
-      <div class="savedRouteAccordion ${isOpen ? "open" : ""}" style="margin-top:12px;">
-        <button
-          type="button"
-          class="savedRouteSummary"
-          onclick="toggleSavedRouteOpen('${escapeJsString(route.id)}')"
-        >
-          <div class="savedRouteSummaryTop">
-            <div class="savedRouteTitleWrap">
-              <div class="savedRouteTitleRow">
-                <span class="savedRouteTitle">${escapeHtml(route.name)}</span>
-                <span class="savedRouteFavBadge">${dueSummary.emoji} ${dueSummary.label}</span>
-                ${route.favorite ? `<span class="savedRouteFavBadge">★ お気に入り</span>` : ``}
-              </div>
+  el.innerHTML = `
+    ${combinedSummaryHtml}
 
-              <div class="savedRouteMeta">
-                更新: ${escapeHtml(formatDateTimeText(route.updatedAt || route.createdAt))}
-              </div>
-            </div>
+    ${savedRoutes.map(route => {
+      const routeStores = buildSavedRouteStores(route);
+      const isOpen = openSavedRouteId === route.id;
+      const dueSummary = calcSavedRouteDueSummary(route);
+      const runSummary = getRouteRunSummary(route.id);
+      const isSelected =
+        typeof isSavedRouteSelectedForSummary === "function"
+          ? isSavedRouteSelectedForSummary(route.id)
+          : false;
 
-            <div class="savedRouteChevron">${isOpen ? "▲" : "▼"}</div>
-          </div>
-
-          <div class="savedRouteCompactInfo">
-            <div class="savedRouteCount">
-              店舗数: ${route.storeIds.length}件
-            </div>
-          </div>
-        </button>
-
-        <div class="savedRouteDetail" style="display:${isOpen ? "block" : "none"};">
-          <div class="detailBlock" style="margin-bottom:12px;">
-            <div class="detailTitle">ルート情報</div>
-            <div class="detailText">
-              ${dueSummary.emoji} ${escapeHtml(dueSummary.label)}<br>
-              回り頃: ${dueSummary.dueCount}件 / もうすぐ: ${dueSummary.soonCount}件<br>
-              平均補充頻度: ${dueSummary.avgFreq !== null ? escapeHtml(formatRestockDays(dueSummary.avgFreq)) : "データなし"}
-              ${route.note ? `<br>メモ: ${escapeHtml(route.note)}` : ""}
-            </div>
-          </div>
-
-          ${
-            routeStores.length
-              ? `
-                <div class="savedRouteFullList">
-                  ${routeStores.map(s => {
-                    const m = getMetrics(s);
-                    const status = calcStoreDueStatus(s);
-                    return `
-                      <div class="savedRouteStoreLine" style="display:block;">
-                        <div style="font-weight:700;">${status.emoji} ${escapeHtml(s.name)}</div>
-                        <div class="mini" style="margin-top:4px;">
-                          補充頻度: ${formatRestockDays(m.freq)} / 成功率: ${m.rate.toFixed(1)}% / 期待値: ${Math.round(m.expected).toLocaleString()}円
-                        </div>
-                      </div>
-                    `;
-                  }).join("")}
+      return `
+        <div class="savedRouteAccordion ${isOpen ? "open" : ""}" style="margin-top:12px;">
+          <button
+            type="button"
+            class="savedRouteSummary"
+            onclick="toggleSavedRouteOpen('${escapeJsString(route.id)}')"
+          >
+            <div class="savedRouteSummaryTop">
+              <div class="savedRouteTitleWrap">
+                <div class="savedRouteTitleRow">
+                  <span class="savedRouteTitle">${escapeHtml(route.name)}</span>
+                  <span class="savedRouteFavBadge">${dueSummary.emoji} ${dueSummary.label}</span>
+                  ${route.favorite ? `<span class="savedRouteFavBadge">â ãæ°ã«å¥ã</span>` : ``}
+                  ${isSelected ? `<span class="savedRouteSelectedBadge">â åç®å¯¾è±¡</span>` : ``}
                 </div>
-              `
-              : `<div class="mini">このルートの店舗が見つかりません。</div>`
-          }
 
-          <div class="savedRouteActionGrid">
-            <button ${makeButtonStyle("#e7f0ff", "#2563eb")} class="savedRouteActionBtn" onclick="openSavedRoute('${escapeJsString(route.id)}')">今日に読込</button>
-            <button ${makeButtonStyle("#dff7e8", "#129b52")} class="savedRouteActionBtn" onclick="openSavedRouteInMaps('${escapeJsString(route.id)}')">MAPで開く</button>
-            <button ${makeButtonStyle("#fff4d8", "#b7791f")} class="savedRouteActionBtn" onclick="toggleFavoriteRoute('${escapeJsString(route.id)}')">${route.favorite ? "★ お気に入り解除" : "☆ お気に入り"}</button>
-            <button ${makeButtonStyle("#eef1f7", "#1f2340")} class="savedRouteActionBtn" onclick="editSavedRoute('${escapeJsString(route.id)}')">編集</button>
-            <button ${makeButtonStyle("#fef2f2", "#dc2626")} class="savedRouteActionBtn" onclick="deleteSavedRoute('${escapeJsString(route.id)}')">削除</button>
+                <div class="savedRouteMeta">
+                  æ´æ°: ${escapeHtml(formatDateTimeText(route.updatedAt || route.createdAt))}
+                </div>
+              </div>
+
+              <div class="savedRouteChevron">${isOpen ? "â²" : "â¼"}</div>
+            </div>
+
+            <div class="savedRouteCompactInfo">
+              <div class="savedRouteCount">
+                åºèæ°: ${route.storeIds.length}ä»¶ /
+                å·¡å: ${runSummary.runCount}å /
+                å¹³åå©ç: ${Math.round(runSummary.averageProfit).toLocaleString()}å
+              </div>
+            </div>
+          </button>
+
+          <div class="savedRouteDetail" style="display:${isOpen ? "block" : "none"};">
+            <div class="detailBlock" style="margin-bottom:12px;">
+              <div class="detailTitle">ã«ã¼ãæå ±</div>
+              <div class="detailText">
+                ${dueSummary.emoji} ${escapeHtml(dueSummary.label)}<br>
+                åãé : ${dueSummary.dueCount}ä»¶ / ãããã: ${dueSummary.soonCount}ä»¶<br>
+                å¹³åè£åé »åº¦: ${dueSummary.avgFreq !== null ? escapeHtml(formatRestockDays(dueSummary.avgFreq)) : "ãã¼ã¿ãªã"}
+                ${route.note ? `<br>ã¡ã¢: ${escapeHtml(route.note)}` : ""}
+              </div>
+            </div>
+
+            ${renderRouteRunMetricsHtml(runSummary)}
+
+            <div class="routeRunMainActions">
+              <button
+                type="button"
+                class="primaryBtn"
+                onclick="recordSavedRouteRun('${escapeJsString(route.id)}')"
+              >ä»åã®å·¡åãè¨é²</button>
+
+              <button
+                type="button"
+                class="${isSelected ? "btnGreen" : "ghostBtn"}"
+                onclick="toggleSavedRouteSummarySelection('${escapeJsString(route.id)}')"
+              >${isSelected ? "â åç®å¯¾è±¡ããå¤ã" : "åç®å¯¾è±¡ã«é¸æ"}</button>
+            </div>
+
+            <div class="routeRunHistoryTitle">å·¡åå±¥æ­´</div>
+            ${renderRouteRunHistoryHtml(runSummary)}
+
+            ${
+              routeStores.length
+                ? `
+                  <div class="savedRouteFullList routeRunStoreList">
+                    ${routeStores.map(s => {
+                      const m = getMetrics(s);
+                      const status = calcStoreDueStatus(s);
+                      return `
+                        <div class="savedRouteStoreLine" style="display:block;">
+                          <div style="font-weight:700;">${status.emoji} ${escapeHtml(s.name)}</div>
+                          <div class="mini" style="margin-top:4px;">
+                            è£åé »åº¦: ${formatRestockDays(m.freq)} / æåç: ${m.rate.toFixed(1)}% / æå¾å¤: ${Math.round(m.expected).toLocaleString()}å
+                          </div>
+                        </div>
+                      `;
+                    }).join("")}
+                  </div>
+                `
+                : `<div class="mini">ãã®ã«ã¼ãã®åºèãè¦ã¤ããã¾ããã</div>`
+            }
+
+            <div class="savedRouteActionGrid">
+              <button ${makeButtonStyle("#e7f0ff", "#2563eb")} class="savedRouteActionBtn" onclick="openSavedRoute('${escapeJsString(route.id)}')">ä»æ¥ã«èª­è¾¼</button>
+              <button ${makeButtonStyle("#dff7e8", "#129b52")} class="savedRouteActionBtn" onclick="openSavedRouteInMaps('${escapeJsString(route.id)}')">MAPã§éã</button>
+              <button ${makeButtonStyle("#fff4d8", "#b7791f")} class="savedRouteActionBtn" onclick="toggleFavoriteRoute('${escapeJsString(route.id)}')">${route.favorite ? "â ãæ°ã«å¥ãè§£é¤" : "â ãæ°ã«å¥ã"}</button>
+              <button ${makeButtonStyle("#eef1f7", "#1f2340")} class="savedRouteActionBtn" onclick="editSavedRoute('${escapeJsString(route.id)}')">ç·¨é</button>
+              <button ${makeButtonStyle("#fef2f2", "#dc2626")} class="savedRouteActionBtn" onclick="deleteSavedRoute('${escapeJsString(route.id)}')">åé¤</button>
+            </div>
           </div>
         </div>
-      </div>
-    `;
-  }).join("");
+      `;
+    }).join("")}
+  `;
 }
 
 function renderTodayRouteList() {
@@ -745,7 +1006,7 @@ function renderTodayRouteList() {
     .filter(s => s && s.today);
 
   if (!routeStores.length) {
-    el.innerHTML = `<div class="mini emptyRouteText">チェックした店舗はまだありません。</div>`;
+    el.innerHTML = `<div class="mini emptyRouteText">ãã§ãã¯ããåºèã¯ã¾ã ããã¾ããã</div>`;
     return;
   }
 
@@ -757,14 +1018,14 @@ function renderTodayRouteList() {
             <div class="routeSplitBlock mt8">
               <div class="routeSplitRow">
                 <button class="primaryBtn routeSplitOpenBtn" onclick="openSplitRoutePart(${part.index})">
-                  ルート${part.index}を開く
+                  ã«ã¼ã${part.index}ãéã
                 </button>
                 <div class="routeSplitEta">
-                  推定 約${formatEstimatedMinutes(part.estimatedMinutes)}
+                  æ¨å® ç´${formatEstimatedMinutes(part.estimatedMinutes)}
                 </div>
               </div>
               <div class="mini routeSplitSub">
-                対象: ${part.start}〜${part.end}店舗目
+                å¯¾è±¡: ${part.start}ã${part.end}åºèç®
               </div>
             </div>
           `).join("")}
@@ -781,7 +1042,7 @@ function renderTodayRouteList() {
         <div class="item todayRouteItem ${visited ? "todayRouteItemVisited" : ""}">
           <div class="name todayRouteName">
             ${idx + 1}. ${escapeHtml(s.name)}
-            ${visited ? `<span class="badge" style="margin-left:8px;">訪問済み</span>` : ``}
+            ${visited ? `<span class="badge" style="margin-left:8px;">è¨ªåæ¸ã¿</span>` : ``}
           </div>
 
           <div class="mini">
@@ -792,18 +1053,18 @@ function renderTodayRouteList() {
 
           ${s.memo ? `
             <div class="mini mt6">
-              📝 ${escapeHtml(s.memo)}
+              ð ${escapeHtml(s.memo)}
             </div>
           ` : ``}
 
           <div class="row2 mt8">
-            <button class="ghostBtn" onclick="moveTodayRouteItem(${idx}, -1)">↑ 上へ</button>
-            <button class="ghostBtn" onclick="moveTodayRouteItem(${idx}, 1)">↓ 下へ</button>
+            <button class="ghostBtn" onclick="moveTodayRouteItem(${idx}, -1)">â ä¸ã¸</button>
+            <button class="ghostBtn" onclick="moveTodayRouteItem(${idx}, 1)">â ä¸ã¸</button>
           </div>
 
           <div class="row2 mt8">
-            <button class="dangerBtn" onclick="removeTodayRouteItem(${idx})">ルートから外す</button>
-            <button class="ghostBtn" onclick="unmarkTodayRouteVisited('${escapeJsString(s.id)}')">訪問済み解除</button>
+            <button class="dangerBtn" onclick="removeTodayRouteItem(${idx})">ã«ã¼ãããå¤ã</button>
+            <button class="ghostBtn" onclick="unmarkTodayRouteVisited('${escapeJsString(s.id)}')">è¨ªåæ¸ã¿è§£é¤</button>
           </div>
         </div>
       `;
@@ -844,6 +1105,8 @@ function render() {
     storeClosedDays: stores.map(s => `${s.id}:${(s.regularClosedDays || []).join(",")}`).join("|"),
     storeMemos: stores.map(s => `${s.id}:${s.memo || ""}`).join("|"),
     savedRoutes: savedRoutes.map(r => `${r.id}:${r.updatedAt}:${r.favorite}`).join("|"),
+    routeRunHistory: routeRunHistory.map(h => `${h.id}:${h.routeId}:${h.date}:${h.profit}:${h.items}:${h.visitedStoreCount}:${h.updatedAt}`).join("|"),
+    selectedRouteRunIds: typeof selectedRouteRunIds !== "undefined" ? [...selectedRouteRunIds].sort().join("|") : "",
     openSavedRouteId,
     todayRouteAccordionOpen,
     currentLocation: window.lastPos ? `${window.lastPos.lat},${window.lastPos.lng}` : ""
@@ -852,7 +1115,7 @@ function render() {
   if (signature !== lastListRenderSignature) {
     wrap.innerHTML = list.length
       ? list.map(s => renderStoreCard(s, s._idx)).join("")
-      : `<div class="mini">${nearbyMode ? "近くの店舗は見つかりませんでした。" : "該当する店舗がありません。"}</div>`;
+      : `<div class="mini">${nearbyMode ? "è¿ãã®åºèã¯è¦ã¤ããã¾ããã§ããã" : "è©²å½ããåºèãããã¾ããã"}</div>`;
     lastListRenderSignature = signature;
   }
 
@@ -884,176 +1147,176 @@ let helpStep = 0;
 
 const helpData = [
   {
-    title: "📘 このアプリでできること",
+    title: "ð ãã®ã¢ããªã§ã§ãããã¨",
     content: `
-      <b>せどり店舗を記録・分析して、回る価値の高い店舗を見つけるための管理アプリです。</b><br><br>
-      主にできることは次の通りです。<br><br>
-      ・店舗名、都道府県、住所、GoogleマップURLを登録<br>
-      ・訪問回数、成功回数、個数、利益を記録<br>
-      ・期待値、成功率、平均利益を自動計算<br>
-      ・現在地から近い店舗を表示<br>
-      ・今日行く店舗を選んでルート作成<br>
-      ・保存済みルートの再利用<br>
-      ・レポート画面で月別 / 日別の振り返り<br><br>
-      <b>基本は「店舗登録 → 訪問記録 → 成功記録 → レポート確認」の流れです。</b>
+      <b>ãã©ãåºèãè¨é²ã»åæãã¦ãåãä¾¡å¤ã®é«ãåºèãè¦ã¤ããããã®ç®¡çã¢ããªã§ãã</b><br><br>
+      ä¸»ã«ã§ãããã¨ã¯æ¬¡ã®éãã§ãã<br><br>
+      ã»åºèåãé½éåºçãä½æãGoogleãããURLãç»é²<br>
+      ã»è¨ªååæ°ãæååæ°ãåæ°ãå©çãè¨é²<br>
+      ã»æå¾å¤ãæåçãå¹³åå©çãèªåè¨ç®<br>
+      ã»ç¾å¨å°ããè¿ãåºèãè¡¨ç¤º<br>
+      ã»ä»æ¥è¡ãåºèãé¸ãã§ã«ã¼ãä½æ<br>
+      ã»ä¿å­æ¸ã¿ã«ã¼ãã®åå©ç¨<br>
+      ã»ã¬ãã¼ãç»é¢ã§æå¥ / æ¥å¥ã®æ¯ãè¿ã<br><br>
+      <b>åºæ¬ã¯ãåºèç»é² â è¨ªåè¨é² â æåè¨é² â ã¬ãã¼ãç¢ºèªãã®æµãã§ãã</b>
     `
   },
   {
-    title: "🏪 まず最初にやること",
+    title: "ðª ã¾ãæåã«ãããã¨",
     content: `
-      <b>最初は店舗を登録します。</b><br><br>
-      入力する項目は次の4つです。<br><br>
-      ・店舗名<br>
-      ・都道府県<br>
-      ・住所<br>
-      ・GoogleマップURL（あれば便利）<br><br>
-      <b>GoogleマップURLがあると、座標を取りやすくなります。</b><br>
-      URLがなくても、住所が入っていれば登録できます。<br><br>
-      店舗追加後に地図へ出ない場合は、<br>
-      <b>「座標一括再取得」</b> を押すと直ることがあります。
+      <b>æåã¯åºèãç»é²ãã¾ãã</b><br><br>
+      å¥åããé ç®ã¯æ¬¡ã®4ã¤ã§ãã<br><br>
+      ã»åºèå<br>
+      ã»é½éåºç<br>
+      ã»ä½æ<br>
+      ã»GoogleãããURLï¼ããã°ä¾¿å©ï¼<br><br>
+      <b>GoogleãããURLãããã¨ãåº§æ¨ãåãããããªãã¾ãã</b><br>
+      URLããªãã¦ããä½æãå¥ã£ã¦ããã°ç»é²ã§ãã¾ãã<br><br>
+      åºèè¿½å å¾ã«å°å³ã¸åºãªãå ´åã¯ã<br>
+      <b>ãåº§æ¨ä¸æ¬ååå¾ã</b> ãæ¼ãã¨ç´ããã¨ãããã¾ãã
     `
   },
   {
-    title: "👣 訪問＋ と 個数＋ の使い方",
+    title: "ð£ è¨ªåï¼ ã¨ åæ°ï¼ ã®ä½¿ãæ¹",
     content: `
-      <b>店舗に行ったらまず「訪問＋」を押します。</b><br><br>
-      訪問＋で記録される内容<br>
-      ・訪問回数 +1<br>
-      ・最終訪問日の更新<br>
-      ・今日のルート中なら訪問済み扱い<br><br>
-      <b>仕入れできた時は「個数＋」を押します。</b><br><br>
-      個数＋でできること<br>
-      ・仕入れ個数の入力<br>
-      ・カテゴリごとの個数入力<br>
-      ・利益入力<br><br>
-      例：<br>
-      合計3個仕入れた場合<br>
-      ・ゲーム 2個<br>
-      ・家電 1個<br>
-      ・利益 5000円<br><br>
-      この内容をまとめて記録できます。
+      <b>åºèã«è¡ã£ããã¾ããè¨ªåï¼ããæ¼ãã¾ãã</b><br><br>
+      è¨ªåï¼ã§è¨é²ãããåå®¹<br>
+      ã»è¨ªååæ° +1<br>
+      ã»æçµè¨ªåæ¥ã®æ´æ°<br>
+      ã»ä»æ¥ã®ã«ã¼ãä¸­ãªãè¨ªåæ¸ã¿æ±ã<br><br>
+      <b>ä»å¥ãã§ããæã¯ãåæ°ï¼ããæ¼ãã¾ãã</b><br><br>
+      åæ°ï¼ã§ã§ãããã¨<br>
+      ã»ä»å¥ãåæ°ã®å¥å<br>
+      ã»ã«ãã´ãªãã¨ã®åæ°å¥å<br>
+      ã»å©çå¥å<br><br>
+      ä¾ï¼<br>
+      åè¨3åä»å¥ããå ´å<br>
+      ã»ã²ã¼ã  2å<br>
+      ã»å®¶é» 1å<br>
+      ã»å©ç 5000å<br><br>
+      ãã®åå®¹ãã¾ã¨ãã¦è¨é²ã§ãã¾ãã
     `
   },
   {
-    title: "💰 利益入力とカテゴリ入力のポイント",
+    title: "ð° å©çå¥åã¨ã«ãã´ãªå¥åã®ãã¤ã³ã",
     content: `
-      <b>個数＋を押すと、カテゴリと利益を一緒に入れられます。</b><br><br>
-      利益ボタンは現在、<b>押した分だけ加算</b>されます。<br><br>
-      例：<br>
-      ・1000 を2回押す → 2000円<br>
-      ・10000 と 3000 を押す → 13000円<br><br>
-      手入力もできます。<br><br>
-      カテゴリは履歴から選べるので、よく使うカテゴリは入力しやすくなります。<br>
-      新しいカテゴリもその場で追加できます。<br><br>
-      <b>カテゴリ個数の合計と、合計個数は一致させる必要があります。</b>
+      <b>åæ°ï¼ãæ¼ãã¨ãã«ãã´ãªã¨å©çãä¸ç·ã«å¥ãããã¾ãã</b><br><br>
+      å©çãã¿ã³ã¯ç¾å¨ã<b>æ¼ããåã ãå ç®</b>ããã¾ãã<br><br>
+      ä¾ï¼<br>
+      ã»1000 ã2åæ¼ã â 2000å<br>
+      ã»10000 ã¨ 3000 ãæ¼ã â 13000å<br><br>
+      æå¥åãã§ãã¾ãã<br><br>
+      ã«ãã´ãªã¯å±¥æ­´ããé¸ã¹ãã®ã§ãããä½¿ãã«ãã´ãªã¯å¥åãããããªãã¾ãã<br>
+      æ°ããã«ãã´ãªããã®å ´ã§è¿½å ã§ãã¾ãã<br><br>
+      <b>ã«ãã´ãªåæ°ã®åè¨ã¨ãåè¨åæ°ã¯ä¸è´ãããå¿è¦ãããã¾ãã</b>
     `
   },
   {
-    title: "📊 数字の見方",
+    title: "ð æ°å­ã®è¦æ¹",
     content: `
-      <b>店舗カードでは、主に次の数字を見ます。</b><br><br>
-      ・期待値<br>
-      → その店舗に1回行った時の平均利益の目安です。<br><br>
-      ・成功率<br>
-      → 訪問した中で、仕入れ成功になった割合です。<br><br>
-      ・利益<br>
-      → その店舗で記録した累計利益です。<br><br>
-      ・平均利益<br>
-      → 成功1回あたりの平均利益です。<br><br>
-      <b>目安としては、期待値が高く、成功率も高い店舗ほど優先度が上がります。</b>
+      <b>åºèã«ã¼ãã§ã¯ãä¸»ã«æ¬¡ã®æ°å­ãè¦ã¾ãã</b><br><br>
+      ã»æå¾å¤<br>
+      â ãã®åºèã«1åè¡ã£ãæã®å¹³åå©çã®ç®å®ã§ãã<br><br>
+      ã»æåç<br>
+      â è¨ªåããä¸­ã§ãä»å¥ãæåã«ãªã£ãå²åã§ãã<br><br>
+      ã»å©ç<br>
+      â ãã®åºèã§è¨é²ããç´¯è¨å©çã§ãã<br><br>
+      ã»å¹³åå©ç<br>
+      â æå1åãããã®å¹³åå©çã§ãã<br><br>
+      <b>ç®å®ã¨ãã¦ã¯ãæå¾å¤ãé«ããæåçãé«ãåºèã»ã©åªååº¦ãä¸ããã¾ãã</b>
     `
   },
   {
-    title: "🗺 地図・近くの店舗・現在地",
+    title: "ðº å°å³ã»è¿ãã®åºèã»ç¾å¨å°",
     content: `
-      <b>地図では店舗の位置をまとめて確認できます。</b><br><br>
-      できること<br>
-      ・店舗マーカーをタップして詳細を見る<br>
-      ・その場で「今日行く」を付ける<br>
-      ・ナビを開く<br><br>
-      <b>「現在地へ移動」</b> を押すと、今いる場所付近へ地図が移動します。<br>
-      現在地はナビ矢印風マーカーで表示されます。<br><br>
-      <b>「近くの店舗」</b> を押すと、現在地から近い店舗を絞って見やすくできます。<br>
-      近くの店舗確認と、今日の巡回候補探しに便利です。
+      <b>å°å³ã§ã¯åºèã®ä½ç½®ãã¾ã¨ãã¦ç¢ºèªã§ãã¾ãã</b><br><br>
+      ã§ãããã¨<br>
+      ã»åºèãã¼ã«ã¼ãã¿ãããã¦è©³ç´°ãè¦ã<br>
+      ã»ãã®å ´ã§ãä»æ¥è¡ãããä»ãã<br>
+      ã»ãããéã<br><br>
+      <b>ãç¾å¨å°ã¸ç§»åã</b> ãæ¼ãã¨ãä»ããå ´æä»è¿ã¸å°å³ãç§»åãã¾ãã<br>
+      ç¾å¨å°ã¯ããç¢å°é¢¨ãã¼ã«ã¼ã§è¡¨ç¤ºããã¾ãã<br><br>
+      <b>ãè¿ãã®åºèã</b> ãæ¼ãã¨ãç¾å¨å°ããè¿ãåºèãçµã£ã¦è¦ãããã§ãã¾ãã<br>
+      è¿ãã®åºèç¢ºèªã¨ãä»æ¥ã®å·¡ååè£æ¢ãã«ä¾¿å©ã§ãã
     `
   },
   {
-    title: "🛣 今日のルートの使い方",
+    title: "ð£ ä»æ¥ã®ã«ã¼ãã®ä½¿ãæ¹",
     content: `
-      <b>行く予定の店舗には「今日行く」を付けます。</b><br><br>
-      その後、<b>「この順番でルート作成」</b> を押すとGoogleマップでルートを開けます。<br><br>
-      便利な機能<br>
-      ・自動最適化<br>
-      → 順番を並び替えて回りやすくします。<br><br>
-      ・訪問済み管理<br>
-      → 今日のルート中の店舗で「訪問＋」を押すと、その店舗は訪問済みになります。<br><br>
-      ・途中から再開<br>
-      → ルートが切れても、未訪問の店舗だけで再作成できます。<br><br>
-      <b>保存前に前の「今日行く」が残っていると、次のルートにも含まれるので注意してください。</b>
+      <b>è¡ãäºå®ã®åºèã«ã¯ãä»æ¥è¡ãããä»ãã¾ãã</b><br><br>
+      ãã®å¾ã<b>ããã®é çªã§ã«ã¼ãä½æã</b> ãæ¼ãã¨Googleãããã§ã«ã¼ããéãã¾ãã<br><br>
+      ä¾¿å©ãªæ©è½<br>
+      ã»èªåæé©å<br>
+      â é çªãä¸¦ã³æ¿ãã¦åãããããã¾ãã<br><br>
+      ã»è¨ªåæ¸ã¿ç®¡ç<br>
+      â ä»æ¥ã®ã«ã¼ãä¸­ã®åºèã§ãè¨ªåï¼ããæ¼ãã¨ããã®åºèã¯è¨ªåæ¸ã¿ã«ãªãã¾ãã<br><br>
+      ã»éä¸­ããåé<br>
+      â ã«ã¼ããåãã¦ããæªè¨ªåã®åºèã ãã§åä½æã§ãã¾ãã<br><br>
+      <b>ä¿å­åã«åã®ãä»æ¥è¡ãããæ®ã£ã¦ããã¨ãæ¬¡ã®ã«ã¼ãã«ãå«ã¾ããã®ã§æ³¨æãã¦ãã ããã</b>
     `
   },
   {
-    title: "⭐ 保存済みルートの使い方",
+    title: "â­ ä¿å­æ¸ã¿ã«ã¼ãã®ä½¿ãæ¹",
     content: `
-      <b>今日のルートは保存できます。</b><br><br>
-      保存するとできること<br>
-      ・同じ巡回ルートをあとで再利用<br>
-      ・MAPで再度開く<br>
-      ・お気に入り化<br>
-      ・ルート名やメモ編集<br><br>
-      保存済みルートには、補充頻度や回り頃の目安も表示されます。<br><br>
-      <b>よく回る地域ごとに保存しておくと便利です。</b><br>
-      例：<br>
-      ・新潟市ルート<br>
-      ・長岡ルート<br>
-      ・県外遠征ルート
+      <b>ä»æ¥ã®ã«ã¼ãã¯ä¿å­ã§ãã¾ãã</b><br><br>
+      ä¿å­ããã¨ã§ãããã¨<br>
+      ã»åãå·¡åã«ã¼ãããã¨ã§åå©ç¨<br>
+      ã»MAPã§ååº¦éã<br>
+      ã»ãæ°ã«å¥ãå<br>
+      ã»ã«ã¼ãåãã¡ã¢ç·¨é<br><br>
+      ä¿å­æ¸ã¿ã«ã¼ãã«ã¯ãè£åé »åº¦ãåãé ã®ç®å®ãè¡¨ç¤ºããã¾ãã<br><br>
+      <b>ããåãå°åãã¨ã«ä¿å­ãã¦ããã¨ä¾¿å©ã§ãã</b><br>
+      ä¾ï¼<br>
+      ã»æ°æ½å¸ã«ã¼ã<br>
+      ã»é·å²¡ã«ã¼ã<br>
+      ã»çå¤é å¾ã«ã¼ã
     `
   },
   {
-    title: "📈 レポート画面の見方",
+    title: "ð ã¬ãã¼ãç»é¢ã®è¦æ¹",
     content: `
-      <b>レポート画面では月別 / 日別の振り返りができます。</b><br><br>
-      見られる内容<br>
-      ・月間利益<br>
-      ・訪問回数<br>
-      ・成功回数<br>
-      ・個数<br>
-      ・カテゴリ集計<br>
-      ・期待値TOP5 / 成功率TOP5 / 利益TOP5<br><br>
-      カレンダーでは、その日の利益も確認できます。<br><br>
-      マークの意味<br>
-      ・<b>🎉</b> = 1日の利益が5万円以上<br>
-      ・<b>🏆</b> = 1日の利益が10万円以上<br><br>
-      <b>利益が出た日や強い店舗を振り返る時に使います。</b>
+      <b>ã¬ãã¼ãç»é¢ã§ã¯æå¥ / æ¥å¥ã®æ¯ãè¿ããã§ãã¾ãã</b><br><br>
+      è¦ãããåå®¹<br>
+      ã»æéå©ç<br>
+      ã»è¨ªååæ°<br>
+      ã»æååæ°<br>
+      ã»åæ°<br>
+      ã»ã«ãã´ãªéè¨<br>
+      ã»æå¾å¤TOP5 / æåçTOP5 / å©çTOP5<br><br>
+      ã«ã¬ã³ãã¼ã§ã¯ããã®æ¥ã®å©çãç¢ºèªã§ãã¾ãã<br><br>
+      ãã¼ã¯ã®æå³<br>
+      ã»<b>ð</b> = 1æ¥ã®å©çã5ä¸åä»¥ä¸<br>
+      ã»<b>ð</b> = 1æ¥ã®å©çã10ä¸åä»¥ä¸<br><br>
+      <b>å©çãåºãæ¥ãå¼·ãåºèãæ¯ãè¿ãæã«ä½¿ãã¾ãã</b>
     `
   },
   {
-    title: "🏅 実績機能の見方",
+    title: "ð å®ç¸¾æ©è½ã®è¦æ¹",
     content: `
-      <b>トップ画面には実績カードがあります。</b><br><br>
-      表示される内容<br>
-      ・解除済み実績数<br>
-      ・最新で取った実績<br>
-      ・次に近い実績<br><br>
-      実績一覧では、達成済み / 未達成を確認できます。<br><br>
-      例：<br>
-      ・訪問回数系<br>
-      ・成功回数系<br>
-      ・利益系<br>
-      ・ルート達成系<br><br>
-      <b>実績一覧はアコーディオンで開閉できます。</b>
+      <b>ãããç»é¢ã«ã¯å®ç¸¾ã«ã¼ããããã¾ãã</b><br><br>
+      è¡¨ç¤ºãããåå®¹<br>
+      ã»è§£é¤æ¸ã¿å®ç¸¾æ°<br>
+      ã»ææ°ã§åã£ãå®ç¸¾<br>
+      ã»æ¬¡ã«è¿ãå®ç¸¾<br><br>
+      å®ç¸¾ä¸è¦§ã§ã¯ãéææ¸ã¿ / æªéæãç¢ºèªã§ãã¾ãã<br><br>
+      ä¾ï¼<br>
+      ã»è¨ªååæ°ç³»<br>
+      ã»æååæ°ç³»<br>
+      ã»å©çç³»<br>
+      ã»ã«ã¼ãéæç³»<br><br>
+      <b>å®ç¸¾ä¸è¦§ã¯ã¢ã³ã¼ãã£ãªã³ã§ééã§ãã¾ãã</b>
     `
   },
   {
-    title: "🔧 困った時の見方",
+    title: "ð§ å°ã£ãæã®è¦æ¹",
     content: `
-      <b>うまく表示されない時は次を確認してください。</b><br><br>
-      ・地図に出ない<br>
-      → 住所やGoogleマップURLを確認して、座標一括再取得を試す<br><br>
-      ・ルートに前の店舗が混ざる<br>
-      → 今日行くのチェックが残っていないか確認する<br><br>
-      ・近くの店舗が出ない<br>
-      → 位置情報の許可を確認する<br><br>
+      <b>ãã¾ãè¡¨ç¤ºãããªãæã¯æ¬¡ãç¢ºèªãã¦ãã ããã</b><br><br>
+      ã»å°å³ã«åºãªã<br>
+      â ä½æãGoogleãããURLãç¢ºèªãã¦ãåº§æ¨ä¸æ¬ååå¾ãè©¦ã<br><br>
+      ã»ã«ã¼ãã«åã®åºèãæ··ãã<br>
+      â ä»æ¥è¡ãã®ãã§ãã¯ãæ®ã£ã¦ããªããç¢ºèªãã<br><br>
+      ã»è¿ãã®åºèãåºãªã<br>
+      â ä½ç½®æå ±ã®è¨±å¯ãç¢ºèªãã<br><br>
     `
   }
 ];
@@ -1064,7 +1327,7 @@ function openHelp() {
   const contentEl = document.getElementById("helpContent");
 
   if (!el || !titleEl || !contentEl) {
-    alert("使い方表示の読み込みに失敗しました。");
+    alert("ä½¿ãæ¹è¡¨ç¤ºã®èª­ã¿è¾¼ã¿ã«å¤±æãã¾ããã");
     return;
   }
 
@@ -1159,8 +1422,8 @@ function formatTimeInputValue(value) {
 }
 
 /* =========================
-   APIキーなし：Googleマップ店舗検索補助
-   店舗検索 / マップURL貼付 / 住所候補自動入力
+   APIã­ã¼ãªãï¼Googleãããåºèæ¤ç´¢è£å©
+   åºèæ¤ç´¢ / ãããURLè²¼ä» / ä½æåè£èªåå¥å
 ========================= */
 function getStoreAddSearchAreaText() {
   const pref = document.getElementById("prefName")?.value?.trim() || "";
@@ -1173,7 +1436,7 @@ function getStoreAddSearchAreaText() {
 }
 
 function openGoogleMapsSearch(query) {
-  const text = String(query || "").trim() || "店舗";
+  const text = String(query || "").trim() || "åºè";
   const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}`;
 
   const opened = window.open(url, "_blank");
@@ -1199,10 +1462,10 @@ function openStoreSearchFromForm() {
     .join(" ")
     .trim();
 
-  openGoogleMapsSearch(keyword || "リサイクルショップ");
+  openGoogleMapsSearch(keyword || "ãªãµã¤ã¯ã«ã·ã§ãã");
 }
 
-/* 旧ボタン名が残っていても動くようにする保険 */
+/* æ§ãã¿ã³åãæ®ã£ã¦ãã¦ãåãããã«ããä¿éº */
 function openRecycleShopSearchFromForm() {
   openStoreSearchFromForm();
 }
@@ -1220,7 +1483,7 @@ function extractStoreNameFromGoogleMapUrl(url) {
         .replaceAll("+", " ")
         .trim();
 
-      if (name && name !== "リサイクルショップ") return name;
+      if (name && name !== "ãªãµã¤ã¯ã«ã·ã§ãã") return name;
     }
 
     const searchMatch = decoded.match(/\/maps\/search\/([^/@]+)/);
@@ -1229,7 +1492,7 @@ function extractStoreNameFromGoogleMapUrl(url) {
         .replaceAll("+", " ")
         .trim();
 
-      if (name && name !== "リサイクルショップ") return name;
+      if (name && name !== "ãªãµã¤ã¯ã«ã·ã§ãã") return name;
     }
   } catch (e) {
     console.error("extractStoreNameFromGoogleMapUrl error:", e);
@@ -1251,16 +1514,16 @@ function extractPrefFromAddressText(text) {
   const value = String(text || "").trim();
 
   const prefs = [
-    "北海道",
-    "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
-    "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
-    "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県",
-    "岐阜県", "静岡県", "愛知県", "三重県",
-    "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県",
-    "鳥取県", "島根県", "岡山県", "広島県", "山口県",
-    "徳島県", "香川県", "愛媛県", "高知県",
-    "福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県",
-    "沖縄県"
+    "åæµ·é",
+    "éæ£®ç", "å²©æç", "å®®åç", "ç§ç°ç", "å±±å½¢ç", "ç¦å³¶ç",
+    "è¨åç", "æ æ¨ç", "ç¾¤é¦¬ç", "å¼çç", "åèç", "æ±äº¬é½", "ç¥å¥å·ç",
+    "æ°æ½ç", "å¯å±±ç", "ç³å·ç", "ç¦äºç", "å±±æ¢¨ç", "é·éç",
+    "å²éç", "éå²¡ç", "æç¥ç", "ä¸éç",
+    "æ»è³ç", "äº¬é½åº", "å¤§éªåº", "åµåº«ç", "å¥è¯ç", "åæ­å±±ç",
+    "é³¥åç", "å³¶æ ¹ç", "å²¡å±±ç", "åºå³¶ç", "å±±å£ç",
+    "å¾³å³¶ç", "é¦å·ç", "æåªç", "é«ç¥ç",
+    "ç¦å²¡ç", "ä½è³ç", "é·å´ç", "çæ¬ç", "å¤§åç", "å®®å´ç", "é¹¿åå³¶ç",
+    "æ²ç¸ç"
   ];
 
   return prefs.find(pref => value.includes(pref)) || "";
@@ -1322,7 +1585,7 @@ async function reverseGeocodeLatLng(lat, lng) {
 
 async function pasteGoogleMapUrlToForm() {
   const input = prompt(
-    "Googleマップの共有URLを貼り付けてください。\n\nGoogleマップで店舗を開く → 共有 → リンクをコピー",
+    "Googleãããã®å±æURLãè²¼ãä»ãã¦ãã ããã\n\nGoogleãããã§åºèãéã â å±æ â ãªã³ã¯ãã³ãã¼",
     ""
   );
 
@@ -1331,7 +1594,7 @@ async function pasteGoogleMapUrlToForm() {
   const url = String(input || "").trim();
 
   if (!url) {
-    alert("URLが入力されていません。");
+    alert("URLãå¥åããã¦ãã¾ããã");
     return;
   }
 
@@ -1376,7 +1639,7 @@ async function pasteGoogleMapUrlToForm() {
 
   if (!coord) {
     alert(
-      "GoogleマップURLを入力しました。\n\nただし、このURLから座標を取得できませんでした。\nURL内に @緯度,経度 または !3d緯度!4d経度 が含まれているか確認してください。"
+      "GoogleãããURLãå¥åãã¾ããã\n\nãã ãããã®URLããåº§æ¨ãåå¾ã§ãã¾ããã§ããã\nURLåã« @ç·¯åº¦,çµåº¦ ã¾ãã¯ !3dç·¯åº¦!4dçµåº¦ ãå«ã¾ãã¦ãããç¢ºèªãã¦ãã ããã"
     );
     return;
   }
@@ -1385,7 +1648,7 @@ async function pasteGoogleMapUrlToForm() {
 
   if (!result || !result.address) {
     alert(
-      `GoogleマップURLを入力しました。\n\n座標は取得できました。\n緯度: ${coord.lat}\n経度: ${coord.lng}\n\nただし、住所の自動取得に失敗しました。`
+      `GoogleãããURLãå¥åãã¾ããã\n\nåº§æ¨ã¯åå¾ã§ãã¾ããã\nç·¯åº¦: ${coord.lat}\nçµåº¦: ${coord.lng}\n\nãã ããä½æã®èªååå¾ã«å¤±æãã¾ããã`
     );
     return;
   }
@@ -1401,7 +1664,7 @@ async function pasteGoogleMapUrlToForm() {
       prefEl.value = nextPref;
     } else if (currentPref !== nextPref) {
       const ok = confirm(
-        `都道府県を自動取得しました。\n\n現在: ${currentPref}\n取得: ${nextPref}\n\n取得した都道府県で上書きしますか？`
+        `é½éåºçãèªååå¾ãã¾ããã\n\nç¾å¨: ${currentPref}\nåå¾: ${nextPref}\n\nåå¾ããé½éåºçã§ä¸æ¸ããã¾ããï¼`
       );
       if (ok) prefEl.value = nextPref;
     }
@@ -1412,14 +1675,14 @@ async function pasteGoogleMapUrlToForm() {
       addressEl.value = nextAddress;
     } else if (currentAddress !== nextAddress) {
       const ok = confirm(
-        `住所候補を自動取得しました。\n\n現在:\n${currentAddress}\n\n取得:\n${nextAddress}\n\n取得した住所で上書きしますか？`
+        `ä½æåè£ãèªååå¾ãã¾ããã\n\nç¾å¨:\n${currentAddress}\n\nåå¾:\n${nextAddress}\n\nåå¾ããä½æã§ä¸æ¸ããã¾ããï¼`
       );
       if (ok) addressEl.value = nextAddress;
     }
   }
 
   alert(
-    `GoogleマップURLを入力しました。\n\n座標と住所候補を取得しました。\n\n緯度: ${coord.lat}\n経度: ${coord.lng}\n\n住所:\n${nextAddress}\n\n内容を確認してから店舗追加してください。`
+    `GoogleãããURLãå¥åãã¾ããã\n\nåº§æ¨ã¨ä½æåè£ãåå¾ãã¾ããã\n\nç·¯åº¦: ${coord.lat}\nçµåº¦: ${coord.lng}\n\nä½æ:\n${nextAddress}\n\nåå®¹ãç¢ºèªãã¦ããåºèè¿½å ãã¦ãã ããã`
   );
 }
 
