@@ -5587,3 +5587,36 @@ button {
     justify-self:start;
   }
 }
+
+/* =========================================================
+   店舗カード：タップ編集できるミニメモ
+   ========================================================= */
+
+.storeCardTopLine{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:10px;
+  width:100%;
+  min-width:0;
+  margin-bottom:10px;
+}
+
+.storeCardTopLine .evalLabel{
+  margin-bottom:0;
+  flex:0 0 auto;
+}
+
+.storeMiniMemoBtn{
+  display:block;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  min-height:34px;
+  height:34px;
+  padding:0 11px;
+  border:1.5px solid #d9dfeb;
+  border-radius:12px;
+  background:#f8fafc;
+  color:#64748b;
+  box-shadow:none;
