@@ -496,8 +496,20 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
 
   return `
     <div class="item compactCard ${expectedClass} ${staleClass}">
-      <div class="evalLabel ${evalData.class}">
-        ${evalData.label}
+      <div class="storeCardTopLine">
+        <div class="evalLabel ${evalData.class}">
+          ${evalData.label}
+        </div>
+
+        <button
+          type="button"
+          class="storeMiniMemoBtn ${getStoreMiniMemo(s.id) ? "hasMemo" : "isEmpty"}"
+          onclick="editStoreMiniMemo('${escapeJsString(s.id)}')"
+          aria-label="ミニメモを入力・編集"
+          title="タップしてミニメモを入力・編集"
+        >
+          <span class="storeMiniMemoScroll">${escapeHtml(getStoreMiniMemo(s.id) || "ミニメモ")}</span>
+        </button>
       </div>
 
       <div class="name">${escapeHtml(s.name)}</div>
@@ -555,8 +567,20 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
 
   return `
     <div class="item ${expectedClass} ${staleClass}">
-      <div class="evalLabel ${evalData.class}">
-        ${evalData.label}
+      <div class="storeCardTopLine">
+        <div class="evalLabel ${evalData.class}">
+          ${evalData.label}
+        </div>
+
+        <button
+          type="button"
+          class="storeMiniMemoBtn ${getStoreMiniMemo(s.id) ? "hasMemo" : "isEmpty"}"
+          onclick="editStoreMiniMemo('${escapeJsString(s.id)}')"
+          aria-label="ミニメモを入力・編集"
+          title="タップしてミニメモを入力・編集"
+        >
+          <span class="storeMiniMemoScroll">${escapeHtml(getStoreMiniMemo(s.id) || "ミニメモ")}</span>
+        </button>
       </div>
 
       <div class="name">${escapeHtml(s.name)}</div>
@@ -1104,6 +1128,7 @@ function render() {
     storeHours: stores.map(s => `${s.id}:${s.openTime || ""}-${s.closeTime || ""}`).join("|"),
     storeClosedDays: stores.map(s => `${s.id}:${(s.regularClosedDays || []).join(",")}`).join("|"),
     storeMemos: stores.map(s => `${s.id}:${s.memo || ""}`).join("|"),
+    storeMiniMemos: stores.map(s => `${s.id}:${getStoreMiniMemo(s.id)}`).join("|"),
     savedRoutes: savedRoutes.map(r => `${r.id}:${r.updatedAt}:${r.favorite}`).join("|"),
     routeRunHistory: routeRunHistory.map(h => `${h.id}:${h.routeId}:${h.date}:${h.profit}:${h.items}:${h.visitedStoreCount}:${h.updatedAt}`).join("|"),
     selectedRouteRunIds: typeof selectedRouteRunIds !== "undefined" ? [...selectedRouteRunIds].sort().join("|") : "",
