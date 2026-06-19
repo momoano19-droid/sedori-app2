@@ -5620,3 +5620,82 @@ button {
   background:#f8fafc;
   color:#64748b;
   box-shadow:none;
+  text-align:left;
+  overflow-x:auto;
+  overflow-y:hidden;
+  white-space:nowrap;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+  touch-action:pan-x;
+}
+
+.storeMiniMemoBtn::-webkit-scrollbar{
+  display:none;
+}
+
+.storeMiniMemoBtn.hasMemo{
+  border-color:#b9d7ff;
+  background:#eef6ff;
+  color:#2457d6;
+}
+
+.storeMiniMemoBtn.isEmpty{
+  border-style:dashed;
+  color:#94a3b8;
+}
+
+.storeMiniMemoScroll{
+  display:inline-block;
+  min-width:max-content;
+  font-size:13px;
+  font-weight:900;
+  line-height:31px;
+  white-space:nowrap;
+}
+
+@media (max-width:640px){
+  .storeCardTopLine{
+    gap:8px;
+  }
+
+  .storeMiniMemoBtn{
+    min-height:32px;
+    height:32px;
+    padding:0 9px;
+    border-radius:11px;
+  }
+
+  .storeMiniMemoScroll{
+    font-size:12px;
+    line-height:29px;
+  }
+}
+/* =========================================================
+   ミニメモ：横幅を従来の約1/3へ縮小
+   ========================================================= */
+.storeCardTopLine{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:8px;
+}
+
+.storeCardTopLine .evalLabel{
+  flex:0 0 auto;
+}
+
+.storeMiniMemoBtn{
+  flex:0 0 clamp(82px, 24vw, 118px);
+  width:clamp(82px, 24vw, 118px);
+  max-width:118px;
+  min-width:82px;
+}
+
+@media (max-width:640px){
+  .storeMiniMemoBtn{
+    flex-basis:clamp(76px, 23vw, 104px);
+    width:clamp(76px, 23vw, 104px);
+    max-width:104px;
+    min-width:76px;
+  }
+}
