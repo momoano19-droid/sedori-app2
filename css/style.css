@@ -5699,3 +5699,23 @@ button {
     min-width:76px;
   }
 }
+/* =========================================================
+   ミニメモ：10文字・枠外へのはみ出し防止
+   ========================================================= */
+.storeMiniMemoBtn{
+  position:relative !important;
+  overflow:hidden !important;
+  white-space:nowrap !important;
+  contain:paint;
+  clip-path:inset(0 round 12px);
+}
+
+.storeMiniMemoScroll{
+  display:block !important;
+  width:100% !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  overflow:hidden !important;
+  white-space:nowrap !important;
+  text-overflow:clip !important;
+}
