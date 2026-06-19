@@ -57,10 +57,17 @@ function editStoreMiniMemo(storeId) {
 
   if (input === null) return;
 
-  const next = String(input || "")
+  const normalized = String(input || "")
     .replace(/[\r\n]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+  if ([...normalized].length > 10) {
+    alert("ミニメモは10文字以内で入力してください。");
+    return;
+  }
+
+  const next = normalized;
 
   if (next) {
     storeMiniMemoMap[id] = next;
@@ -84,10 +91,10 @@ function restoreStoreMiniMemosFromBackup(value) {
 
   Object.entries(source).forEach(([storeId, memo]) => {
     const id = String(storeId || "");
-    const text = String(memo || "")
+    const text = [...String(memo || "")
       .replace(/[\r\n]+/g, " ")
       .replace(/\s+/g, " ")
-      .trim();
+      .trim()].slice(0, 10).join("");
 
     if (id && text) storeMiniMemoMap[id] = text;
   });
