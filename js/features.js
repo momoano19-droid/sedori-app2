@@ -1,4 +1,112 @@
 /* =========================
+   店舗ミニメモ
+========================= */
+
+const STORE_MINI_MEMO_KEY = "store_mini_memos_v1";
+
+function loadStoreMiniMemoMap() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORE_MINI_MEMO_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+let storeMiniMemoMap = loadStoreMiniMemoMap();
+
+function saveStoreMiniMemoMap() {
+  try {
+    localStorage.setItem(
+      STORE_MINI_MEMO_KEY,
+      JSON.stringify(storeMiniMemoMap || {})
+    );
+  } catch (e) {
+    console.error("saveStoreMiniMemoMap error:", e);
+  }
+}
+
+function getStoreMiniMemo(storeId) {
+  const id = String(storeId || "");
+  if (!id) return "";
+
+  const fromMap = String(storeMiniMemoMap?.[id] || "").trim();
+  if (fromMap) return fromMap;
+
+  const store = stores.find(item => String(item?.id || "") === id);
+  return String(store?.miniMemo || "").trim();
+}
+
+function editStoreMiniMemo(storeId) {
+  const id = String(storeId || "");
+  if (!id) return;
+
+  const store = stores.find(item => String(item?.id || "") === id);
+  if (!store) {
+    alert("店舗が見つかりません。");
+    return;
+  }
+
+  const current = getStoreMiniMemo(id);
+  const input = prompt(
+    `「${store.name || "店舗"}」のミニメモを入力してください。\n\n空欄で保存すると未入力に戻ります。`,
+    current
+  );
+
+  if (input === null) return;
+
+  const next = String(input || "")
+    .replace(/[\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (next) {
+    storeMiniMemoMap[id] = next;
+  } else {
+    delete storeMiniMemoMap[id];
+  }
+
+  store.miniMemo = next;
+  saveStoreMiniMemoMap();
+  saveAll();
+  forceStoreRenderRefresh();
+  render();
+}
+
+function restoreStoreMiniMemosFromBackup(value) {
+  const source = value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : {};
+
+  storeMiniMemoMap = {};
+
+  Object.entries(source).forEach(([storeId, memo]) => {
+    const id = String(storeId || "");
+    const text = String(memo || "")
+      .replace(/[\r\n]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (id && text) storeMiniMemoMap[id] = text;
+  });
+
+  stores.forEach(store => {
+    const id = String(store?.id || "");
+    const fromStore = String(store?.miniMemo || "").trim();
+
+    if (id && fromStore && !storeMiniMemoMap[id]) {
+      storeMiniMemoMap[id] = fromStore;
+    }
+
+    if (id) store.miniMemo = String(storeMiniMemoMap[id] || "");
+  });
+
+  saveStoreMiniMemoMap();
+}
+
+/* =========================
    保存ルート巡回実績
 ========================= */
 
@@ -364,7 +472,8 @@ function exportBackup() {
     logs,
     savedRoutes,
     todayRouteOrder,
-    routeRunHistory
+    routeRunHistory,
+    storeMiniMemos: { ...storeMiniMemoMap }
   };
 
   const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -409,6 +518,8 @@ function importBackup(event) {
       routeRunHistory = Array.isArray(parsed.routeRunHistory)
         ? normalizeRouteRunHistory(parsed.routeRunHistory)
         : [];
+
+      restoreStoreMiniMemosFromBackup(parsed.storeMiniMemos || {});
 
       syncStoreProfitsFromLogs();
 
@@ -458,6 +569,8 @@ function restoreAutoBackup() {
   routeRunHistory = Array.isArray(data.routeRunHistory)
     ? normalizeRouteRunHistory(data.routeRunHistory)
     : [];
+
+  restoreStoreMiniMemosFromBackup(data.storeMiniMemos || {});
 
   syncStoreProfitsFromLogs();
 
