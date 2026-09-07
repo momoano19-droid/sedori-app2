@@ -1059,9 +1059,10 @@ function renderTodayRouteList() {
   el.innerHTML = `
     ${splitButtonsHtml}
     ${routeStores.map((s, idx) => {
-      const visited = isTodayRouteVisited(s.id);
+  const visited = isTodayRouteVisited(s.id);
+  const m = getMetrics(s);
 
-      return `
+  return `
         <div class="item todayRouteItem ${visited ? "todayRouteItemVisited" : ""}">
           <div class="name todayRouteName">
             ${idx + 1}. ${escapeHtml(s.name)}
@@ -1069,10 +1070,14 @@ function renderTodayRouteList() {
           </div>
 
           <div class="mini">
-            ${escapeHtml(s.pref || "")}${s.address ? ` / ${escapeHtml(s.address)}` : ""}
-          </div>
+  ${escapeHtml(s.pref || "")}${s.address ? ` / ${escapeHtml(s.address)}` : ""}
+</div>
 
-          ${renderTodayRouteBusinessInfoHtml(s, visited)}
+<div class="mini mt6">
+  💰 期待値：<strong>${Math.round(m.expected).toLocaleString()}円</strong>
+</div>
+
+${renderTodayRouteBusinessInfoHtml(s, visited)}
 
           ${s.memo ? `
             <div class="mini mt6">
