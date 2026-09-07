@@ -1073,8 +1073,16 @@ function renderTodayRouteList() {
   ${escapeHtml(s.pref || "")}${s.address ? ` / ${escapeHtml(s.address)}` : ""}
 </div>
 
-<div class="mini mt6">
-  💰 期待値：<strong>${Math.round(m.expected).toLocaleString()}円</strong>
+<div class="mini mt6" style="display:flex; align-items:center; gap:18px; flex-wrap:wrap;">
+  <span>
+    💰 期待値：
+    <strong>${Math.round(m.expected).toLocaleString()}円</strong>
+  </span>
+
+  <span>
+    🎯 成功率：
+    <strong>${m.rate.toFixed(1)}%</strong>
+  </span>
 </div>
 
 ${renderTodayRouteBusinessInfoHtml(s, visited)}
