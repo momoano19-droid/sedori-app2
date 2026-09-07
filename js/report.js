@@ -17,6 +17,8 @@ const LOG_KEYS = [
 let selectedMonth = null;
 let selectedDay = null;
 let selectedRangeMode = "month"; // month | 3m | 6m | 12m | total
+let selectedPrefName = "";
+let selectedPrefStoreSort = "expected"; // expected | rate | profit
 
 /* =========================
    軽量化キャッシュ
@@ -1860,6 +1862,13 @@ function renderPrefAnalysis() {
     </div>
   `;
 }
+function changePrefStoreSort(prefName, sortType) {
+  const allowed = ["expected", "rate", "profit"];
+  selectedPrefName = String(prefName || "");
+  selectedPrefStoreSort = allowed.includes(sortType) ? sortType : "expected";
+
+  showPrefDetail(selectedPrefName);
+}
 
 function showPrefDetail(prefName) {
   const bundle = getCurrentPrefBundle();
@@ -1869,7 +1878,13 @@ function showPrefDetail(prefName) {
   const title = document.getElementById("detailTitle");
   if (!body || !title) return;
 
-  const modeLabel = getRangeLabel(selectedRangeMode, selectedMonth || currentMonthStr());
+  selectedPrefName = String(prefName || "");
+
+  const modeLabel = getRangeLabel(
+    selectedRangeMode,
+    selectedMonth || currentMonthStr()
+  );
+
   title.textContent = `${prefName} 詳細（${modeLabel}）`;
 
   if (!pref) {
@@ -1899,18 +1914,90 @@ function showPrefDetail(prefName) {
     return;
   }
 
-  html += pref.stores.map(store => {
-    const rate = Number(store.visits || 0) > 0 ? (Number(store.success || 0) / Number(store.visits || 0)) * 100 : 0;
-    const expected = Number(store.visits || 0) > 0 ? Number(store.profit || 0) / Number(store.visits || 0) : 0;
+  const storeRows = pref.stores.map(store => {
+    const visits = Number(store.visits || 0);
+    const success = Number(store.success || 0);
+    const profit = Number(store.profit || 0);
 
+    return {
+      ...store,
+      rate: visits > 0 ? (success / visits) * 100 : 0,
+      expected: visits > 0 ? profit / visits : 0
+    };
+  });
+
+  storeRows.sort((a, b) => {
+    if (selectedPrefStoreSort === "rate") {
+      return (
+        b.rate - a.rate ||
+        b.success - a.success ||
+        b.expected - a.expected
+      );
+    }
+
+    if (selectedPrefStoreSort === "profit") {
+      return (
+        b.profit - a.profit ||
+        b.expected - a.expected
+      );
+    }
+
+    return (
+      b.expected - a.expected ||
+      b.rate - a.rate ||
+      b.profit - a.profit
+    );
+  });
+
+  html += `
+    <div class="detailBlock">
+      <div class="detailTitle">店舗の並び替え</div>
+
+      <div style="
+        display:grid;
+        grid-template-columns:repeat(3, 1fr);
+        gap:8px;
+        margin-top:10px;
+      ">
+        <button
+          type="button"
+          class="${selectedPrefStoreSort === "expected" ? "primaryBtn" : "ghostBtn"}"
+          onclick="changePrefStoreSort('${escapeJsString(prefName)}', 'expected')"
+        >
+          期待値順
+        </button>
+
+        <button
+          type="button"
+          class="${selectedPrefStoreSort === "rate" ? "primaryBtn" : "ghostBtn"}"
+          onclick="changePrefStoreSort('${escapeJsString(prefName)}', 'rate')"
+        >
+          成功率順
+        </button>
+
+        <button
+          type="button"
+          class="${selectedPrefStoreSort === "profit" ? "primaryBtn" : "ghostBtn"}"
+          onclick="changePrefStoreSort('${escapeJsString(prefName)}', 'profit')"
+        >
+          利益順
+        </button>
+      </div>
+    </div>
+  `;
+
+  html += storeRows.map((store, index) => {
     return `
       <div class="detailBlock">
-        <div class="detailTitle">${escapeHtml(store.name)}</div>
+        <div class="detailTitle">
+          ${index + 1}. ${escapeHtml(store.name)}
+        </div>
+
         <div class="detailText">
           利益：${yen(store.profit)}<br>
           訪問：${store.visits}回 / 成功：${store.success}回 / 個数：${store.items}個<br>
-          成功率：${rate.toFixed(1)}%<br>
-          期待値：${Math.round(expected).toLocaleString()}円
+          成功率：${store.rate.toFixed(1)}%<br>
+          期待値：${Math.round(store.expected).toLocaleString()}円
         </div>
       </div>
     `;
