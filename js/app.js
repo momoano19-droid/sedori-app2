@@ -667,7 +667,6 @@ function renderStoreCard(s, idx) {
   return renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedClass, staleClass);
 }
 
-
 /* =========================
    保存ルート巡回実績表示
 ========================= */
@@ -1061,7 +1060,6 @@ function renderTodayRouteList() {
     ${splitButtonsHtml}
     ${routeStores.map((s, idx) => {
       const visited = isTodayRouteVisited(s.id);
-      const m = getMetrics(s);
 
       return `
         <div class="item todayRouteItem ${visited ? "todayRouteItemVisited" : ""}">
@@ -1072,11 +1070,6 @@ function renderTodayRouteList() {
 
           <div class="mini">
             ${escapeHtml(s.pref || "")}${s.address ? ` / ${escapeHtml(s.address)}` : ""}
-          </div>
-
-          <div class="todayRouteExpected">
-            💰 期待値
-            <strong>${Math.round(m.expected).toLocaleString()}円</strong>
           </div>
 
           ${renderTodayRouteBusinessInfoHtml(s, visited)}
