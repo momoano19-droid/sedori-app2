@@ -151,7 +151,8 @@ function addLog(storeId, type, delta, category = "") {
     storeId,
     type,
     delta: Number(delta || 0),
-    category: String(category || "")
+    category: String(category || ""),
+    createdAt: new Date().toISOString()
   });
   categoryHistoryDirty = true;
 }

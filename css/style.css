@@ -5719,3 +5719,138 @@ button {
   white-space:nowrap !important;
   text-overflow:clip !important;
 }
+
+
+/* =========================
+   仕入れ活動セッション
+========================= */
+.sourcingSessionCard{
+  border:1px solid #e3e9f3;
+  background:linear-gradient(180deg,#ffffff,#fbfcff);
+}
+.sourcingSessionHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+}
+.sourcingSessionTitle{
+  font-size:14px;
+  font-weight:900;
+  color:var(--sub);
+  margin-bottom:5px;
+}
+.sourcingSessionStatus{
+  font-size:17px;
+  line-height:1.4;
+  font-weight:900;
+  color:var(--text);
+}
+.sourcingSessionDetail{
+  margin-top:4px;
+  font-size:12px;
+  line-height:1.5;
+  font-weight:700;
+  color:var(--sub);
+}
+.sourcingEndBtn{
+  flex:0 0 auto;
+  min-width:116px;
+}
+@media (max-width:640px){
+  .sourcingSessionHead{
+    align-items:stretch;
+    flex-direction:column;
+    gap:10px;
+  }
+  .sourcingEndBtn{
+    width:100%;
+  }
+}
+
+/* =========================
+   AI仕入れ総評（集計・自動分析）
+========================= */
+.aiSourcingSummaryCard{border:1px solid #dbe7ff;background:linear-gradient(180deg,#f8fbff 0%,#fff 100%);}
+.aiSourcingSummaryHead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;}
+.aiSourcingSummaryState{flex:0 0 auto;padding:6px 10px;border-radius:999px;background:#eef4ff;color:#2457b8;font-size:12px;font-weight:900;}
+.aiSourcingMetrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px;}
+.aiSourcingMetric{padding:10px;border:1px solid #e5eaf2;border-radius:12px;background:#fff;min-width:0;}
+.aiSourcingMetricLabel{font-size:11px;font-weight:800;color:var(--sub);line-height:1.3;}
+.aiSourcingMetricValue{margin-top:4px;font-size:18px;font-weight:900;color:var(--text);line-height:1.25;word-break:break-word;}
+.aiSourcingComment{margin-top:12px;padding:12px 14px;border-radius:12px;background:#f4f7fb;font-size:14px;font-weight:700;line-height:1.75;color:var(--text);}
+.aiSourcingCommentTitle{font-weight:900;margin-bottom:4px;}
+@media (max-width:640px){.aiSourcingSummaryHead{display:block}.aiSourcingSummaryState{display:inline-block;margin-top:8px}.aiSourcingMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.aiSourcingMetricValue{font-size:16px}}
+
+
+/* AI詳細分析 */
+.aiDeepAnalysisActions{margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.aiDeepAnalysisActions .primaryBtn{min-width:190px;}
+.aiDeepAnalysisResult{margin-top:12px;padding:14px 16px;border:1px solid #cfe0ff;border-radius:14px;background:#fff;}
+.aiDeepAnalysisTitle{font-size:15px;font-weight:900;margin-bottom:8px;}
+.aiDeepAnalysisText{font-size:14px;line-height:1.8;font-weight:650;white-space:normal;}
+.aiDeepAnalysisLoading{font-size:14px;font-weight:800;color:var(--sub);}
+.aiDeepAnalysisError{font-size:14px;font-weight:800;line-height:1.7;color:var(--danger);}
+@media (max-width:640px){.aiDeepAnalysisActions{display:block}.aiDeepAnalysisActions .primaryBtn{width:100%;}.aiDeepAnalysisActions .mini{margin-top:8px;}}
+
+
+/* AI詳細分析：カードUI */
+.aiDeepAnalysisResult{background:linear-gradient(180deg,#f8fbff 0%,#fff 100%);padding:14px;border-radius:18px;}
+.aiDeepAnalysisHeader{padding:2px 2px 12px;}
+.aiDeepAnalysisHeader .aiDeepAnalysisTitle{font-size:17px;font-weight:950;margin:0;}
+.aiDeepAnalysisSub{font-size:11px;color:var(--sub);font-weight:700;margin-top:3px;}
+.aiDeepAnalysisCards{display:grid;gap:10px;}
+.aiDeepCard{border:1px solid #e5e7eb;border-radius:14px;background:#fff;padding:13px 14px;box-shadow:0 2px 8px rgba(15,23,42,.04);}
+.aiDeepCardTitle{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:950;line-height:1.4;margin-bottom:7px;}
+.aiDeepCardBody{font-size:13px;line-height:1.8;font-weight:650;color:var(--text);overflow-wrap:anywhere;}
+.aiDeepCard--overall{border-left:4px solid #3976f6;background:#f7faff;}
+.aiDeepCard--good{border-left:4px solid #22a06b;background:#f7fdf9;}
+.aiDeepCard--improve{border-left:4px solid #e7a21a;background:#fffaf0;}
+.aiDeepCard--store{border-left:4px solid #7c5ce5;background:#faf8ff;}
+.aiDeepCard--next{border-left:4px solid #e25b76;background:#fff8fa;}
+.aiDeepCard--detail{border-left:4px solid #94a3b8;}
+@media (max-width:640px){
+  .aiDeepAnalysisResult{padding:10px;}
+  .aiDeepCard{padding:12px;}
+  .aiDeepCardTitle{font-size:13px;}
+  .aiDeepCardBody{font-size:12.5px;line-height:1.75;}
+}
+
+/* =========================
+   AI次回仕入れプラン
+========================= */
+.aiNextPlanCard{border:1px solid #d9e8df;background:linear-gradient(180deg,#f7fcf9 0%,#fff 100%);}
+.aiNextPlanHead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;}
+.aiNextPlanInputs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px;}
+.aiNextPlanField{display:block;min-width:0;}
+.aiNextPlanField>span{display:block;font-size:11px;font-weight:850;color:var(--sub);margin-bottom:5px;}
+.aiNextPlanField input{width:100%;box-sizing:border-box;min-height:42px;}
+.aiNextPlanUnit{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px;}
+.aiNextPlanUnit>span{font-size:12px;font-weight:850;color:var(--sub);white-space:nowrap;}
+.aiNextPlanActions{margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.aiNextPlanActions .primaryBtn{min-width:230px;}
+.aiNextPlanResult{margin-top:12px;padding:14px;border:1px solid #cfe6d8;border-radius:18px;background:linear-gradient(180deg,#f8fffb 0%,#fff 100%);}
+.aiPlanCards{display:grid;gap:10px;}
+.aiPlanCard{border:1px solid #e5e7eb;border-radius:14px;background:#fff;padding:13px 14px;box-shadow:0 2px 8px rgba(15,23,42,.04);}
+.aiPlanCardTitle{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:950;line-height:1.4;margin-bottom:7px;}
+.aiPlanCardBody{font-size:13px;line-height:1.8;font-weight:650;color:var(--text);overflow-wrap:anywhere;}
+.aiPlanCard--summary{border-left:4px solid #3976f6;background:#f7faff;}
+.aiPlanCard--route{border-left:4px solid #22a06b;background:#f7fdf9;}
+.aiPlanCard--reason{border-left:4px solid #7c5ce5;background:#faf8ff;}
+.aiPlanCard--target{border-left:4px solid #e7a21a;background:#fffaf0;}
+.aiPlanCard--strategy{border-left:4px solid #e25b76;background:#fff8fa;}
+.aiPlanCard--caution{border-left:4px solid #94a3b8;}
+@media (max-width:760px){
+  .aiNextPlanHead{display:block}.aiNextPlanHead .aiSourcingSummaryState{display:inline-block;margin-top:8px}
+  .aiNextPlanInputs{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .aiNextPlanActions{display:block}.aiNextPlanActions .primaryBtn{width:100%;}.aiNextPlanActions .mini{margin-top:8px;}
+}
+
+/* AI次回プラン → 今日のルート反映 */
+.aiNextPlanRouteActions{margin-top:12px;padding-top:12px;border-top:1px solid var(--line,#e5e7eb);display:grid;gap:7px;}
+.aiNextPlanRouteActions[hidden]{display:none!important;}
+.aiNextPlanRouteActions .primaryBtn{width:100%;min-height:46px;font-weight:900;}
+
+/* AI × 移動効率ルート最適化 */
+.aiNextPlanRouteActions .aiOptimizeRouteBtn{width:100%;min-height:46px;font-weight:900;border:1px solid var(--line,#d1d5db);}
+.aiNextPlanRouteActions .aiOptimizeRouteBtn:disabled{opacity:.65;cursor:wait;}

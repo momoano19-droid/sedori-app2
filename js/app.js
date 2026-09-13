@@ -1110,6 +1110,7 @@ ${renderTodayRouteBusinessInfoHtml(s, visited)}
 
 function render() {
   syncStoreProfitsFromLogs();
+  if (typeof renderSourcingSessionStatus === "function") renderSourcingSessionStatus();
   updateLayoutButtons();
   buildPrefFilter();
   syncTodayRouteOrder();
@@ -1756,6 +1757,7 @@ window.addEventListener("load", () => {
     updateLayoutButtons();
     restoreStoreAddAccordion();
     restoreSortType();
+    if (typeof resolveStaleSourcingSession === "function") resolveStaleSourcingSession();
     render();
 
     if (typeof renderBadgesIfExists === "function") {
@@ -1772,6 +1774,9 @@ window.addEventListener("load", () => {
 
     setTimeout(() => maybeNotifyClosingSoonStores(), 1200);
     setInterval(() => maybeNotifyClosingSoonStores(), 60000);
+    setInterval(() => {
+      if (typeof renderSourcingSessionStatus === "function") renderSourcingSessionStatus();
+    }, 30000);
     setupButtonPressEffect();
     setupTimeInputAutoFormat();
   } catch (e) {

@@ -2272,6 +2272,9 @@ function handleDayTap(dayStr) {
   const bundle = getMonthBundle(stores, logs, ym(dayStr));
   renderCalendar(ym(dayStr), bundle.daily);
   showDayDetail(dayStr);
+  renderAiSourcingSummary(dayStr);
+  const card = document.getElementById("aiSourcingSummaryCard");
+  if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 /* =========================
@@ -2637,3 +2640,738 @@ window.addEventListener("resize", () => {
   const bundle = getRangeBundle(stores, logs, selectedRangeMode, baseMonth);
   drawCategoryPieChart("categoryPieChart", bundle.summary.categories || [], bundle.summary.label || "");
 });
+
+/* =========================
+   今日の仕入れ総評：AI接続前の集計エンジン
+========================= */
+const REPORT_SOURCING_SESSIONS_KEY = "sourcing_sessions_v1";
+const REPORT_ACTIVE_SOURCING_SESSION_KEY = "active_sourcing_session_v1";
+
+function loadReportSourcingSessions() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(REPORT_SOURCING_SESSIONS_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+function loadReportActiveSourcingSession() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(REPORT_ACTIVE_SOURCING_SESSION_KEY) || "null");
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch { return null; }
+}
+
+function reportSessionMinutes(session, nowMs = Date.now()) {
+  if (!session?.startAt) return 0;
+  if (Number(session.durationMinutes) >= 0 && session.endAt) return Math.max(0, Number(session.durationMinutes || 0));
+  const start = new Date(session.startAt).getTime();
+  const end = session.endAt ? new Date(session.endAt).getTime() : nowMs;
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return 0;
+  return Math.max(0, Math.round((end - start) / 60000));
+}
+
+function formatReportActivityTime(minutes) {
+  const m = Math.max(0, Math.round(Number(minutes || 0)));
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  return h ? `${h}時間${rest}分` : `${rest}分`;
+}
+
+function getDayActivityMetrics(dayStr, logs) {
+  const bundle = buildBundle(loadStores(), (logs || []).filter(x => ymd(x.date) === dayStr), dayStr);
+  const s = bundle.summary;
+  return {
+    profit: Number(s.profit || 0), visits: Number(s.visits || 0), success: Number(s.success || 0),
+    items: Number(s.items || 0), rate: Number(s.rate || 0), storeCount: Number(s.activeStoreCount || 0)
+  };
+}
+
+function buildRecentDayBenchmark(logs, targetDay) {
+  const byDay = {};
+  (logs || []).forEach(log => {
+    const d = ymd(log.date);
+    if (!d || d >= targetDay) return;
+    const type = String(log.type || "");
+    if (!["visit","success","items","profit","profit_adjust"].includes(type)) return;
+    if (!byDay[d]) byDay[d] = {profit:0,visits:0,success:0,items:0};
+    const n = Number(log.delta || 0);
+    if (type === "visit") byDay[d].visits += n;
+    if (type === "success") byDay[d].success += n;
+    if (type === "items") byDay[d].items += n;
+    if (type === "profit" || type === "profit_adjust") byDay[d].profit += n;
+  });
+  const days = Object.entries(byDay).filter(([,x]) => x.visits > 0 || x.success > 0 || x.items > 0 || x.profit !== 0).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,30).map(([,x])=>x);
+  if (!days.length) return null;
+  const avg = key => days.reduce((sum,x)=>sum+Number(x[key]||0),0)/days.length;
+  const visits=avg("visits"), success=avg("success");
+  return {days:days.length, profit:avg("profit"), visits, success, items:avg("items"), rate:visits>0?(success/visits)*100:0};
+}
+
+function buildSourcingAutoComment(m, benchmark, minutes, active) {
+  if (m.visits <= 0 && m.items <= 0 && m.profit === 0) {
+    return active ? "仕入れは開始されています。店舗の記録が増えると、ここに効率と傾向を表示します。" : "今日はまだ仕入れ記録がありません。最初の「訪問＋」から自動で集計されます。";
+  }
+  const parts=[];
+  if (benchmark && benchmark.days >= 3) {
+    const pd = m.profit - benchmark.profit;
+    if (pd > Math.max(3000, Math.abs(benchmark.profit)*0.15)) parts.push(`利益は直近${benchmark.days}回の仕入れ日の平均より高いペースです。`);
+    else if (pd < -Math.max(3000, Math.abs(benchmark.profit)*0.15)) parts.push(`利益は直近${benchmark.days}回の仕入れ日の平均を下回っています。`);
+    else parts.push(`利益は直近${benchmark.days}回の仕入れ日の平均に近い水準です。`);
+    if (m.rate >= benchmark.rate + 8) parts.push("成功率も普段より高く、店舗選びが効率よく当たっています。");
+    else if (m.rate <= benchmark.rate - 8) parts.push("成功率は普段より低めなので、後半は期待値の高い店舗を優先すると改善しやすそうです。");
+  } else {
+    parts.push(m.rate >= 35 ? "成功率はまずまず高い水準です。" : "成功率はまだ低めなので、期待値の高い店舗を優先して回る余地があります。");
+  }
+  if (minutes >= 30) {
+    const ph = m.profit / (minutes/60);
+    if (ph >= 5000) parts.push("利益時給は5,000円を超えており、時間効率も良好です。");
+    else if (ph > 0 && ph < 2500) parts.push("利益時給は低めなので、移動時間や空振り店舗を減らせると効率改善につながります。");
+  }
+  if (active) parts.push("現在も仕入れ中なので、終了後に最終結果へ更新されます。");
+  return parts.join("");
+}
+
+function renderAiSourcingSummary(dayStr) {
+  const metricsEl=document.getElementById("aiSourcingMetrics"), commentEl=document.getElementById("aiSourcingComment"), stateEl=document.getElementById("aiSourcingSummaryState");
+  const titleEl=document.getElementById("aiSourcingSummaryTitle");
+  if (!metricsEl || !commentEl) return;
+
+  const targetDay=dayStr || selectedDay || todayStr();
+  const today=todayStr();
+  const isToday=targetDay===today;
+  const logs=loadLogs();
+  const m=getDayActivityMetrics(targetDay, logs);
+  const sessions=loadReportSourcingSessions().filter(x=>String(x.date||"")===targetDay);
+  const active=loadReportActiveSourcingSession();
+  const activeForDay=!!(isToday && active && String(active.date||"")===targetDay);
+  let minutes=sessions.reduce((sum,x)=>sum+reportSessionMinutes(x),0);
+  if (activeForDay) minutes += reportSessionMinutes(active);
+
+  const hours=minutes/60;
+  const profitPerHour=hours>0?m.profit/hours:0, visitsPerHour=hours>0?m.visits/hours:0, itemsPerHour=hours>0?m.items/hours:0;
+  const cards=[
+    ["活動時間", minutes>0?formatReportActivityTime(minutes):"未記録"], ["訪問",`${m.visits}回`], ["成功",`${m.success}回`],
+    ["成功率",`${m.rate.toFixed(1)}%`], ["仕入れ個数",`${m.items}個`], ["利益",yen(m.profit)],
+    ["利益時給",minutes>0?`${Math.round(profitPerHour).toLocaleString()}円/h`:"-"], ["訪問効率",minutes>0?`${visitsPerHour.toFixed(1)}店/h`:"-"], ["個数効率",minutes>0?`${itemsPerHour.toFixed(1)}個/h`:"-"]
+  ];
+  metricsEl.innerHTML=cards.map(([label,value])=>`<div class="aiSourcingMetric"><div class="aiSourcingMetricLabel">${escapeHtml(label)}</div><div class="aiSourcingMetricValue">${escapeHtml(value)}</div></div>`).join("");
+
+  const benchmark=buildRecentDayBenchmark(logs,targetDay);
+  let comment=buildSourcingAutoComment(m,benchmark,minutes,activeForDay);
+  if (!minutes && targetDay < today && (m.visits>0 || m.success>0 || m.items>0 || m.profit!==0)) {
+    comment += " この日は仕入れ時間の記録がないため、利益時給・訪問効率・個数効率は表示していません。";
+  }
+  commentEl.innerHTML=`<div class="aiSourcingCommentTitle">自動分析</div>${escapeHtml(comment)}`;
+
+  if (titleEl) titleEl.textContent=isToday?"🤖 今日の仕入れ総評":`🤖 ${targetDay} の仕入れ総評`;
+  if (stateEl) stateEl.textContent=activeForDay?"🟢 仕入れ中":(isToday?"本日集計":"過去日集計");
+}
+
+// 既存のbootReportを壊さず、描画後に総評カードだけ更新する
+const originalBootReportForAiSummary = bootReport;
+bootReport = function() {
+  originalBootReportForAiSummary();
+  renderAiSourcingSummary(selectedDay || todayStr());
+};
+
+/* =========================
+   AI分析用データ生成エンジン v1
+   - AIには計算済みの数値だけを渡す
+   - 選択日 / 直近30日 / 同曜日 / 店舗別 / 時間帯別 / 訪問間隔を生成
+========================= */
+const AI_ANALYSIS_PAYLOAD_KEY = "ai_analysis_payload_v1";
+
+function aiSafeIsoMs(value) {
+  const ms = new Date(value || "").getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function aiWeekdayLabel(dayStr) {
+  const d = new Date(`${dayStr}T12:00:00+09:00`);
+  return ["日","月","火","水","木","金","土"][d.getDay()] || "";
+}
+
+function aiDateDiffDays(fromDay, toDay) {
+  const a = new Date(`${fromDay}T12:00:00+09:00`).getTime();
+  const b = new Date(`${toDay}T12:00:00+09:00`).getTime();
+  return Number.isFinite(a) && Number.isFinite(b) ? Math.round((b-a)/86400000) : null;
+}
+
+function aiTimeBand(iso) {
+  const ms = aiSafeIsoMs(iso);
+  if (ms == null) return "unknown";
+  const hour = Number(new Intl.DateTimeFormat("ja-JP", { timeZone:"Asia/Tokyo", hour:"2-digit", hour12:false }).format(new Date(ms)));
+  if (hour < 10) return "before10";
+  if (hour < 12) return "10-12";
+  if (hour < 15) return "12-15";
+  if (hour < 18) return "15-18";
+  return "after18";
+}
+
+function aiDayRawStats(logs, dayStr) {
+  const x = { date:dayStr, weekday:aiWeekdayLabel(dayStr), profit:0, visits:0, success:0, items:0 };
+  (logs || []).forEach(log => {
+    if (ymd(log.date) !== dayStr) return;
+    const n = Number(log.delta || 0);
+    if (log.type === "visit") x.visits += n;
+    else if (log.type === "success") x.success += n;
+    else if (log.type === "items") x.items += n;
+    else if (log.type === "profit" || log.type === "profit_adjust") x.profit += n;
+  });
+  x.rate = x.visits > 0 ? (x.success / x.visits) * 100 : 0;
+  x.profitPerVisit = x.visits > 0 ? x.profit / x.visits : 0;
+  return x;
+}
+
+function aiSessionMinutesForDay(dayStr) {
+  const sessions = loadReportSourcingSessions().filter(x => String(x.date || "") === dayStr);
+  let minutes = sessions.reduce((sum,x) => sum + reportSessionMinutes(x), 0);
+  const active = loadReportActiveSourcingSession();
+  if (active && String(active.date || "") === dayStr) minutes += reportSessionMinutes(active);
+  return minutes;
+}
+
+function aiEnrichDay(stats) {
+  const minutes = aiSessionMinutesForDay(stats.date);
+  const hours = minutes / 60;
+  return {
+    ...stats,
+    activityMinutes: minutes,
+    profitPerHour: hours > 0 ? stats.profit / hours : null,
+    visitsPerHour: hours > 0 ? stats.visits / hours : null,
+    itemsPerHour: hours > 0 ? stats.items / hours : null
+  };
+}
+
+function aiAverageDays(days) {
+  if (!days.length) return null;
+  const avg = key => days.reduce((s,x)=>s+Number(x[key] || 0),0) / days.length;
+  const withTime = days.filter(x => Number(x.activityMinutes || 0) > 0);
+  const avgTimed = key => withTime.length ? withTime.reduce((s,x)=>s+Number(x[key] || 0),0)/withTime.length : null;
+  return {
+    sampleDays: days.length,
+    timedSampleDays: withTime.length,
+    profit: avg("profit"), visits: avg("visits"), success: avg("success"), items: avg("items"), rate: avg("rate"),
+    activityMinutes: withTime.length ? avgTimed("activityMinutes") : null,
+    profitPerHour: avgTimed("profitPerHour"), visitsPerHour: avgTimed("visitsPerHour"), itemsPerHour: avgTimed("itemsPerHour")
+  };
+}
+
+function aiStoreAnalysis(logs, stores, targetDay) {
+  const storeMap = new Map((stores || []).map(s => [String(s.id), s]));
+  const grouped = new Map();
+  (logs || []).forEach(log => {
+    const d = ymd(log.date);
+    if (!d || d > targetDay) return;
+    const id = String(log.storeId || "");
+    if (!id) return;
+    if (!grouped.has(id)) grouped.set(id, { storeId:id, visits:0, success:0, items:0, profit:0, visitDates:[] });
+    const g = grouped.get(id), n = Number(log.delta || 0);
+    if (log.type === "visit") { g.visits += n; if (n > 0) g.visitDates.push(d); }
+    else if (log.type === "success") g.success += n;
+    else if (log.type === "items") g.items += n;
+    else if (log.type === "profit" || log.type === "profit_adjust") g.profit += n;
+  });
+  return Array.from(grouped.values()).map(g => {
+    const s = storeMap.get(g.storeId) || {};
+    const dates = Array.from(new Set(g.visitDates)).sort();
+    const last = dates.filter(d=>d<=targetDay).at(-1) || null;
+    const prev = dates.filter(d=>d<targetDay).at(-1) || null;
+    return {
+      storeId:g.storeId, name:String(s.name || "不明店舗"), pref:String(s.pref || ""),
+      visits:g.visits, success:g.success, successRate:g.visits>0?(g.success/g.visits)*100:0,
+      items:g.items, profit:g.profit, profitPerVisit:g.visits>0?g.profit/g.visits:0,
+      lastVisitDate:last, daysSincePreviousVisit: prev ? aiDateDiffDays(prev,targetDay) : null
+    };
+  }).filter(x=>x.visits>0 || x.success>0 || x.items>0 || x.profit!==0).sort((a,b)=>b.profit-a.profit);
+}
+
+function aiTimeBandAnalysis(logs, targetDay) {
+  const result = {};
+  ["before10","10-12","12-15","15-18","after18","unknown"].forEach(k => result[k] = { visits:0, success:0, items:0, profit:0 });
+  (logs || []).forEach(log => {
+    const d = ymd(log.date);
+    if (!d || d > targetDay || !log.createdAt) return;
+    const band = aiTimeBand(log.createdAt), n=Number(log.delta || 0), r=result[band];
+    if (log.type === "visit") r.visits += n;
+    else if (log.type === "success") r.success += n;
+    else if (log.type === "items") r.items += n;
+    else if (log.type === "profit" || log.type === "profit_adjust") r.profit += n;
+  });
+  Object.values(result).forEach(r => { r.successRate = r.visits>0 ? (r.success/r.visits)*100 : 0; r.profitPerVisit = r.visits>0 ? r.profit/r.visits : 0; });
+  return result;
+}
+
+function buildAiAnalysisPayload(targetDay = selectedDay || todayStr()) {
+  const logs = loadLogs(), stores = loadStores();
+  const day = targetDay || todayStr();
+  const target = aiEnrichDay(aiDayRawStats(logs, day));
+  const activeDays = Array.from(new Set((logs || []).map(x=>ymd(x.date)).filter(d=>d && d<day))).sort().reverse();
+  const recent30 = activeDays.slice(0,30).map(d=>aiEnrichDay(aiDayRawStats(logs,d))).filter(x=>x.visits>0 || x.success>0 || x.items>0 || x.profit!==0);
+  const weekday = aiWeekdayLabel(day);
+  const sameWeekday = activeDays.filter(d=>aiWeekdayLabel(d)===weekday).slice(0,12).map(d=>aiEnrichDay(aiDayRawStats(logs,d))).filter(x=>x.visits>0 || x.success>0 || x.items>0 || x.profit!==0);
+  const storesAll = aiStoreAnalysis(logs, stores, day);
+  const todayStoreIds = new Set((logs || []).filter(x=>ymd(x.date)===day && x.type==="visit" && Number(x.delta||0)>0).map(x=>String(x.storeId||"")));
+  const payload = {
+    schemaVersion:1,
+    generatedAt:new Date().toISOString(),
+    targetDate:day,
+    targetWeekday:weekday,
+    target,
+    comparisons:{ recent30:aiAverageDays(recent30), sameWeekday:aiAverageDays(sameWeekday) },
+    targetDayStores:storesAll.filter(x=>todayStoreIds.has(x.storeId)),
+    topStoresByProfit:storesAll.slice(0,10),
+    timeBands:aiTimeBandAnalysis(logs,day),
+    dataQuality:{
+      totalLogCount:(logs||[]).length,
+      recentSampleDays:recent30.length,
+      sameWeekdaySampleDays:sameWeekday.length,
+      targetHasActivityTime:target.activityMinutes>0,
+      logsWithTimestamp:(logs||[]).filter(x=>x.createdAt).length,
+      note:"時間帯分析はcreatedAtを持つ新しい記録ほど精度が高く、導入前の過去ログは時間帯分析に含まれません。"
+    }
+  };
+  try { localStorage.setItem(AI_ANALYSIS_PAYLOAD_KEY, JSON.stringify(payload)); } catch {}
+  return payload;
+}
+
+window.buildAiAnalysisPayload = buildAiAnalysisPayload;
+
+// レポート描画のたびに、選択日のAI分析用データも最新化する
+const originalRenderAiSourcingSummaryForPayload = renderAiSourcingSummary;
+renderAiSourcingSummary = function(dayStr) {
+  originalRenderAiSourcingSummaryForPayload(dayStr);
+  buildAiAnalysisPayload(dayStr || selectedDay || todayStr());
+};
+
+
+/* =========================
+   OpenAI 詳細分析接続 v1
+   Cloudflare Worker 経由。APIキーはブラウザに置かない。
+========================= */
+const AI_WORKER_URL = "https://sedori-gps-ai.momo-ano19.workers.dev";
+const AI_DEEP_CACHE_KEY = "ai_deep_analysis_cache_v1";
+
+function loadAiDeepCache() {
+  try {
+    const x = JSON.parse(localStorage.getItem(AI_DEEP_CACHE_KEY) || "{}");
+    return x && typeof x === "object" && !Array.isArray(x) ? x : {};
+  } catch { return {}; }
+}
+
+function saveAiDeepCache(cache) {
+  try { localStorage.setItem(AI_DEEP_CACHE_KEY, JSON.stringify(cache || {})); } catch {}
+}
+
+function aiPayloadFingerprint(payload) {
+  const copy = JSON.parse(JSON.stringify(payload || {}));
+  delete copy.generatedAt;
+  const text = JSON.stringify(copy);
+  let h = 2166136261;
+  for (let i=0;i<text.length;i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16).padStart(8,"0");
+}
+
+function formatAiDeepSavedAt(iso) {
+  const d = new Date(iso || "");
+  if (!Number.isFinite(d.getTime())) return "";
+  return new Intl.DateTimeFormat("ja-JP", {timeZone:"Asia/Tokyo", month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"}).format(d);
+}
+
+function aiDeepSectionKind(title) {
+  const t = String(title || "");
+  if (/総合評価|総評|結論|全体/.test(t)) return { cls:"overall", icon:"📊", label:"総合評価・今日の結論" };
+  if (/良かった|強み|評価できる|プラス/.test(t)) return { cls:"good", icon:"👍", label:"良かった点" };
+  if (/改善|課題|注意|弱み/.test(t)) return { cls:"improve", icon:"⚠️", label:"改善ポイント" };
+  if (/店舗|時間帯|訪問間隔|傾向/.test(t)) return { cls:"store", icon:"🏪", label:"店舗・時間帯分析" };
+  if (/次回|提案|アドバイス|行動|意識/.test(t)) return { cls:"next", icon:"🎯", label:"次回のアドバイス" };
+  return { cls:"detail", icon:"🔎", label:t.replace(/^#+\s*|^\d+[\.．、)]\s*/g, "").trim() || "詳しい分析" };
+}
+
+function renderAiDeepAnalysisHtml(text) {
+  const raw = String(text || "").replace(/\r/g, "").trim();
+  if (!raw) return "";
+  const lines = raw.split("\n");
+  const sections = [];
+  let current = { title:"", lines:[] };
+  const isHeading = (line) => {
+    const x = line.trim();
+    if (!x) return false;
+    if (/^#{1,4}\s+/.test(x)) return true;
+    if (/^(?:\d+|[①-⑩])[\.．、):：]\s*/.test(x) && x.length < 80) return true;
+    if (/^(?:【.+】|[■◆●]\s*.+)$/.test(x) && x.length < 80) return true;
+    if (/^(?:総合評価|今日の結論|良かった点|改善(?:ポイント|点)|店舗・時間帯分析|店舗分析|時間帯分析|次回(?:の)?(?:提案|アドバイス|行動))\s*[：:]?/.test(x) && x.length < 100) return true;
+    return false;
+  };
+  const push = () => {
+    if (current.title || current.lines.some(x=>x.trim())) sections.push(current);
+    current = { title:"", lines:[] };
+  };
+  for (const line of lines) {
+    if (isHeading(line)) {
+      push();
+      current.title = line.trim().replace(/^#{1,4}\s*/, "").replace(/^【|】$/g, "");
+    } else current.lines.push(line);
+  }
+  push();
+  if (!sections.length) sections.push({title:"総合評価・今日の結論", lines:[raw]});
+
+  return `<div class="aiDeepAnalysisHeader"><div class="aiDeepAnalysisTitle">🤖 AI仕入れ総評</div><div class="aiDeepAnalysisSub">蓄積データをもとにAIが分析した結果です</div></div><div class="aiDeepAnalysisCards">${sections.map((sec, idx)=>{
+    const kind = aiDeepSectionKind(sec.title || (idx===0 ? "総合評価" : ""));
+    const body = sec.lines.join("\n").trim();
+    const displayTitle = sec.title ? sec.title.replace(/^\d+[\.．、):：]\s*/, "").trim() : kind.label;
+    const safeBody = escapeHtml(body).replace(/^[-・]\s*/gm, "• ").replace(/\n/g,"<br>");
+    return `<section class="aiDeepCard aiDeepCard--${kind.cls}"><div class="aiDeepCardTitle"><span>${kind.icon}</span><span>${escapeHtml(displayTitle || kind.label)}</span></div><div class="aiDeepCardBody">${safeBody || "データ不足"}</div></section>`;
+  }).join("")}</div>`;
+}
+
+function showAiDeepAnalysis(resultEl, analysis) {
+  if (!resultEl) return;
+  resultEl.hidden = false;
+  resultEl.innerHTML = renderAiDeepAnalysisHtml(analysis);
+}
+
+function renderAiDeepAnalysisForDay(dayStr) {
+  const resultEl = document.getElementById("aiDeepAnalysisResult");
+  const metaEl = document.getElementById("aiDeepAnalysisMeta");
+  const btn = document.getElementById("aiDeepAnalysisBtn");
+  if (!resultEl || !btn) return;
+  const day = dayStr || selectedDay || todayStr();
+  const payload = buildAiAnalysisPayload(day);
+  const fp = aiPayloadFingerprint(payload);
+  const cached = loadAiDeepCache()[day];
+  if (cached && cached.fingerprint === fp && cached.analysis) {
+    showAiDeepAnalysis(resultEl, cached.analysis);
+    btn.textContent = "🤖 AIで再分析";
+    if (metaEl) metaEl.textContent = `保存済み分析：${formatAiDeepSavedAt(cached.createdAt)}（データが変わるまで再利用）`;
+  } else {
+    resultEl.hidden = true;
+    resultEl.innerHTML = "";
+    btn.textContent = "🤖 AIで詳しく分析";
+    if (metaEl) metaEl.textContent = cached ? "記録が更新されています。AI分析を更新できます。" : "ボタンを押した時だけAPIを使用します。";
+  }
+}
+
+async function requestAiDeepAnalysis() {
+  const btn = document.getElementById("aiDeepAnalysisBtn");
+  const resultEl = document.getElementById("aiDeepAnalysisResult");
+  const metaEl = document.getElementById("aiDeepAnalysisMeta");
+  if (!btn || !resultEl) return;
+  const day = selectedDay || todayStr();
+  const payload = buildAiAnalysisPayload(day);
+  const fp = aiPayloadFingerprint(payload);
+  const cache = loadAiDeepCache();
+  const cached = cache[day];
+
+  if (cached && cached.fingerprint === fp && cached.analysis) {
+    showAiDeepAnalysis(resultEl, cached.analysis);
+    if (metaEl) metaEl.textContent = `保存済み分析：${formatAiDeepSavedAt(cached.createdAt)}。再分析する場合はもう一度ボタンを押してください。`;
+    // 2回目の明示クリックは再分析を許可
+    if (btn.dataset.cacheShown !== "1") { btn.dataset.cacheShown = "1"; return; }
+  }
+
+  btn.disabled = true;
+  btn.textContent = "AI分析中…";
+  if (metaEl) metaEl.textContent = "仕入れデータをAIが分析しています。";
+  resultEl.hidden = false;
+  resultEl.innerHTML = `<div class="aiDeepAnalysisLoading">🤖 分析中です…</div>`;
+
+  try {
+    const res = await fetch(AI_WORKER_URL, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({analysisData:payload})
+    });
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok || !data.ok || !data.analysis) throw new Error(data.details || data.error || `HTTP ${res.status}`);
+
+    cache[day] = { fingerprint:fp, analysis:String(data.analysis), createdAt:new Date().toISOString() };
+    saveAiDeepCache(cache);
+    showAiDeepAnalysis(resultEl, data.analysis);
+    if (metaEl) metaEl.textContent = `分析結果を保存しました：${formatAiDeepSavedAt(cache[day].createdAt)}`;
+    btn.dataset.cacheShown = "0";
+  } catch (e) {
+    resultEl.innerHTML = `<div class="aiDeepAnalysisError">AI分析に接続できませんでした。<br>${escapeHtml(String(e?.message || e))}</div>`;
+    if (metaEl) metaEl.textContent = "Worker・APIキー・OpenAIの課金設定を確認してください。";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🤖 AIで再分析";
+  }
+}
+window.requestAiDeepAnalysis = requestAiDeepAnalysis;
+
+const originalRenderAiSourcingSummaryForDeepAi = renderAiSourcingSummary;
+renderAiSourcingSummary = function(dayStr) {
+  originalRenderAiSourcingSummaryForDeepAi(dayStr);
+  const btn = document.getElementById("aiDeepAnalysisBtn");
+  if (btn) btn.dataset.cacheShown = "0";
+  renderAiDeepAnalysisForDay(dayStr || selectedDay || todayStr());
+};
+
+/* =========================
+   AI次回仕入れプラン v1
+========================= */
+const AI_NEXT_PLAN_CACHE_KEY = "ai_next_plan_cache_v1";
+
+function aiPlanTomorrowStr() {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-CA", {timeZone:"Asia/Tokyo", year:"numeric", month:"2-digit", day:"2-digit"}).formatToParts(now);
+  const y=Number(parts.find(x=>x.type==="year")?.value), m=Number(parts.find(x=>x.type==="month")?.value), d=Number(parts.find(x=>x.type==="day")?.value);
+  const dt = new Date(Date.UTC(y,m-1,d+1,3));
+  return new Intl.DateTimeFormat("en-CA", {timeZone:"Asia/Tokyo", year:"numeric", month:"2-digit", day:"2-digit"}).format(dt);
+}
+
+function initAiNextPlanInputs() {
+  const el=document.getElementById("aiPlanDate");
+  if (el && !el.value) el.value=aiPlanTomorrowStr();
+}
+
+function loadAiNextPlanCache() {
+  try { const x=JSON.parse(localStorage.getItem(AI_NEXT_PLAN_CACHE_KEY)||"{}"); return x&&typeof x==="object"&&!Array.isArray(x)?x:{}; } catch { return {}; }
+}
+function saveAiNextPlanCache(x) { try { localStorage.setItem(AI_NEXT_PLAN_CACHE_KEY, JSON.stringify(x||{})); } catch {} }
+
+function buildAiNextPlanPayload() {
+  const plannedDate=document.getElementById("aiPlanDate")?.value || aiPlanTomorrowStr();
+  const startTime=document.getElementById("aiPlanStartTime")?.value || "10:00";
+  const hours=Math.max(.5, Math.min(16, Number(document.getElementById("aiPlanHours")?.value || 3)));
+  const targetProfit=Math.max(0, Number(document.getElementById("aiPlanTargetProfit")?.value || 0));
+  const cutoff = plannedDate > todayStr() ? todayStr() : plannedDate;
+  const logs=loadLogs(), stores=loadStores();
+  const history=aiStoreAnalysis(logs, stores, cutoff);
+  const historyMap=new Map(history.map(x=>[String(x.storeId),x]));
+  const candidates=(stores||[]).map(s=>{
+    const h=historyMap.get(String(s.id)) || {visits:0,success:0,successRate:0,items:0,profit:0,profitPerVisit:0,lastVisitDate:null};
+    const daysSince=h.lastVisitDate ? aiDateDiffDays(h.lastVisitDate, plannedDate) : null;
+    return {
+      storeId:String(s.id||""), name:String(s.name||""), pref:String(s.pref||""), address:String(s.address||""),
+      visits:Number(h.visits||0), success:Number(h.success||0), successRate:Number(h.successRate||0), items:Number(h.items||0),
+      totalProfit:Number(h.profit||0), expectedProfitPerVisit:Number(h.profitPerVisit||0), lastVisitDate:h.lastVisitDate||null,
+      daysSinceLastVisit:daysSince,
+      hasCoordinates:Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lng)),
+      lat:Number.isFinite(Number(s.lat))?Number(s.lat):null, lng:Number.isFinite(Number(s.lng))?Number(s.lng):null
+    };
+  }).filter(x=>x.name).sort((a,b)=>b.expectedProfitPerVisit-a.expectedProfitPerVisit || b.successRate-a.successRate).slice(0,80);
+
+  const activeDays=Array.from(new Set((logs||[]).map(x=>ymd(x.date)).filter(d=>d && d<plannedDate))).sort().reverse();
+  const recent30=activeDays.slice(0,30).map(d=>aiEnrichDay(aiDayRawStats(logs,d))).filter(x=>x.visits>0||x.success>0||x.items>0||x.profit!==0);
+  const wd=aiWeekdayLabel(plannedDate);
+  const sameWd=activeDays.filter(d=>aiWeekdayLabel(d)===wd).slice(0,12).map(d=>aiEnrichDay(aiDayRawStats(logs,d))).filter(x=>x.visits>0||x.success>0||x.items>0||x.profit!==0);
+  return {
+    schemaVersion:1, generatedAt:new Date().toISOString(), requestType:"next_sourcing_plan",
+    conditions:{plannedDate, weekday:wd, startTime, plannedHours:hours, targetProfit},
+    benchmarks:{recent30:aiAverageDays(recent30), sameWeekday:aiAverageDays(sameWd)},
+    timeBands:aiTimeBandAnalysis(logs, cutoff), candidates,
+    dataQuality:{totalStores:(stores||[]).length, candidateStores:candidates.length, totalLogCount:(logs||[]).length, recentSampleDays:recent30.length, sameWeekdaySampleDays:sameWd.length, note:"訪問時刻の記録開始前は時間帯データが不足します。未訪問店舗は実績0として候補に含まれます。"}
+  };
+}
+
+function aiPlanFingerprint(payload) { return aiPayloadFingerprint(payload); }
+
+let currentAiNextPlanText = "";
+
+function extractAiPlanStoreIds(planText) {
+  const text=String(planText||"");
+  const stores=loadStores();
+  const hits=[];
+  for (const s of stores) {
+    const name=String(s?.name||"").trim();
+    if (!name || !s?.id) continue;
+    const pos=text.indexOf(name);
+    if (pos>=0) hits.push({id:String(s.id),name,pos,len:name.length});
+  }
+  // 同じ位置で名称が重なる場合は長い店舗名を優先し、同一IDは1回だけにする
+  hits.sort((a,b)=>a.pos-b.pos || b.len-a.len);
+  const used=new Set(), out=[];
+  for (const h of hits) {
+    if (used.has(h.id)) continue;
+    used.add(h.id); out.push(h);
+  }
+  return out;
+}
+
+function updateAiPlanRouteAction(planText) {
+  currentAiNextPlanText=String(planText||"");
+  const wrap=document.getElementById("aiNextPlanRouteActions");
+  const meta=document.getElementById("aiApplyRouteMeta");
+  const btn=document.getElementById("aiApplyRouteBtn");
+  if (!wrap || !btn) return;
+  const hits=extractAiPlanStoreIds(currentAiNextPlanText);
+  wrap.hidden=false;
+  btn.disabled=hits.length===0;
+  if (meta) meta.textContent=hits.length
+    ? `登録店舗と ${hits.length} 店舗一致しました。AIの提案順で「今日行く」に反映します。`
+    : "AIプラン内の店舗名と登録店舗が一致しませんでした。ルートへの自動反映は行いません。";
+}
+
+function applyAiNextPlanToTodayRoute() {
+  const hits=extractAiPlanStoreIds(currentAiNextPlanText);
+  if (!hits.length) { alert("AIプラン内で登録店舗と一致する店舗が見つかりませんでした。"); return; }
+  const stores=loadStores();
+  const current=(stores||[]).filter(s=>s.today).length;
+  const names=hits.map(x=>x.name);
+  const preview=names.slice(0,8).map((n,i)=>`${i+1}. ${n}`).join("\n") + (names.length>8?`\n…ほか${names.length-8}店舗`:"");
+  const msg=(current>0
+    ? `現在の「今日行く」${current}店舗をAIプランに置き換えます。\n\n`
+    : "AIプランを「今日のルート」に設定します。\n\n")
+    + preview + "\n\nこの内容で反映しますか？";
+  if (!confirm(msg)) return;
+
+  const idSet=new Set(hits.map(x=>x.id));
+  for (const s of stores) s.today=idSet.has(String(s.id));
+  saveStores(stores);
+  const order=hits.map(x=>x.id);
+  try {
+    localStorage.setItem("today_route_order", JSON.stringify(order));
+    // 旧キーが残っている環境でも同じ順番になるよう同期
+    ["sedori_today_route_order_v2","sedori_today_route_order_v1","sedori_today_route_order"].forEach(k=>localStorage.setItem(k,JSON.stringify(order)));
+    localStorage.setItem("today_route_visited_ids", JSON.stringify([]));
+  } catch(e) { console.error("AI route save error",e); }
+  invalidateReportCache();
+  const meta=document.getElementById("aiApplyRouteMeta");
+  if (meta) meta.textContent=`✅ ${order.length}店舗をAI推奨順で今日のルートに設定しました。トップ画面で確認できます。`;
+  alert(`AIプランの${order.length}店舗を「今日のルート」に設定しました。`);
+}
+window.applyAiNextPlanToTodayRoute=applyAiNextPlanToTodayRoute;
+
+/* =========================
+   AI × 移動効率 ルート最適化 v1
+   - ブラウザ現在地を開始地点として使用
+   - 道路距離ではなく座標間の直線距離
+   - AIが選んだ店舗だけを対象に並べ替える
+========================= */
+function aiRouteHaversineKm(aLat,aLng,bLat,bLng) {
+  const R=6371, rad=x=>Number(x)*Math.PI/180;
+  const dLat=rad(bLat-aLat), dLng=rad(bLng-aLng);
+  const q=Math.sin(dLat/2)**2 + Math.cos(rad(aLat))*Math.cos(rad(bLat))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(q));
+}
+
+function aiRouteCandidateMap() {
+  try {
+    const payload=buildAiNextPlanPayload();
+    return new Map((payload.candidates||[]).map(x=>[String(x.storeId),x]));
+  } catch { return new Map(); }
+}
+
+function aiRouteValueScore(c) {
+  if (!c) return 1;
+  const expected=Math.max(0,Number(c.expectedProfitPerVisit||0));
+  const rate=Math.max(0,Math.min(100,Number(c.successRate||0)));
+  const visits=Math.max(0,Number(c.visits||0));
+  const days=c.daysSinceLastVisit==null ? 21 : Math.max(0,Number(c.daysSinceLastVisit||0));
+  // 金額の極端な差を抑えつつ、成功率・データ信頼度・再訪余地を加味
+  const profitScore=Math.log1p(expected/1000);
+  const rateScore=rate/100;
+  const confidence=Math.min(1,visits/5);
+  const recency=Math.min(1.35,0.75+days/60);
+  return Math.max(.35,(1+profitScore*1.35+rateScore*.8)*(0.72+confidence*.28)*recency);
+}
+
+function optimizeAiRouteFromPoint(hits,startLat,startLng) {
+  const stores=loadStores(), storeMap=new Map(stores.map(s=>[String(s.id),s]));
+  const candidateMap=aiRouteCandidateMap();
+  const withCoords=[], withoutCoords=[];
+  for (const h of hits) {
+    const s=storeMap.get(String(h.id));
+    const lat=Number(s?.lat), lng=Number(s?.lng);
+    if (Number.isFinite(lat)&&Number.isFinite(lng)) withCoords.push({...h,lat,lng,c:candidateMap.get(String(h.id))});
+    else withoutCoords.push(h);
+  }
+  const remaining=[...withCoords], ordered=[];
+  let lat=Number(startLat),lng=Number(startLng),totalKm=0;
+  while (remaining.length) {
+    let bestI=0,bestScore=-Infinity,bestDist=0;
+    remaining.forEach((x,i)=>{
+      const dist=aiRouteHaversineKm(lat,lng,x.lat,x.lng);
+      const value=aiRouteValueScore(x.c);
+      // 近さを強くしすぎず、高期待値店舗なら多少遠くても選べるバランス
+      const score=value/Math.pow(Math.max(.7,dist+1),.72);
+      if (score>bestScore) { bestScore=score; bestI=i; bestDist=dist; }
+    });
+    const [pick]=remaining.splice(bestI,1);
+    totalKm+=bestDist; ordered.push({...pick,legKm:bestDist}); lat=pick.lat;lng=pick.lng;
+  }
+  return {ordered:[...ordered,...withoutCoords], optimizedCount:ordered.length, noCoordsCount:withoutCoords.length, straightKm:totalKm};
+}
+
+function saveAiRouteOrder(hits) {
+  const stores=loadStores(), idSet=new Set(hits.map(x=>String(x.id)));
+  for (const s of stores) s.today=idSet.has(String(s.id));
+  saveStores(stores);
+  const order=hits.map(x=>String(x.id));
+  try {
+    localStorage.setItem("today_route_order",JSON.stringify(order));
+    ["sedori_today_route_order_v2","sedori_today_route_order_v1","sedori_today_route_order"].forEach(k=>localStorage.setItem(k,JSON.stringify(order)));
+    localStorage.setItem("today_route_visited_ids",JSON.stringify([]));
+  } catch(e) { console.error("AI optimized route save error",e); }
+  invalidateReportCache();
+  return order;
+}
+
+function applyAiOptimizedPlanToTodayRoute() {
+  const hits=extractAiPlanStoreIds(currentAiNextPlanText);
+  if (!hits.length) { alert("AIプラン内で登録店舗と一致する店舗が見つかりませんでした。"); return; }
+  if (!navigator.geolocation) { alert("この端末では現在地を取得できないため、AI提案順で反映します。"); applyAiNextPlanToTodayRoute(); return; }
+  const btn=document.getElementById("aiOptimizeRouteBtn"),meta=document.getElementById("aiApplyRouteMeta");
+  if (btn) { btn.disabled=true; btn.textContent="📍 現在地を取得中…"; }
+  if (meta) meta.textContent="現在地を取得して、AI店舗評価と移動距離を組み合わせています…";
+  navigator.geolocation.getCurrentPosition(pos=>{
+    if (btn) { btn.disabled=false; btn.textContent="⚡ 現在地から移動効率も含めて最適化"; }
+    const result=optimizeAiRouteFromPoint(hits,pos.coords.latitude,pos.coords.longitude);
+    const preview=result.ordered.slice(0,8).map((x,i)=>`${i+1}. ${x.name}${Number.isFinite(x.legKm)?`（直線 約${x.legKm.toFixed(1)}km）`:"（座標未登録）"}`).join("\n");
+    const current=loadStores().filter(s=>s.today).length;
+    const warning=result.noCoordsCount?`\n\n※ 座標未登録 ${result.noCoordsCount}店舗は最適化後の末尾に配置します。`:"";
+    const msg=`${current?`現在の「今日行く」${current}店舗を置き換えます。\n\n`:""}現在地からAI×移動効率で並べ替えました。\n\n${preview}${result.ordered.length>8?`\n…ほか${result.ordered.length-8}店舗`:""}${warning}\n\n※距離は道路距離ではなく直線距離です。\nこの順番で反映しますか？`;
+    if (!confirm(msg)) { if(meta) meta.textContent="最適化ルートの反映をキャンセルしました。"; return; }
+    const order=saveAiRouteOrder(result.ordered);
+    if (meta) meta.textContent=`✅ ${order.length}店舗を移動効率込みで設定しました。座標あり${result.optimizedCount}店舗${result.noCoordsCount?`／座標なし${result.noCoordsCount}店舗`:""}。`;
+    alert(`AI×移動効率ルートを設定しました。\n${order.length}店舗を「今日のルート」に反映しました。`);
+  },err=>{
+    if (btn) { btn.disabled=false; btn.textContent="⚡ 現在地から移動効率も含めて最適化"; }
+    if (meta) meta.textContent="現在地を取得できませんでした。位置情報を許可すると移動効率最適化を使えます。";
+    alert("現在地を取得できませんでした。\nブラウザの位置情報を許可して再度お試しください。\n\nAI提案順の反映ボタンはそのまま使用できます。");
+  },{enableHighAccuracy:true,timeout:10000,maximumAge:60000});
+}
+window.applyAiOptimizedPlanToTodayRoute=applyAiOptimizedPlanToTodayRoute;
+function aiPlanSectionKind(title) {
+  const t=String(title||"");
+  if (/おすすめプラン|プラン概要|結論/.test(t)) return {cls:"summary",icon:"🧭",label:"おすすめプラン"};
+  if (/店舗順|優先店舗|回る順|スケジュール/.test(t)) return {cls:"route",icon:"🏪",label:"優先店舗・時間配分"};
+  if (/理由|選定/.test(t)) return {cls:"reason",icon:"🔎",label:"選定理由"};
+  if (/期待利益|目標|見込み/.test(t)) return {cls:"target",icon:"💰",label:"期待利益・目標"};
+  if (/戦略|狙い|アドバイス/.test(t)) return {cls:"strategy",icon:"🎯",label:"AI戦略"};
+  return {cls:"caution",icon:"💡",label:t||"補足"};
+}
+function renderAiNextPlanHtml(text) {
+  const raw=String(text||"").replace(/\r/g,"").trim(); if(!raw)return "";
+  const lines=raw.split("\n"), sections=[]; let cur={title:"",lines:[]};
+  const isHead=line=>{const x=line.trim();return /^#{1,4}\s+/.test(x)||/^(?:\d+|[①-⑩])[\.．、):：]\s*/.test(x)&&x.length<90||/^【.+】$/.test(x)||/^(?:おすすめプラン|プラン概要|優先店舗|店舗順|回る順|スケジュール|選定理由|期待利益|目標|AI戦略|戦略|注意点)\s*[：:]?/.test(x)&&x.length<100;};
+  const push=()=>{if(cur.title||cur.lines.some(x=>x.trim()))sections.push(cur);cur={title:"",lines:[]};};
+  for(const line of lines){if(isHead(line)){push();cur.title=line.trim().replace(/^#{1,4}\s*/,"").replace(/^【|】$/g,"");}else cur.lines.push(line);} push();
+  if(!sections.length)sections.push({title:"おすすめプラン",lines:[raw]});
+  return `<div class="aiDeepAnalysisHeader"><div class="aiDeepAnalysisTitle">🧭 AI次回仕入れプラン</div><div class="aiDeepAnalysisSub">蓄積データと入力条件からAIが作成したプランです</div></div><div class="aiPlanCards">${sections.map((s,i)=>{const k=aiPlanSectionKind(s.title||(i===0?"おすすめプラン":""));const body=escapeHtml(s.lines.join("\n").trim()).replace(/^[-・]\s*/gm,"• ").replace(/\n/g,"<br>");return `<section class="aiPlanCard aiPlanCard--${k.cls}"><div class="aiPlanCardTitle"><span>${k.icon}</span><span>${escapeHtml(s.title||k.label)}</span></div><div class="aiPlanCardBody">${body||"データ不足"}</div></section>`;}).join("")}</div>`;
+}
+
+async function requestAiNextPlan() {
+  const btn=document.getElementById("aiNextPlanBtn"), result=document.getElementById("aiNextPlanResult"), meta=document.getElementById("aiNextPlanMeta");
+  if(!btn||!result)return;
+  const payload=buildAiNextPlanPayload(), fp=aiPlanFingerprint(payload), cache=loadAiNextPlanCache(), cached=cache[fp];
+  if(cached?.plan && btn.dataset.cacheShown!=="1") { result.hidden=false; result.innerHTML=renderAiNextPlanHtml(cached.plan); updateAiPlanRouteAction(cached.plan); btn.dataset.cacheShown="1"; if(meta)meta.textContent=`保存済みプラン：${formatAiDeepSavedAt(cached.createdAt)}。条件が同じなら再利用します。`; return; }
+  btn.disabled=true; btn.textContent="AIプラン作成中…"; result.hidden=false; result.innerHTML='<div class="aiDeepAnalysisLoading">🤖 店舗実績を分析してプランを作成しています…</div>'; if(meta)meta.textContent="AIが次回の仕入れ候補を分析しています。";
+  try {
+    const res=await fetch(AI_WORKER_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"next_plan",analysisData:payload,conditions:payload.conditions})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok||!data.ok||!data.analysis)throw new Error(data.details||data.error||`HTTP ${res.status}`);
+    cache[fp]={plan:String(data.analysis),createdAt:new Date().toISOString(),conditions:payload.conditions}; saveAiNextPlanCache(cache);
+    result.innerHTML=renderAiNextPlanHtml(data.analysis); updateAiPlanRouteAction(data.analysis); btn.dataset.cacheShown="0"; if(meta)meta.textContent=`プランを保存しました：${formatAiDeepSavedAt(cache[fp].createdAt)}`;
+  } catch(e) { result.innerHTML=`<div class="aiDeepAnalysisError">AIプランを作成できませんでした。<br>${escapeHtml(String(e?.message||e))}</div>`; if(meta)meta.textContent="Workerを最新版に更新しているか確認してください。"; }
+  finally {btn.disabled=false;btn.textContent="🤖 次回の仕入れプランを作る";}
+}
+window.requestAiNextPlan=requestAiNextPlan;
+
+const originalBootReportForAiPlan=bootReport;
+bootReport=function(){originalBootReportForAiPlan();initAiNextPlanInputs();};

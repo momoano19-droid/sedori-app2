@@ -4,6 +4,261 @@
 
 const STORE_MINI_MEMO_KEY = "store_mini_memos_v1";
 
+/* =========================
+   仕入れ活動セッション
+========================= */
+const SOURCING_SESSIONS_KEY = "sourcing_sessions_v1";
+const ACTIVE_SOURCING_SESSION_KEY = "active_sourcing_session_v1";
+
+function loadSourcingSessions() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SOURCING_SESSIONS_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error("loadSourcingSessions error:", e);
+    return [];
+  }
+}
+
+function saveSourcingSessions(items) {
+  localStorage.setItem(SOURCING_SESSIONS_KEY, JSON.stringify(Array.isArray(items) ? items : []));
+}
+
+function loadActiveSourcingSession() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ACTIVE_SOURCING_SESSION_KEY) || "null");
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch (e) {
+    console.error("loadActiveSourcingSession error:", e);
+    return null;
+  }
+}
+
+function saveActiveSourcingSession(session) {
+  if (!session) {
+    localStorage.removeItem(ACTIVE_SOURCING_SESSION_KEY);
+    return;
+  }
+  localStorage.setItem(ACTIVE_SOURCING_SESSION_KEY, JSON.stringify(session));
+}
+
+function getSourcingTotalsSnapshot() {
+  return {
+    visits: stores.reduce((sum, x) => sum + Number(x.visits || 0), 0),
+    successes: stores.reduce((sum, x) => sum + Number(x.buyDays || 0), 0),
+    items: stores.reduce((sum, x) => sum + Number(x.items || 0), 0),
+    profit: stores.reduce((sum, x) => sum + Number(x.profit || 0), 0),
+    storeSuccesses: Object.fromEntries(stores.map(x => [String(x.id), Number(x.buyDays || 0)]))
+  };
+}
+
+function formatSourcingTime(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "--:--";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatSourcingDuration(minutes) {
+  const m = Math.max(0, Math.floor(Number(minutes || 0)));
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  return h > 0 ? `${h}時間${rest}分` : `${rest}分`;
+}
+
+function calcSourcingDurationMinutes(startAt, endAt = new Date().toISOString()) {
+  const start = new Date(startAt).getTime();
+  const end = new Date(endAt).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return 0;
+  return Math.max(0, Math.round((end - start) / 60000));
+}
+
+function startSourcingSession(store) {
+  let active = loadActiveSourcingSession();
+  if (active) return active;
+
+  const now = new Date();
+  active = {
+    id: typeof ensureId === "function" ? ensureId() : `session_${Date.now()}`,
+    date: tokyoDateStr(),
+    startAt: now.toISOString(),
+    startStoreId: String(store?.id || ""),
+    startStoreName: String(store?.name || ""),
+    visitedStoreIds: [],
+    visitEvents: [],
+    baseline: getSourcingTotalsSnapshot()
+  };
+  saveActiveSourcingSession(active);
+  renderSourcingSessionStatus();
+  return active;
+}
+
+function recordSourcingVisit(storeId) {
+  const active = loadActiveSourcingSession();
+  if (!active) return;
+
+  const id = String(storeId || "");
+  const ids = Array.isArray(active.visitedStoreIds) ? active.visitedStoreIds.map(String) : [];
+  if (id && !ids.includes(id)) ids.push(id);
+  active.visitedStoreIds = ids;
+
+  // 「訪問＋」を押した瞬間を、店舗ごとの訪問履歴として自動保存する。
+  // 同じ店舗を同日に複数回訪問した場合も、押した回数ぶん時刻を残す。
+  const store = stores.find(x => String(x.id) === id);
+  const events = Array.isArray(active.visitEvents) ? active.visitEvents : [];
+  events.push({
+    storeId: id,
+    storeName: String(store?.name || ""),
+    visitedAt: new Date().toISOString()
+  });
+  active.visitEvents = events;
+
+  saveActiveSourcingSession(active);
+}
+
+function buildCompletedSourcingSession(active, endAt) {
+  const baseline = active?.baseline || {};
+  const current = getSourcingTotalsSnapshot();
+  const baselineStoreSuccesses = baseline.storeSuccesses || {};
+  const successStoreCount = stores.filter(store =>
+    Number(store.buyDays || 0) > Number(baselineStoreSuccesses[String(store.id)] || 0)
+  ).length;
+
+  return {
+    id: String(active.id || (typeof ensureId === "function" ? ensureId() : `session_${Date.now()}`)),
+    date: String(active.date || tokyoDateStr()),
+    startAt: String(active.startAt || ""),
+    endAt: String(endAt || new Date().toISOString()),
+    durationMinutes: calcSourcingDurationMinutes(active.startAt, endAt),
+    startStoreId: String(active.startStoreId || ""),
+    startStoreName: String(active.startStoreName || ""),
+    visitedStoreIds: Array.isArray(active.visitedStoreIds) ? [...new Set(active.visitedStoreIds.map(String))] : [],
+    visitEvents: Array.isArray(active.visitEvents)
+      ? active.visitEvents.map(x => ({
+          storeId: String(x?.storeId || ""),
+          storeName: String(x?.storeName || ""),
+          visitedAt: String(x?.visitedAt || "")
+        }))
+      : [],
+    visitedStoreCount: Array.isArray(active.visitedStoreIds) ? new Set(active.visitedStoreIds.map(String)).size : 0,
+    successStoreCount,
+    visits: Math.max(0, Number(current.visits || 0) - Number(baseline.visits || 0)),
+    successes: Math.max(0, Number(current.successes || 0) - Number(baseline.successes || 0)),
+    items: Math.max(0, Number(current.items || 0) - Number(baseline.items || 0)),
+    profit: Number(current.profit || 0) - Number(baseline.profit || 0),
+    createdAt: new Date().toISOString()
+  };
+}
+
+function completeSourcingSession(active, endAt) {
+  const completed = buildCompletedSourcingSession(active, endAt);
+  const sessions = loadSourcingSessions();
+  sessions.push(completed);
+  saveSourcingSessions(sessions);
+  saveActiveSourcingSession(null);
+  if (typeof saveAutoBackup === "function") saveAutoBackup();
+  renderSourcingSessionStatus();
+  return completed;
+}
+
+function endSourcingSession() {
+  const active = loadActiveSourcingSession();
+  if (!active) {
+    alert("現在、仕入れ中ではありません。");
+    renderSourcingSessionStatus();
+    return;
+  }
+
+  const nowIso = new Date().toISOString();
+  const duration = calcSourcingDurationMinutes(active.startAt, nowIso);
+  const ok = confirm([
+    "本当に本日の仕入れを終了しますか？",
+    "",
+    `開始 ${formatSourcingTime(active.startAt)}`,
+    `現在 ${formatSourcingTime(nowIso)}`,
+    `活動時間 ${formatSourcingDuration(duration)}`
+  ].join("\n"));
+  if (!ok) return;
+
+  const completed = completeSourcingSession(active, nowIso);
+  alert(`本日の仕入れを終了しました。\n${formatSourcingTime(completed.startAt)}〜${formatSourcingTime(completed.endAt)}（${formatSourcingDuration(completed.durationMinutes)}）`);
+}
+
+function renderSourcingSessionStatus() {
+  const status = document.getElementById("sourcingSessionStatus");
+  const detail = document.getElementById("sourcingSessionDetail");
+  const endBtn = document.getElementById("endSourcingBtn");
+  if (!status || !detail || !endBtn) return;
+
+  const active = loadActiveSourcingSession();
+  if (active) {
+    const mins = calcSourcingDurationMinutes(active.startAt);
+    status.textContent = `🟢 仕入れ中　開始 ${formatSourcingTime(active.startAt)}`;
+    detail.textContent = `経過 ${formatSourcingDuration(mins)} ／ 訪問店舗 ${new Set((active.visitedStoreIds || []).map(String)).size}店`;
+    endBtn.hidden = false;
+    return;
+  }
+
+  const today = tokyoDateStr();
+  const todaySessions = loadSourcingSessions().filter(x => String(x.date || "") === today);
+  if (todaySessions.length) {
+    const last = todaySessions[todaySessions.length - 1];
+    status.textContent = `🔴 本日の仕入れ終了 ${formatSourcingTime(last.startAt)}〜${formatSourcingTime(last.endAt)}`;
+    detail.textContent = `${formatSourcingDuration(last.durationMinutes)} ／ 本日 ${todaySessions.length}セッション記録済み`;
+  } else {
+    status.textContent = "本日の仕入れ：未開始";
+    detail.textContent = "店舗の「訪問＋」を押すと自動で開始します。";
+  }
+  endBtn.hidden = true;
+}
+
+function resolveStaleSourcingSession() {
+  const active = loadActiveSourcingSession();
+  if (!active || String(active.date || "") === tokyoDateStr()) return;
+
+  const input = prompt([
+    `${active.date} の仕入れが終了されていません。`,
+    `開始 ${formatSourcingTime(active.startAt)}`,
+    "",
+    "昨日の終了時刻を4桁で入力してください。",
+    "例：1830 → 18:30",
+    "キャンセルすると未終了のまま残します。"
+  ].join("\n"), "1800");
+  if (input === null) return;
+
+  const digits = String(input).replace(/\D/g, "");
+  if (!/^\d{3,4}$/.test(digits)) {
+    alert("終了時刻は 1830 のように入力してください。");
+    return;
+  }
+  const padded = digits.padStart(4, "0");
+  const hh = Number(padded.slice(0, 2));
+  const mm = Number(padded.slice(2, 4));
+  if (hh > 23 || mm > 59) {
+    alert("正しい時刻を入力してください。");
+    return;
+  }
+
+  const [y, m, d] = String(active.date).split("-").map(Number);
+  const end = new Date(y, m - 1, d, hh, mm, 0, 0);
+  if (end.getTime() < new Date(active.startAt).getTime()) {
+    alert("終了時刻が開始時刻より前になっています。");
+    return;
+  }
+  completeSourcingSession(active, end.toISOString());
+  alert(`${active.date} の仕入れ終了時刻を ${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")} として保存しました。`);
+}
+
+function restoreSourcingSessionsFromBackup(data) {
+  if (!data || typeof data !== "object") return;
+  if (Array.isArray(data.sourcingSessions)) saveSourcingSessions(data.sourcingSessions);
+  if (data.activeSourcingSession && typeof data.activeSourcingSession === "object") {
+    saveActiveSourcingSession(data.activeSourcingSession);
+  } else {
+    saveActiveSourcingSession(null);
+  }
+}
+
+
 function loadStoreMiniMemoMap() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORE_MINI_MEMO_KEY) || "{}");
@@ -480,6 +735,8 @@ function exportBackup() {
     savedRoutes,
     todayRouteOrder,
     routeRunHistory,
+    sourcingSessions: loadSourcingSessions(),
+    activeSourcingSession: loadActiveSourcingSession(),
     storeMiniMemos: { ...storeMiniMemoMap }
   };
 
@@ -527,6 +784,7 @@ function importBackup(event) {
         : [];
 
       restoreStoreMiniMemosFromBackup(parsed.storeMiniMemos || {});
+      restoreSourcingSessionsFromBackup(parsed);
 
       syncStoreProfitsFromLogs();
 
@@ -578,6 +836,7 @@ function restoreAutoBackup() {
     : [];
 
   restoreStoreMiniMemosFromBackup(data.storeMiniMemos || {});
+  restoreSourcingSessionsFromBackup(data);
 
   syncStoreProfitsFromLogs();
 
@@ -1466,6 +1725,11 @@ async function refreshAllCoordinates() {
 function visit(i) {
   const s = stores[i];
   if (!s) return;
+
+  if (!loadActiveSourcingSession()) {
+    startSourcingSession(s);
+  }
+  recordSourcingVisit(s.id);
 
   s.visits += 1;
   s.lastVisitDate = tokyoDateStr();

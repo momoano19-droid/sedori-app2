@@ -173,7 +173,8 @@ function normalizeLog(x) {
     type: String(x?.type || "").trim(),
     delta: Number(x?.delta || 0),
     category: String(x?.category || "").trim(),
-    note: String(x?.note || "").trim()
+    note: String(x?.note || "").trim(),
+    createdAt: String(x?.createdAt || "").trim()
   };
 }
 
@@ -453,7 +454,17 @@ function saveAutoBackup() {
             : loadTodayRouteOrder(),
 
         routeRunHistory:
-          getCurrentRouteRunHistoryForStorage()
+          getCurrentRouteRunHistoryForStorage(),
+
+        sourcingSessions:
+          typeof loadSourcingSessions === "function"
+            ? loadSourcingSessions()
+            : [],
+
+        activeSourcingSession:
+          typeof loadActiveSourcingSession === "function"
+            ? loadActiveSourcingSession()
+            : null
       })
     );
   } catch (e) {
@@ -504,7 +515,17 @@ function getAutoBackup() {
             ? normalizeRouteRunHistory(
                 parsed.routeRunHistory
               )
-            : []
+            : [],
+
+        sourcingSessions:
+          Array.isArray(parsed.sourcingSessions)
+            ? parsed.sourcingSessions
+            : [],
+
+        activeSourcingSession:
+          parsed.activeSourcingSession && typeof parsed.activeSourcingSession === "object"
+            ? parsed.activeSourcingSession
+            : null
       };
     } catch (e) {
       console.error(

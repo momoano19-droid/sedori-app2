@@ -30,6 +30,49 @@
       </div>
     </header>
 
+    <section class="card aiSourcingSummaryCard" id="aiSourcingSummaryCard">
+      <div class="aiSourcingSummaryHead">
+        <div>
+          <h2 id="aiSourcingSummaryTitle" class="sectionTitle" style="margin-bottom:4px;">🤖 今日の仕入れ総評</h2>
+          <div class="mini">まずはツール内で数値を正確に集計して自動分析します。AI接続は次の段階で追加します。</div>
+        </div>
+        <div id="aiSourcingSummaryState" class="aiSourcingSummaryState">集計中</div>
+      </div>
+      <div id="aiSourcingMetrics" class="aiSourcingMetrics"></div>
+      <div id="aiSourcingComment" class="aiSourcingComment"></div>
+      <div class="aiDeepAnalysisActions">
+        <button id="aiDeepAnalysisBtn" type="button" class="primaryBtn" onclick="requestAiDeepAnalysis()">🤖 AIで詳しく分析</button>
+        <div id="aiDeepAnalysisMeta" class="mini"></div>
+      </div>
+      <div id="aiDeepAnalysisResult" class="aiDeepAnalysisResult" hidden></div>
+    </section>
+
+    <section class="card aiNextPlanCard" id="aiNextPlanCard">
+      <div class="aiNextPlanHead">
+        <div>
+          <h2 class="sectionTitle" style="margin-bottom:4px;">🧭 AI次回仕入れプラン</h2>
+          <div class="mini">予定を入力すると、蓄積した店舗実績からAIが優先店舗・時間配分・狙い方を提案します。</div>
+        </div>
+        <div class="aiSourcingSummaryState">第1段階</div>
+      </div>
+      <div class="aiNextPlanInputs">
+        <label class="aiNextPlanField"><span>予定日</span><input id="aiPlanDate" type="date"></label>
+        <label class="aiNextPlanField"><span>開始予定</span><input id="aiPlanStartTime" type="time" value="10:00"></label>
+        <label class="aiNextPlanField"><span>仕入れ予定時間</span><div class="aiNextPlanUnit"><input id="aiPlanHours" type="number" inputmode="decimal" min="0.5" max="16" step="0.5" value="3"><span>時間</span></div></label>
+        <label class="aiNextPlanField"><span>目標利益</span><div class="aiNextPlanUnit"><input id="aiPlanTargetProfit" type="number" inputmode="numeric" min="0" step="1000" value="30000"><span>円</span></div></label>
+      </div>
+      <div class="aiNextPlanActions">
+        <button id="aiNextPlanBtn" type="button" class="primaryBtn" onclick="requestAiNextPlan()">🤖 次回の仕入れプランを作る</button>
+        <div id="aiNextPlanMeta" class="mini">ボタンを押した時だけAPIを使用します。</div>
+      </div>
+      <div id="aiNextPlanResult" class="aiNextPlanResult" hidden></div>
+      <div id="aiNextPlanRouteActions" class="aiNextPlanRouteActions" hidden>
+        <button id="aiApplyRouteBtn" type="button" class="primaryBtn" onclick="applyAiNextPlanToTodayRoute()">🗺️ このAIプランを今日のルートに設定</button>
+        <button id="aiOptimizeRouteBtn" type="button" class="ghostBtn aiOptimizeRouteBtn" onclick="applyAiOptimizedPlanToTodayRoute()">⚡ 現在地から移動効率も含めて最適化</button>
+        <div id="aiApplyRouteMeta" class="mini">上はAI提案順のまま反映。⚡は現在地・直線距離・店舗期待値・成功率・再訪間隔を組み合わせて順番を最適化します。</div>
+      </div>
+    </section>
+
     <section class="card">
       <h2 class="sectionTitle">🗓 対象月 / 集計期間</h2>
 
