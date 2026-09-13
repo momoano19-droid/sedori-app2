@@ -3111,6 +3111,94 @@ renderAiSourcingSummary = function(dayStr) {
   renderAiDeepAnalysisForDay(dayStr || selectedDay || todayStr());
 };
 
+
+/* =========================
+   月間AI総評 v1
+   - 選択月の実績を月単位で集計
+   - 日次AIとは別キャッシュ
+========================= */
+const AI_MONTHLY_CACHE_KEY = "ai_monthly_analysis_cache_v1";
+
+function loadAiMonthlyCache() {
+  try {
+    const x = JSON.parse(localStorage.getItem(AI_MONTHLY_CACHE_KEY) || "{}");
+    return x && typeof x === "object" && !Array.isArray(x) ? x : {};
+  } catch { return {}; }
+}
+function saveAiMonthlyCache(cache) {
+  try { localStorage.setItem(AI_MONTHLY_CACHE_KEY, JSON.stringify(cache || {})); } catch {}
+}
+function aiMonthDays(monthStr) {
+  const logs = loadLogs();
+  const set = new Set((logs || []).map(x=>ymd(x.date)).filter(d=>d && ym(d)===monthStr));
+  return Array.from(set).sort().map(d=>aiEnrichDay(aiDayRawStats(logs,d))).filter(x=>x.visits>0 || x.success>0 || x.items>0 || x.profit!==0);
+}
+function aiMonthlyStoreAnalysis(logs, stores, monthStr) {
+  const storeMap = new Map((stores || []).map(s=>[String(s.id),s]));
+  const grouped = new Map();
+  (logs || []).forEach(log=>{
+    const d=ymd(log.date); if(!d || ym(d)!==monthStr) return;
+    const id=String(log.storeId||""); if(!id) return;
+    if(!grouped.has(id)) grouped.set(id,{storeId:id,visits:0,success:0,items:0,profit:0,visitDates:new Set()});
+    const g=grouped.get(id), n=Number(log.delta||0);
+    if(log.type==="visit"){g.visits+=n;if(n>0)g.visitDates.add(d);}
+    else if(log.type==="success")g.success+=n;
+    else if(log.type==="items")g.items+=n;
+    else if(log.type==="profit"||log.type==="profit_adjust")g.profit+=n;
+  });
+  return Array.from(grouped.values()).map(g=>{
+    const st=storeMap.get(g.storeId)||{};
+    return {storeId:g.storeId,name:String(st.name||"不明店舗"),pref:String(st.pref||""),visits:g.visits,success:g.success,successRate:g.visits>0?g.success/g.visits*100:0,items:g.items,profit:g.profit,profitPerVisit:g.visits>0?g.profit/g.visits:0,visitDays:g.visitDates.size};
+  }).filter(x=>x.visits>0||x.success>0||x.items>0||x.profit!==0).sort((a,b)=>b.profit-a.profit);
+}
+function buildAiMonthlyAnalysisPayload(monthStr = selectedMonth || currentMonthStr()) {
+  const month=monthStr||currentMonthStr(), logs=loadLogs(), stores=loadStores();
+  const days=aiMonthDays(month);
+  const totals=days.reduce((a,x)=>{a.profit+=Number(x.profit||0);a.visits+=Number(x.visits||0);a.success+=Number(x.success||0);a.items+=Number(x.items||0);a.activityMinutes+=Number(x.activityMinutes||0);return a;},{profit:0,visits:0,success:0,items:0,activityMinutes:0});
+  totals.successRate=totals.visits>0?totals.success/totals.visits*100:0;
+  totals.profitPerVisit=totals.visits>0?totals.profit/totals.visits:0;
+  totals.profitPerHour=totals.activityMinutes>0?totals.profit/(totals.activityMinutes/60):null;
+  totals.visitsPerHour=totals.activityMinutes>0?totals.visits/(totals.activityMinutes/60):null;
+  totals.itemsPerHour=totals.activityMinutes>0?totals.items/(totals.activityMinutes/60):null;
+  totals.sourcingDays=days.length;
+  const prevDate=new Date(`${month}-01T00:00:00`);prevDate.setMonth(prevDate.getMonth()-1);
+  const prevMonth=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,"0")}`;
+  const prevDays=aiMonthDays(prevMonth);
+  const payload={schemaVersion:1,periodType:"month",generatedAt:new Date().toISOString(),targetMonth:month,totals,averagePerSourcingDay:aiAverageDays(days),dailyResults:days,topStores:aiMonthlyStoreAnalysis(logs,stores,month).slice(0,15),previousMonth:{month:prevMonth,averagePerSourcingDay:aiAverageDays(prevDays),sourcingDays:prevDays.length},dataQuality:{totalLogCount:(logs||[]).length,sourcingDays:days.length,timedSourcingDays:days.filter(x=>Number(x.activityMinutes||0)>0).length,logsWithTimestamp:(logs||[]).filter(x=>x.createdAt && ym(ymd(x.date))===month).length,note:"時間効率は仕入れセッション記録がある日のみ正確に評価できます。"}};
+  return payload;
+}
+window.buildAiMonthlyAnalysisPayload=buildAiMonthlyAnalysisPayload;
+
+function renderAiMonthlyAnalysisForMonth(monthStr) {
+  const resultEl=document.getElementById("aiMonthlyAnalysisResult"),metaEl=document.getElementById("aiMonthlyAnalysisMeta"),btn=document.getElementById("aiMonthlyAnalysisBtn"),title=document.getElementById("aiMonthlySummaryTitle");
+  if(!resultEl||!btn)return;
+  const month=monthStr||selectedMonth||currentMonthStr();
+  if(title)title.textContent=`📅 ${month} のAI月間総評`;
+  const payload=buildAiMonthlyAnalysisPayload(month),fp=aiPayloadFingerprint(payload),cached=loadAiMonthlyCache()[month];
+  btn.dataset.cacheShown="0";
+  if(cached&&cached.fingerprint===fp&&cached.analysis){showAiDeepAnalysis(resultEl,cached.analysis);btn.textContent="📅 この月をAIで再分析";if(metaEl)metaEl.textContent=`保存済み月間総評：${formatAiDeepSavedAt(cached.createdAt)}（データが変わるまで再利用）`;}
+  else{resultEl.hidden=true;resultEl.innerHTML="";btn.textContent="📅 この月をAIで総評";if(metaEl)metaEl.textContent=cached?"この月の記録が更新されています。月間総評を更新できます。":"ボタンを押した時だけAPIを使用します。";}
+}
+
+async function requestAiMonthlyAnalysis(){
+  const btn=document.getElementById("aiMonthlyAnalysisBtn"),resultEl=document.getElementById("aiMonthlyAnalysisResult"),metaEl=document.getElementById("aiMonthlyAnalysisMeta");
+  if(!btn||!resultEl)return;
+  const month=selectedMonth||currentMonthStr(),payload=buildAiMonthlyAnalysisPayload(month),fp=aiPayloadFingerprint(payload),cache=loadAiMonthlyCache(),cached=cache[month];
+  if(cached&&cached.fingerprint===fp&&cached.analysis){showAiDeepAnalysis(resultEl,cached.analysis);if(metaEl)metaEl.textContent=`保存済み月間総評：${formatAiDeepSavedAt(cached.createdAt)}。再分析する場合はもう一度押してください。`;if(btn.dataset.cacheShown!=="1"){btn.dataset.cacheShown="1";return;}}
+  btn.disabled=true;btn.textContent="月間AI分析中…";resultEl.hidden=false;resultEl.innerHTML='<div class="aiDeepAnalysisLoading">🤖 1か月分を分析中です…</div>';if(metaEl)metaEl.textContent="選択月の仕入れデータをAIが分析しています。";
+  try{
+    const res=await fetch(AI_WORKER_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"monthly_summary",analysisData:payload})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok||!data.ok||!data.analysis)throw new Error(data.details||data.error||`HTTP ${res.status}`);
+    cache[month]={fingerprint:fp,analysis:String(data.analysis),createdAt:new Date().toISOString()};saveAiMonthlyCache(cache);showAiDeepAnalysis(resultEl,data.analysis);if(metaEl)metaEl.textContent=`月間総評を保存しました：${formatAiDeepSavedAt(cache[month].createdAt)}`;btn.dataset.cacheShown="0";
+  }catch(e){resultEl.innerHTML=`<div class="aiDeepAnalysisError">月間AI分析に接続できませんでした。<br>${escapeHtml(String(e?.message||e))}</div>`;if(metaEl)metaEl.textContent="Workerが月間分析対応版か確認してください。";}
+  finally{btn.disabled=false;btn.textContent="📅 この月をAIで再分析";}
+}
+window.requestAiMonthlyAnalysis=requestAiMonthlyAnalysis;
+
+const originalBootReportForMonthlyAi=bootReport;
+bootReport=function(){originalBootReportForMonthlyAi();renderAiMonthlyAnalysisForMonth(selectedMonth||currentMonthStr());};
+
 /* =========================
    AI次回仕入れプラン v1
 ========================= */

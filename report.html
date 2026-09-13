@@ -47,6 +47,21 @@
       <div id="aiDeepAnalysisResult" class="aiDeepAnalysisResult" hidden></div>
     </section>
 
+    <section class="card aiMonthlySummaryCard" id="aiMonthlySummaryCard">
+      <div class="aiSourcingSummaryHead">
+        <div>
+          <h2 id="aiMonthlySummaryTitle" class="sectionTitle" style="margin-bottom:4px;">📅 月のAI総評</h2>
+          <div class="mini">選択中の1か月を、利益・成功率・店舗・仕入れ日数・時間効率までまとめてAIが振り返ります。</div>
+        </div>
+        <div id="aiMonthlySummaryState" class="aiSourcingSummaryState">月間集計</div>
+      </div>
+      <div class="aiDeepAnalysisActions">
+        <button id="aiMonthlyAnalysisBtn" type="button" class="primaryBtn" onclick="requestAiMonthlyAnalysis()">📅 この月をAIで総評</button>
+        <div id="aiMonthlyAnalysisMeta" class="mini">ボタンを押した時だけAPIを使用します。</div>
+      </div>
+      <div id="aiMonthlyAnalysisResult" class="aiDeepAnalysisResult" hidden></div>
+    </section>
+
     <section class="card aiNextPlanCard" id="aiNextPlanCard">
       <div class="aiNextPlanHead">
         <div>
@@ -133,6 +148,6 @@
     </div>
   </div>
 
-  <script src="./js/report.js?v=aihotfix1"></script>
+  <script src="./js/report.js?v=aimonthly1"></script>
 </body>
 </html>
