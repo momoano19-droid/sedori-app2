@@ -3083,7 +3083,7 @@ async function requestAiDeepAnalysis() {
     const res = await fetch(AI_WORKER_URL, {
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({analysisData:payload})
+      body:JSON.stringify({mode:"summary",analysisData:payload})
     });
     const data = await res.json().catch(()=>({}));
     if (!res.ok || !data.ok || !data.analysis) throw new Error(data.details || data.error || `HTTP ${res.status}`);
@@ -3372,6 +3372,17 @@ async function requestAiNextPlan() {
   finally {btn.disabled=false;btn.textContent="🤖 次回の仕入れプランを作る";}
 }
 window.requestAiNextPlan=requestAiNextPlan;
+
+// AI UI initialization must run independently because the original load listener
+// was registered before later bootReport wrappers were assigned.
+window.addEventListener("load", () => {
+  try {
+    renderAiSourcingSummary(selectedDay || todayStr());
+    initAiNextPlanInputs();
+  } catch (e) {
+    console.error("AI UI init error", e);
+  }
+});
 
 const originalBootReportForAiPlan=bootReport;
 bootReport=function(){originalBootReportForAiPlan();initAiNextPlanInputs();};
