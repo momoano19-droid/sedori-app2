@@ -3243,7 +3243,7 @@ function buildAiNextPlanPayload() {
       hasCoordinates:Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lng)),
       lat:Number.isFinite(Number(s.lat))?Number(s.lat):null, lng:Number.isFinite(Number(s.lng))?Number(s.lng):null
     };
-  }).filter(x=>x.name).sort((a,b)=>b.expectedProfitPerVisit-a.expectedProfitPerVisit || b.successRate-a.successRate).slice(0,80);
+  }).filter(x=>x.name).sort((a,b)=>b.expectedProfitPerVisit-a.expectedProfitPerVisit || b.successRate-a.successRate).slice(0,40);
 
   const activeDays=Array.from(new Set((logs||[]).map(x=>ymd(x.date)).filter(d=>d && d<plannedDate))).sort().reverse();
   const recent30=activeDays.slice(0,30).map(d=>aiEnrichDay(aiDayRawStats(logs,d))).filter(x=>x.visits>0||x.success>0||x.items>0||x.profit!==0);
@@ -3461,12 +3461,33 @@ async function requestAiNextPlan() {
   if(cached?.plan && btn.dataset.cacheShown!=="1") { result.hidden=false; result.innerHTML=renderAiNextPlanHtml(cached.plan); updateAiPlanRouteAction(cached.plan); btn.dataset.cacheShown="1"; if(meta)meta.textContent=`保存済みプラン：${formatAiDeepSavedAt(cached.createdAt)}。条件が同じなら再利用します。`; return; }
   btn.disabled=true; btn.textContent="AIプラン作成中…"; result.hidden=false; result.innerHTML='<div class="aiDeepAnalysisLoading">🤖 店舗実績を分析してプランを作成しています…</div>'; if(meta)meta.textContent="AIが次回の仕入れ候補を分析しています。";
   try {
-    const res=await fetch(AI_WORKER_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"next_plan",analysisData:payload,conditions:payload.conditions})});
+    // APIへ送る候補データはAI判断に必要な項目だけに絞る。
+    // 住所・緯度経度は端末内のルート最適化では使うが、AI本文生成には送らない。
+    const apiPayload={...payload,candidates:(payload.candidates||[]).map(c=>({
+      storeId:c.storeId,name:c.name,pref:c.pref,visits:c.visits,success:c.success,
+      successRate:c.successRate,items:c.items,totalProfit:c.totalProfit,
+      expectedProfitPerVisit:c.expectedProfitPerVisit,lastVisitDate:c.lastVisitDate,
+      daysSinceLastVisit:c.daysSinceLastVisit
+    }))};
+    const res=await fetch(AI_WORKER_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"next_plan",analysisData:apiPayload,conditions:apiPayload.conditions})});
     const data=await res.json().catch(()=>({}));
-    if(!res.ok||!data.ok||!data.analysis)throw new Error(data.details||data.error||`HTTP ${res.status}`);
+    if(!res.ok||!data.ok||!data.analysis){
+      const detail=String(data.details||data.error||`HTTP ${res.status}`);
+      const err=new Error(detail); err.httpStatus=res.status; throw err;
+    }
     cache[fp]={plan:String(data.analysis),createdAt:new Date().toISOString(),conditions:payload.conditions}; saveAiNextPlanCache(cache);
     result.innerHTML=renderAiNextPlanHtml(data.analysis); updateAiPlanRouteAction(data.analysis); btn.dataset.cacheShown="0"; if(meta)meta.textContent=`プランを保存しました：${formatAiDeepSavedAt(cache[fp].createdAt)}`;
-  } catch(e) { result.innerHTML=`<div class="aiDeepAnalysisError">AIプランを作成できませんでした。<br>${escapeHtml(String(e?.message||e))}</div>`; if(meta)meta.textContent="Workerを最新版に更新しているか確認してください。"; }
+  } catch(e) {
+    const msg=String(e?.message||e||"");
+    const isRateLimit=/rate limit|tokens per min|tpm|429/i.test(msg)||Number(e?.httpStatus)===429;
+    if(isRateLimit){
+      result.innerHTML='<div class="aiDeepAnalysisError"><strong>⚠️ AIの一時的な利用上限に達しました。</strong><br><br>少し時間を空けてから、もう一度お試しください。<br>仕入れデータやアプリ本体に問題はありません。</div>';
+      if(meta)meta.textContent="OpenAI APIの利用上限による一時的な制限です。Workerの更新は不要です。";
+    }else{
+      result.innerHTML=`<div class="aiDeepAnalysisError">AIプランを作成できませんでした。<br>${escapeHtml(msg)}</div>`;
+      if(meta)meta.textContent="通信状態を確認して、もう一度お試しください。";
+    }
+  }
   finally {btn.disabled=false;btn.textContent="🤖 次回の仕入れプランを作る";}
 }
 window.requestAiNextPlan=requestAiNextPlan;
