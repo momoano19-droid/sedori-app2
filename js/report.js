@@ -3474,3 +3474,17 @@ window.addEventListener("load", () => {
 
 const originalBootReportForAiPlan=bootReport;
 bootReport=function(){originalBootReportForAiPlan();initAiNextPlanInputs();};
+
+
+/* =========================
+   レポート 上下ジャンプ v1
+========================= */
+function scrollReportToTop(){
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+function scrollReportToBottom(){
+  const bottom = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+  window.scrollTo({top:bottom, behavior:"smooth"});
+}
+window.scrollReportToTop = scrollReportToTop;
+window.scrollReportToBottom = scrollReportToBottom;
