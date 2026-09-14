@@ -5854,3 +5854,12 @@ button {
 /* AI × 移動効率ルート最適化 */
 .aiNextPlanRouteActions .aiOptimizeRouteBtn{width:100%;min-height:46px;font-weight:900;border:1px solid var(--line,#d1d5db);}
 .aiNextPlanRouteActions .aiOptimizeRouteBtn:disabled{opacity:.65;cursor:wait;}
+
+
+/* AI次回仕入れプラン 入力欄 iPhone幅対策 v2 */
+.aiNextPlanField,.aiNextPlanUnit{min-width:0;max-width:100%;}
+.aiNextPlanField input{display:block;min-width:0!important;max-width:100%!important;width:100%!important;}
+@media (max-width:560px){
+  .aiNextPlanInputs{grid-template-columns:1fr;}
+  .aiNextPlanField input{font-size:16px;}
+}

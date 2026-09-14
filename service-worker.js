@@ -1,4 +1,4 @@
-const CACHE_NAME = "sedori-v185-aimonthly2";
+const CACHE_NAME = "sedori-v186-aiplaninputfix";
 
 const STATIC_URLS = [
   "./",

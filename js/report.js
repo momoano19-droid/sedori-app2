@@ -3213,8 +3213,7 @@ function aiPlanTomorrowStr() {
 }
 
 function initAiNextPlanInputs() {
-  const el=document.getElementById("aiPlanDate");
-  if (el && !el.value) el.value=aiPlanTomorrowStr();
+  // 入力欄は初期値を入れず、ユーザーが使う時に指定する。
 }
 
 function loadAiNextPlanCache() {
@@ -3223,10 +3222,12 @@ function loadAiNextPlanCache() {
 function saveAiNextPlanCache(x) { try { localStorage.setItem(AI_NEXT_PLAN_CACHE_KEY, JSON.stringify(x||{})); } catch {} }
 
 function buildAiNextPlanPayload() {
-  const plannedDate=document.getElementById("aiPlanDate")?.value || aiPlanTomorrowStr();
-  const startTime=document.getElementById("aiPlanStartTime")?.value || "10:00";
-  const hours=Math.max(.5, Math.min(16, Number(document.getElementById("aiPlanHours")?.value || 3)));
-  const targetProfit=Math.max(0, Number(document.getElementById("aiPlanTargetProfit")?.value || 0));
+  const plannedDate=document.getElementById("aiPlanDate")?.value || "";
+  const startTime=document.getElementById("aiPlanStartTime")?.value || "";
+  const hoursRaw=document.getElementById("aiPlanHours")?.value || "";
+  const targetRaw=document.getElementById("aiPlanTargetProfit")?.value || "";
+  const hours=hoursRaw === "" ? null : Math.max(.5, Math.min(16, Number(hoursRaw)));
+  const targetProfit=targetRaw === "" ? null : Math.max(0, Number(targetRaw));
   const cutoff = plannedDate > todayStr() ? todayStr() : plannedDate;
   const logs=loadLogs(), stores=loadStores();
   const history=aiStoreAnalysis(logs, stores, cutoff);
@@ -3447,6 +3448,15 @@ function renderAiNextPlanHtml(text) {
 async function requestAiNextPlan() {
   const btn=document.getElementById("aiNextPlanBtn"), result=document.getElementById("aiNextPlanResult"), meta=document.getElementById("aiNextPlanMeta");
   if(!btn||!result)return;
+  const plannedDate=document.getElementById("aiPlanDate")?.value || "";
+  const startTime=document.getElementById("aiPlanStartTime")?.value || "";
+  const hoursRaw=document.getElementById("aiPlanHours")?.value || "";
+  if(!plannedDate || !startTime || !hoursRaw){
+    result.hidden=false;
+    result.innerHTML='<div class="aiDeepAnalysisError">予定日・開始予定・仕入れ予定時間を入力してください。<br>目標利益は未入力でも作成できます。</div>';
+    if(meta)meta.textContent="条件を入力してからAIプランを作成してください。";
+    return;
+  }
   const payload=buildAiNextPlanPayload(), fp=aiPlanFingerprint(payload), cache=loadAiNextPlanCache(), cached=cache[fp];
   if(cached?.plan && btn.dataset.cacheShown!=="1") { result.hidden=false; result.innerHTML=renderAiNextPlanHtml(cached.plan); updateAiPlanRouteAction(cached.plan); btn.dataset.cacheShown="1"; if(meta)meta.textContent=`保存済みプラン：${formatAiDeepSavedAt(cached.createdAt)}。条件が同じなら再利用します。`; return; }
   btn.disabled=true; btn.textContent="AIプラン作成中…"; result.hidden=false; result.innerHTML='<div class="aiDeepAnalysisLoading">🤖 店舗実績を分析してプランを作成しています…</div>'; if(meta)meta.textContent="AIが次回の仕入れ候補を分析しています。";

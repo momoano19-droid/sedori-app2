@@ -72,9 +72,9 @@
       </div>
       <div class="aiNextPlanInputs">
         <label class="aiNextPlanField"><span>予定日</span><input id="aiPlanDate" type="date"></label>
-        <label class="aiNextPlanField"><span>開始予定</span><input id="aiPlanStartTime" type="time" value="10:00"></label>
-        <label class="aiNextPlanField"><span>仕入れ予定時間</span><div class="aiNextPlanUnit"><input id="aiPlanHours" type="number" inputmode="decimal" min="0.5" max="16" step="0.5" value="3"><span>時間</span></div></label>
-        <label class="aiNextPlanField"><span>目標利益</span><div class="aiNextPlanUnit"><input id="aiPlanTargetProfit" type="number" inputmode="numeric" min="0" step="1000" value="30000"><span>円</span></div></label>
+        <label class="aiNextPlanField"><span>開始予定</span><input id="aiPlanStartTime" type="time"></label>
+        <label class="aiNextPlanField"><span>仕入れ予定時間</span><div class="aiNextPlanUnit"><input id="aiPlanHours" type="number" inputmode="decimal" min="0.5" max="16" step="0.5"><span>時間</span></div></label>
+        <label class="aiNextPlanField"><span>目標利益</span><div class="aiNextPlanUnit"><input id="aiPlanTargetProfit" type="number" inputmode="numeric" min="0" step="1000"><span>円</span></div></label>
       </div>
       <div class="aiNextPlanActions">
         <button id="aiNextPlanBtn" type="button" class="primaryBtn" onclick="requestAiNextPlan()">🤖 次回の仕入れプランを作る</button>
