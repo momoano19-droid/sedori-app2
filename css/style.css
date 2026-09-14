@@ -5863,3 +5863,39 @@ button {
   .aiNextPlanInputs{grid-template-columns:1fr;}
   .aiNextPlanField input{font-size:16px;}
 }
+
+
+/* AI次回仕入れプラン iPhone date/time はみ出し対策 v3 */
+.aiNextPlanInputs{max-width:100%;overflow:hidden;}
+.aiNextPlanField{min-width:0!important;max-width:100%!important;overflow:hidden;}
+.aiNextPlanField input,
+.aiNextPlanField input[type="date"],
+.aiNextPlanField input[type="time"]{
+  box-sizing:border-box!important;
+  inline-size:100%!important;
+  min-inline-size:0!important;
+  max-inline-size:100%!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+}
+@supports (-webkit-touch-callout:none){
+  .aiNextPlanField input[type="date"],
+  .aiNextPlanField input[type="time"]{
+    -webkit-appearance:none;
+    appearance:none;
+    display:block;
+    overflow:hidden;
+  }
+}
+
+/* AI総評 アコーディオン v1 */
+.aiDeepAccordion{margin:0;}
+.aiDeepAccordionSummary{
+  list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;
+  gap:10px;padding:2px 2px 12px;font-size:17px;font-weight:950;
+}
+.aiDeepAccordionSummary::-webkit-details-marker{display:none;}
+.aiDeepAccordionSummary::after{content:"▼";font-size:12px;transition:transform .18s ease;flex:0 0 auto;}
+.aiDeepAccordion[open]>.aiDeepAccordionSummary::after{transform:rotate(180deg);}
+.aiDeepAccordionSub{font-size:11px;color:var(--sub);font-weight:700;margin:-7px 2px 12px;}

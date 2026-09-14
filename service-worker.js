@@ -1,13 +1,13 @@
-const CACHE_NAME = "sedori-v186-aiplaninputfix";
+const CACHE_NAME = "sedori-v187-aiplanaccordion";
 
 const STATIC_URLS = [
   "./",
   "./index.html",
   "./report.html",
   "./manifest.json",
-  "./css/style.css?v=ui13",
+  "./css/style.css?v=ui14",
   "./js/app.js?v=ui17",
-  "./js/report.js?v=aimonthly2",
+  "./js/report.js?v=aiaccordion1",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",

@@ -3019,13 +3019,13 @@ function renderAiDeepAnalysisHtml(text) {
   push();
   if (!sections.length) sections.push({title:"総合評価・今日の結論", lines:[raw]});
 
-  return `<div class="aiDeepAnalysisHeader"><div class="aiDeepAnalysisTitle">🤖 AI仕入れ総評</div><div class="aiDeepAnalysisSub">蓄積データをもとにAIが分析した結果です</div></div><div class="aiDeepAnalysisCards">${sections.map((sec, idx)=>{
+  return `<details class="aiDeepAccordion" open><summary class="aiDeepAccordionSummary"><span>🤖 AI仕入れ総評</span></summary><div class="aiDeepAccordionSub">タップで開閉できます｜蓄積データをもとにAIが分析した結果です</div><div class="aiDeepAnalysisCards">${sections.map((sec, idx)=>{
     const kind = aiDeepSectionKind(sec.title || (idx===0 ? "総合評価" : ""));
     const body = sec.lines.join("\n").trim();
     const displayTitle = sec.title ? sec.title.replace(/^\d+[\.．、):：]\s*/, "").trim() : kind.label;
     const safeBody = escapeHtml(body).replace(/^[-・]\s*/gm, "• ").replace(/\n/g,"<br>");
     return `<section class="aiDeepCard aiDeepCard--${kind.cls}"><div class="aiDeepCardTitle"><span>${kind.icon}</span><span>${escapeHtml(displayTitle || kind.label)}</span></div><div class="aiDeepCardBody">${safeBody || "データ不足"}</div></section>`;
-  }).join("")}</div>`;
+  }).join("")}</div></details>`;
 }
 
 function showAiDeepAnalysis(resultEl, analysis) {
