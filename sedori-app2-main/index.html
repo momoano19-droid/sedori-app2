@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+  <title>せどりGPS店舗管理PRO</title>
+
+  <meta name="theme-color" content="#3976f6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="せどりGPS店舗管理PRO">
+
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+
+  <link rel="stylesheet" href="./css/style.css">
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  >
+</head>
+<body>
+  <div class="container">
+    <header class="appHeader card">
+      <div class="appHeaderTop">
+        <div>
+          <h1 class="appTitle">📱 せどりGPS店舗管理PRO</h1>
+          <div class="appSub">
+            店舗ごとの訪問・成功・個数・利益を記録して、期待値や成功率を見やすく管理できます。
+          </div>
+        </div>
+
+        <div id="appRankBadge" class="appRankBadge">
+          <div class="appRankLabel">現在ランク</div>
+          <div class="appRankValue">Rank 1</div>
+          <div class="appRankTitle">見習い</div>
+        </div>
+      </div>
+
+      <div class="row2 mt12">
+        <button class="primaryBtn" onclick="openHelp()">使い方</button>
+        <button class="ghostBtn" onclick="location.href='./report.html'">📊 レポート</button>
+      </div>
+    </header>
+
+    <section id="sourcingSessionCard" class="card sourcingSessionCard">
+      <div class="sourcingSessionHead">
+        <div>
+          <div class="sourcingSessionTitle">⏱ 仕入れ状況</div>
+          <div id="sourcingSessionStatus" class="sourcingSessionStatus">本日の仕入れ：未開始</div>
+          <div id="sourcingSessionDetail" class="sourcingSessionDetail">店舗の「訪問＋」を押すと自動で開始します。</div>
+        </div>
+        <button id="endSourcingBtn" type="button" class="dangerBtn sourcingEndBtn" onclick="endSourcingSession()" hidden>
+          ■ 仕入れ終了
+        </button>
+      </div>
+    </section>
+
+    <section class="card">
+      <button
+        type="button"
+        class="badgeAccordionHeader"
+        onclick="toggleStoreAddAccordion()"
+        aria-expanded="true"
+        id="storeAddAccordionHeader"
+      >
+        <span class="sectionTitle" style="margin:0;">🏪 店舗追加</span>
+        <span class="badgeAccordionChevron" id="storeAddAccordionChevron">▲</span>
+      </button>
+
+      <div id="storeAddAccordionBody" class="storeAddAccordionBody">
+        <div class="formGrid">
+          <input id="storeName" type="text" placeholder="店舗名">
+          <input id="prefName" type="text" placeholder="都道府県">
+          <input id="address" type="text" placeholder="住所">
+          <input id="mapUrl" type="text" placeholder="GoogleマップURL（任意）">
+        </div>
+
+        <div class="row2 mt8">
+          <button type="button" class="ghostBtn" onclick="openStoreSearchFromForm()">
+            🔎 店舗検索
+          </button>
+          <button type="button" class="ghostBtn" onclick="pasteGoogleMapUrlToForm()">
+            📋 マップURL貼付
+          </button>
+        </div>
+
+        <div class="mini mt8">
+          店舗名・都道府県だけでも検索できます。Googleマップで店舗を開き「共有」→ URLをコピーして貼り付けると、座標取得しやすくなります。
+        </div>
+
+        <div class="storeHoursGrid mt12">
+          <label class="storeFieldBlock">
+            <span class="storeFieldLabel">🕒 開店時間</span>
+            <input
+              id="openTime"
+              type="text"
+              inputmode="numeric"
+              maxlength="5"
+              autocomplete="off"
+              placeholder="例 1000"
+            >
+          </label>
+
+          <label class="storeFieldBlock">
+            <span class="storeFieldLabel">🌙 閉店時間</span>
+            <input
+              id="closeTime"
+              type="text"
+              inputmode="numeric"
+              maxlength="5"
+              autocomplete="off"
+              placeholder="例 1900"
+            >
+          </label>
+        </div>
+
+        <div class="storeClosedDaysWrap mt12">
+          <div class="mini storeClosedDaysLabel">📅 定休日</div>
+          <div class="closedDaysGrid">
+            <label class="closedDayChip">
+              <input type="checkbox" name="regularClosedDays" value="月">
+              <span>月</span>
+            </label>
+            <label class="closedDayChip">
+              <input type="checkbox" name="regularClosedDays" value="火">
+              <span>火</span>
+            </label>
+            <label class="closedDayChip">
+              <input type="checkbox" name="regularClosedDays" value="水">
+              <span>水</span>
+            </label>
+            <label class="closedDayChip">
+              <input type="checkbox" name="regularClosedDays" value="木">
+              <span>木</span>
+            </label>
+            <label class="closedDayChip">
+              <input type="checkbox" name="regularClosedDays" value="金">
+              <span>金</span>
+            </label>
+            <label class="closedDayChip">
+              <input type="checkbox" name="regularClosedDays" value="土">
+              <span>土</span>
+            </label>
+            <label class="closedDayChip">
+              <input type="checkbox" name="regularClosedDays" value="日">
+              <span>日</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="mt12">
+          <textarea
+            id="storeMemo"
+            class="storeMemoInput"
+            rows="3"
+            placeholder="メモ（例: 第2火曜は棚卸し、臨時休業あり など）"
+          ></textarea>
+        </div>
+
+        <div class="formActions">
+          <button class="primaryBtn" onclick="addStore()">店舗追加</button>
+          <button class="ghostBtn" onclick="refreshAllCoordinates()">座標一括再取得</button>
+        </div>
+
+        <div class="mini mt8">
+          GoogleマップURLがあれば座標を取りやすくなります。住所だけでも登録できます。
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="sectionTitle">💾 バックアップ</h2>
+
+      <div class="row2">
+        <button class="ghostBtn" onclick="exportBackup()">バックアップ書き出し</button>
+        <button class="ghostBtn" onclick="document.getElementById('backupFile').click()">バックアップ読込</button>
+      </div>
+
+      <div class="row2 mt8">
+        <button class="ghostBtn" onclick="restoreAutoBackup()">自動バックアップ復元</button>
+        <button class="ghostBtn" onclick="showAutoBackupInfo()">自動バックアップ情報</button>
+      </div>
+
+      <input
+        id="backupFile"
+        type="file"
+        accept=".json,application/json"
+        onchange="importBackup(event)"
+        hidden
+      >
+    </section>
+
+    <section class="card">
+      <div id="badgeMiniCard" class="badgeMiniCard">
+        <div class="badgeMiniTitle">🏅 実績</div>
+        <div class="badgeMiniProgress">0 / 20 解除</div>
+        <div class="badgeMiniLatest">最新：なし</div>
+        <div class="badgeMiniNext">次：👣 はじめの一歩</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <button
+        type="button"
+        class="badgeAccordionHeader"
+        onclick="toggleBadgeAccordion()"
+        aria-expanded="true"
+        id="badgeAccordionHeader"
+      >
+        <span class="sectionTitle" style="margin:0;">🏅 実績一覧</span>
+        <span class="badgeAccordionChevron" id="badgeAccordionChevron">▲</span>
+      </button>
+
+      <div id="badgeAccordionBody" class="badgeAccordionBody">
+        <div id="badgeListWrap" class="mt12"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="sectionTitle">🔎 絞り込み / 並び替え</h2>
+
+      <div class="formGrid">
+        <input id="q" type="text" placeholder="店舗名 / 住所 / カテゴリ検索" oninput="render()">
+
+        <div class="filterGrid">
+          <select id="prefFilter" onchange="render()">
+            <option value="__ALL__">全て（都道府県ごと）</option>
+          </select>
+
+          <select id="sortType" onchange="saveSortType(); render()">
+            <option value="expected">期待値順</option>
+            <option value="rate">成功率順</option>
+            <option value="avgProfit">平均利益順</option>
+            <option value="visits">訪問回数順</option>
+            <option value="route">距離順</option>
+          </select>
+        </div>
+
+        <div class="filterGrid">
+          <input id="minExpected" type="number" inputmode="numeric" placeholder="最低期待値" oninput="render()">
+          <input id="minRate" type="number" inputmode="numeric" placeholder="最低成功率" oninput="render()">
+        </div>
+      </div>
+
+      <div class="routeBar mt12">
+        <button class="ghostBtn" onclick="moveToCurrentLocation()">現在地へ移動</button>
+        <button class="ghostBtn" onclick="showNoCoordsOnly()">座標なし店舗</button>
+      </div>
+    </section>
+
+    <section class="card mapCard">
+      <h2 class="sectionTitle">🗺 店舗MAP</h2>
+      <div id="map"></div>
+      <div class="mini mt8">
+        マーカーをタップすると、期待値・成功率・今日行く・ナビが表示されます。
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="sectionTitle">🛣 今日のルート</h2>
+
+      <div class="routeBar">
+        <button class="primaryBtn" onclick="buildTodayRoute()">この順番でルート作成</button>
+        <button class="ghostBtn" onclick="autoOptimizeTodayRoute()">自動最適化</button>
+      </div>
+
+      <div class="routeBar mt8">
+        <button class="ghostBtn" onclick="saveCurrentRoute()">ルート保存</button>
+        <button class="ghostBtn" onclick="clearTodayChecks()">今日行くを全解除</button>
+      </div>
+
+      <div class="todayRouteAccordion mt12">
+        <button
+          type="button"
+          class="todayRouteAccordionHeader"
+          onclick="toggleTodayRouteAccordion()"
+          aria-expanded="true"
+          id="todayRouteAccordionHeader"
+        >
+          <span class="todayRouteAccordionTitle">ルート順一覧</span>
+          <span class="todayRouteAccordionChevron" id="todayRouteAccordionChevron">▲</span>
+        </button>
+
+        <div id="todayRouteAccordionBody" class="todayRouteAccordionBody">
+          <div id="todayRouteList" class="mt12"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="sectionTitle">⭐ 保存済みルート</h2>
+      <div id="savedRoutesList"></div>
+    </section>
+
+    <section class="card storeTopActionsCard">
+      <div class="storeTopActions storeTopActions4">
+        <button class="ghostBtn" onclick="showNearbyStores()">近くの店舗</button>
+        <button class="ghostBtn" onclick="clearNearbyMode(); render()">通常表示に戻す</button>
+        <button id="detailLayoutBtn" class="ghostBtn" onclick="setLayoutMode('detail')">詳細</button>
+        <button id="compactLayoutBtn" class="ghostBtn" onclick="setLayoutMode('compact')">コンパクト</button>
+      </div>
+    </section>
+
+    <section class="card" id="storeListSection">
+      <h2 class="sectionTitle">🏬 店舗一覧</h2>
+      <div id="storeList"></div>
+    </section>
+
+    <div class="floatingJumpButtons">
+      <button type="button" class="floatingJumpBtn" onclick="scrollToStoreList()">
+        🏬 店舗一覧へ
+      </button>
+      <button type="button" class="floatingJumpBtn topBtn" onclick="scrollToTopArea()">
+        ⬆ 上へ
+      </button>
+    </div>
+
+    <div id="helpUI" aria-hidden="true">
+      <div class="helpCard">
+        <div id="helpTitle"></div>
+        <div id="helpContent"></div>
+
+        <div class="helpActions">
+          <button class="ghostBtn" onclick="prevHelp()">戻る</button>
+          <button class="ghostBtn" onclick="closeHelp()">閉じる</button>
+          <button class="primaryBtn" onclick="nextHelp()">次へ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="./js/storage.js?v=dwell1"></script>
+  <script src="./js/utils.js"></script>
+  <script src="./js/map.js"></script>
+  <script src="./js/features.js?v=dwell1"></script>
+  <script src="./js/badges.js"></script>
+  <script src="./js/app.js?v=dwell1"></script>
+</body>
+</html>

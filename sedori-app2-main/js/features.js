@@ -1,0 +1,2869 @@
+/* =========================
+   店舗ミニメモ
+========================= */
+
+const STORE_MINI_MEMO_KEY = "store_mini_memos_v1";
+
+/* =========================
+   仕入れ活動セッション
+========================= */
+const SOURCING_SESSIONS_KEY = "sourcing_sessions_v1";
+const ACTIVE_SOURCING_SESSION_KEY = "active_sourcing_session_v1";
+
+function loadSourcingSessions() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SOURCING_SESSIONS_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error("loadSourcingSessions error:", e);
+    return [];
+  }
+}
+
+function saveSourcingSessions(items) {
+  localStorage.setItem(SOURCING_SESSIONS_KEY, JSON.stringify(Array.isArray(items) ? items : []));
+}
+
+function loadActiveSourcingSession() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ACTIVE_SOURCING_SESSION_KEY) || "null");
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch (e) {
+    console.error("loadActiveSourcingSession error:", e);
+    return null;
+  }
+}
+
+function saveActiveSourcingSession(session) {
+  if (!session) {
+    localStorage.removeItem(ACTIVE_SOURCING_SESSION_KEY);
+    return;
+  }
+  localStorage.setItem(ACTIVE_SOURCING_SESSION_KEY, JSON.stringify(session));
+}
+
+/* 店舗別の入退店履歴。仕入れ活動セッションとは独立して保存する。 */
+const STORE_DWELL_HISTORY_KEY = "store_dwell_history_v1";
+const ACTIVE_STORE_DWELL_KEY = "active_store_dwell_v1";
+
+function loadStoreDwellHistory() {
+  try {
+    const v = JSON.parse(localStorage.getItem(STORE_DWELL_HISTORY_KEY) || "[]");
+    return Array.isArray(v) ? v : [];
+  } catch (e) { console.error(e); return []; }
+}
+function loadActiveStoreDwell() {
+  try {
+    const v = JSON.parse(localStorage.getItem(ACTIVE_STORE_DWELL_KEY) || "null");
+    return v && typeof v === "object" && v.storeId && v.enteredAt ? v : null;
+  } catch (e) { console.error(e); return null; }
+}
+function saveActiveStoreDwell(v) {
+  if (v) localStorage.setItem(ACTIVE_STORE_DWELL_KEY, JSON.stringify(v));
+  else localStorage.removeItem(ACTIVE_STORE_DWELL_KEY);
+}
+function formatDwellDateTime(iso) {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "--";
+  const date = [d.getFullYear(), String(d.getMonth()+1).padStart(2,"0"), String(d.getDate()).padStart(2,"0")].join("-");
+  return `${date} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
+function parseDwellExitInput(value) {
+  const m = String(value || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/);
+  if (!m) return null;
+  const [y, mo, day, h, min] = m.slice(1).map(Number);
+  const d = new Date(y, mo-1, day, h, min);
+  if (d.getFullYear() !== y || d.getMonth() !== mo-1 || d.getDate() !== day || d.getHours() !== h || d.getMinutes() !== min) return null;
+  return d.toISOString();
+}
+function closeStoreDwell(exitIso, maximumIso) {
+  const active = loadActiveStoreDwell();
+  if (!active) return false;
+  const start = Date.parse(active.enteredAt), end = Date.parse(exitIso), max = Date.parse(maximumIso || new Date().toISOString());
+  if (![start,end,max].every(Number.isFinite) || end < start || end > max) {
+    alert("退出時刻は入店時刻以降、現在時刻以前で入力してください。");
+    return false;
+  }
+  const history = loadStoreDwellHistory();
+  history.push({ ...active, exitedAt: exitIso, durationMinutes: Math.max(0, Math.round((end-start)/60000)) });
+  localStorage.setItem(STORE_DWELL_HISTORY_KEY, JSON.stringify(history));
+  saveActiveStoreDwell(null);
+  if (typeof saveAutoBackup === "function") saveAutoBackup();
+  if (typeof forceStoreRenderRefresh === "function") forceStoreRenderRefresh();
+  return true;
+}
+function askPreviousStoreExit(active, maximumIso) {
+  const input = prompt([
+    `「${active.storeName}」が退出されていません。`,
+    `入店：${formatDwellDateTime(active.enteredAt)}`,
+    "退出時刻を YYYY-MM-DD HH:mm 形式で入力してください。",
+    "日付をまたいだ場合も日付を指定できます。",
+    "キャンセルすると次の訪問は記録しません。"
+  ].join("\n"), formatDwellDateTime(maximumIso));
+  if (input === null) return false;
+  const iso = parseDwellExitInput(input);
+  if (!iso) { alert("例：2026-11-09 15:30 の形式で入力してください。"); return false; }
+  return closeStoreDwell(iso, maximumIso);
+}
+function exitStore(i) {
+  const store = stores[i];
+  const active = loadActiveStoreDwell();
+  if (!store || !active || String(store.id) !== String(active.storeId)) {
+    alert("この店舗は現在滞在中ではありません。"); return;
+  }
+  if (!closeStoreDwell(new Date().toISOString())) return;
+  render();
+}
+function renderStoreDwellInfo(storeId) {
+  const active = loadActiveStoreDwell();
+  if (active && String(active.storeId) === String(storeId)) {
+    return `<div class="mini mt8" style="color:#137b46;font-weight:700">🟢 滞在中・入店 ${escapeHtml(formatDwellDateTime(active.enteredAt))}</div>`;
+  }
+  const records = loadStoreDwellHistory().filter(x => String(x.storeId) === String(storeId));
+  if (!records.length) return "";
+  const last = records[records.length-1];
+  return `<div class="mini mt8">🕒 前回滞在 ${escapeHtml(formatSourcingDuration(last.durationMinutes))}（${escapeHtml(formatDwellDateTime(last.enteredAt))}）</div>`;
+}
+function renderStoreExitButton(i, storeId) {
+  const active = loadActiveStoreDwell();
+  const here = active && String(active.storeId) === String(storeId);
+  return `<div class="mt8"><button ${makeButtonStyle(here ? "#dff7e8" : "#eef1f7", here ? "#129b52" : "#777777")} onclick="exitStore(${i})" ${here ? "" : "disabled"}>店舗退出${here ? "（滞在中）" : ""}</button></div>`;
+}
+function restoreStoreDwellFromBackup(data) {
+  if (Array.isArray(data.storeDwellHistory)) localStorage.setItem(STORE_DWELL_HISTORY_KEY, JSON.stringify(data.storeDwellHistory));
+  else localStorage.removeItem(STORE_DWELL_HISTORY_KEY);
+  saveActiveStoreDwell(data.activeStoreDwell && typeof data.activeStoreDwell === "object" ? data.activeStoreDwell : null);
+}
+
+function getSourcingTotalsSnapshot() {
+  return {
+    visits: stores.reduce((sum, x) => sum + Number(x.visits || 0), 0),
+    successes: stores.reduce((sum, x) => sum + Number(x.buyDays || 0), 0),
+    items: stores.reduce((sum, x) => sum + Number(x.items || 0), 0),
+    profit: stores.reduce((sum, x) => sum + Number(x.profit || 0), 0),
+    storeSuccesses: Object.fromEntries(stores.map(x => [String(x.id), Number(x.buyDays || 0)]))
+  };
+}
+
+function formatSourcingTime(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "--:--";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatSourcingDuration(minutes) {
+  const m = Math.max(0, Math.floor(Number(minutes || 0)));
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  return h > 0 ? `${h}時間${rest}分` : `${rest}分`;
+}
+
+function calcSourcingDurationMinutes(startAt, endAt = new Date().toISOString()) {
+  const start = new Date(startAt).getTime();
+  const end = new Date(endAt).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return 0;
+  return Math.max(0, Math.round((end - start) / 60000));
+}
+
+function startSourcingSession(store) {
+  let active = loadActiveSourcingSession();
+  if (active) return active;
+
+  const now = new Date();
+  active = {
+    id: typeof ensureId === "function" ? ensureId() : `session_${Date.now()}`,
+    date: tokyoDateStr(),
+    startAt: now.toISOString(),
+    startStoreId: String(store?.id || ""),
+    startStoreName: String(store?.name || ""),
+    visitedStoreIds: [],
+    visitEvents: [],
+    baseline: getSourcingTotalsSnapshot()
+  };
+  saveActiveSourcingSession(active);
+  renderSourcingSessionStatus();
+  return active;
+}
+
+function recordSourcingVisit(storeId) {
+  const active = loadActiveSourcingSession();
+  if (!active) return;
+
+  const id = String(storeId || "");
+  const ids = Array.isArray(active.visitedStoreIds) ? active.visitedStoreIds.map(String) : [];
+  if (id && !ids.includes(id)) ids.push(id);
+  active.visitedStoreIds = ids;
+
+  // 「訪問＋」を押した瞬間を、店舗ごとの訪問履歴として自動保存する。
+  // 同じ店舗を同日に複数回訪問した場合も、押した回数ぶん時刻を残す。
+  const store = stores.find(x => String(x.id) === id);
+  const events = Array.isArray(active.visitEvents) ? active.visitEvents : [];
+  events.push({
+    storeId: id,
+    storeName: String(store?.name || ""),
+    visitedAt: new Date().toISOString()
+  });
+  active.visitEvents = events;
+
+  saveActiveSourcingSession(active);
+}
+
+function buildCompletedSourcingSession(active, endAt) {
+  const baseline = active?.baseline || {};
+  const current = getSourcingTotalsSnapshot();
+  const baselineStoreSuccesses = baseline.storeSuccesses || {};
+  const successStoreCount = stores.filter(store =>
+    Number(store.buyDays || 0) > Number(baselineStoreSuccesses[String(store.id)] || 0)
+  ).length;
+
+  return {
+    id: String(active.id || (typeof ensureId === "function" ? ensureId() : `session_${Date.now()}`)),
+    date: String(active.date || tokyoDateStr()),
+    startAt: String(active.startAt || ""),
+    endAt: String(endAt || new Date().toISOString()),
+    durationMinutes: calcSourcingDurationMinutes(active.startAt, endAt),
+    startStoreId: String(active.startStoreId || ""),
+    startStoreName: String(active.startStoreName || ""),
+    visitedStoreIds: Array.isArray(active.visitedStoreIds) ? [...new Set(active.visitedStoreIds.map(String))] : [],
+    visitEvents: Array.isArray(active.visitEvents)
+      ? active.visitEvents.map(x => ({
+          storeId: String(x?.storeId || ""),
+          storeName: String(x?.storeName || ""),
+          visitedAt: String(x?.visitedAt || "")
+        }))
+      : [],
+    visitedStoreCount: Array.isArray(active.visitedStoreIds) ? new Set(active.visitedStoreIds.map(String)).size : 0,
+    successStoreCount,
+    visits: Math.max(0, Number(current.visits || 0) - Number(baseline.visits || 0)),
+    successes: Math.max(0, Number(current.successes || 0) - Number(baseline.successes || 0)),
+    items: Math.max(0, Number(current.items || 0) - Number(baseline.items || 0)),
+    profit: Number(current.profit || 0) - Number(baseline.profit || 0),
+    createdAt: new Date().toISOString()
+  };
+}
+
+function completeSourcingSession(active, endAt) {
+  const completed = buildCompletedSourcingSession(active, endAt);
+  const sessions = loadSourcingSessions();
+  sessions.push(completed);
+  saveSourcingSessions(sessions);
+  saveActiveSourcingSession(null);
+  if (typeof saveAutoBackup === "function") saveAutoBackup();
+  renderSourcingSessionStatus();
+  return completed;
+}
+
+function endSourcingSession() {
+  const active = loadActiveSourcingSession();
+  if (!active) {
+    alert("現在、仕入れ中ではありません。");
+    renderSourcingSessionStatus();
+    return;
+  }
+
+  const openStore = loadActiveStoreDwell();
+  if (openStore) {
+    alert(`「${openStore.storeName}」が退出されていません。先に店舗退出を記録してください。`);
+    return;
+  }
+  const nowIso = new Date().toISOString();
+  const duration = calcSourcingDurationMinutes(active.startAt, nowIso);
+  const ok = confirm([
+    "本当に本日の仕入れを終了しますか？",
+    "",
+    `開始 ${formatSourcingTime(active.startAt)}`,
+    `現在 ${formatSourcingTime(nowIso)}`,
+    `活動時間 ${formatSourcingDuration(duration)}`
+  ].join("\n"));
+  if (!ok) return;
+
+  const completed = completeSourcingSession(active, nowIso);
+  alert(`本日の仕入れを終了しました。\n${formatSourcingTime(completed.startAt)}〜${formatSourcingTime(completed.endAt)}（${formatSourcingDuration(completed.durationMinutes)}）`);
+}
+
+function renderSourcingSessionStatus() {
+  const status = document.getElementById("sourcingSessionStatus");
+  const detail = document.getElementById("sourcingSessionDetail");
+  const endBtn = document.getElementById("endSourcingBtn");
+  if (!status || !detail || !endBtn) return;
+
+  const active = loadActiveSourcingSession();
+  if (active) {
+    const mins = calcSourcingDurationMinutes(active.startAt);
+    status.textContent = `🟢 仕入れ中　開始 ${formatSourcingTime(active.startAt)}`;
+    detail.textContent = `経過 ${formatSourcingDuration(mins)} ／ 訪問店舗 ${new Set((active.visitedStoreIds || []).map(String)).size}店`;
+    endBtn.hidden = false;
+    return;
+  }
+
+  const today = tokyoDateStr();
+  const todaySessions = loadSourcingSessions().filter(x => String(x.date || "") === today);
+  if (todaySessions.length) {
+    const last = todaySessions[todaySessions.length - 1];
+    status.textContent = `🔴 本日の仕入れ終了 ${formatSourcingTime(last.startAt)}〜${formatSourcingTime(last.endAt)}`;
+    detail.textContent = `${formatSourcingDuration(last.durationMinutes)} ／ 本日 ${todaySessions.length}セッション記録済み`;
+  } else {
+    status.textContent = "本日の仕入れ：未開始";
+    detail.textContent = "店舗の「訪問＋」を押すと自動で開始します。";
+  }
+  endBtn.hidden = true;
+}
+
+function resolveStaleSourcingSession() {
+  const active = loadActiveSourcingSession();
+  if (!active || String(active.date || "") === tokyoDateStr()) return;
+
+  const input = prompt([
+    `${active.date} の仕入れが終了されていません。`,
+    `開始 ${formatSourcingTime(active.startAt)}`,
+    "",
+    "昨日の終了時刻を4桁で入力してください。",
+    "例：1830 → 18:30",
+    "キャンセルすると未終了のまま残します。"
+  ].join("\n"), "1800");
+  if (input === null) return;
+
+  const digits = String(input).replace(/\D/g, "");
+  if (!/^\d{3,4}$/.test(digits)) {
+    alert("終了時刻は 1830 のように入力してください。");
+    return;
+  }
+  const padded = digits.padStart(4, "0");
+  const hh = Number(padded.slice(0, 2));
+  const mm = Number(padded.slice(2, 4));
+  if (hh > 23 || mm > 59) {
+    alert("正しい時刻を入力してください。");
+    return;
+  }
+
+  const [y, m, d] = String(active.date).split("-").map(Number);
+  const end = new Date(y, m - 1, d, hh, mm, 0, 0);
+  if (end.getTime() < new Date(active.startAt).getTime()) {
+    alert("終了時刻が開始時刻より前になっています。");
+    return;
+  }
+  const openStore = loadActiveStoreDwell();
+  if (openStore) {
+    alert(`「${openStore.storeName}」が退出されていません。先に店舗退出を記録してください。`);
+    return;
+  }
+  completeSourcingSession(active, end.toISOString());
+  alert(`${active.date} の仕入れ終了時刻を ${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")} として保存しました。`);
+}
+
+function restoreSourcingSessionsFromBackup(data) {
+  if (!data || typeof data !== "object") return;
+  if (Array.isArray(data.sourcingSessions)) saveSourcingSessions(data.sourcingSessions);
+  if (data.activeSourcingSession && typeof data.activeSourcingSession === "object") {
+    saveActiveSourcingSession(data.activeSourcingSession);
+  } else {
+    saveActiveSourcingSession(null);
+  }
+}
+
+
+function loadStoreMiniMemoMap() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORE_MINI_MEMO_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+let storeMiniMemoMap = loadStoreMiniMemoMap();
+
+function saveStoreMiniMemoMap() {
+  try {
+    localStorage.setItem(
+      STORE_MINI_MEMO_KEY,
+      JSON.stringify(storeMiniMemoMap || {})
+    );
+  } catch (e) {
+    console.error("saveStoreMiniMemoMap error:", e);
+  }
+}
+
+function getStoreMiniMemo(storeId) {
+  const id = String(storeId || "");
+  if (!id) return "";
+
+  const fromMap = String(storeMiniMemoMap?.[id] || "").trim();
+  if (fromMap) return fromMap;
+
+  const store = stores.find(item => String(item?.id || "") === id);
+  return String(store?.miniMemo || "").trim();
+}
+
+function editStoreMiniMemo(storeId) {
+  const id = String(storeId || "");
+  if (!id) return;
+
+  const store = stores.find(item => String(item?.id || "") === id);
+  if (!store) {
+    alert("店舗が見つかりません。");
+    return;
+  }
+
+  const current = getStoreMiniMemo(id);
+  const input = prompt(
+    `「${store.name || "店舗"}」のミニメモを入力してください。\n\n空欄で保存すると未入力に戻ります。`,
+    current
+  );
+
+  if (input === null) return;
+
+  const normalized = String(input || "")
+    .replace(/[\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if ([...normalized].length > 10) {
+    alert("ミニメモは10文字以内で入力してください。");
+    return;
+  }
+
+  const next = normalized;
+
+  if (next) {
+    storeMiniMemoMap[id] = next;
+  } else {
+    delete storeMiniMemoMap[id];
+  }
+
+  store.miniMemo = next;
+  saveStoreMiniMemoMap();
+  saveAll();
+  forceStoreRenderRefresh();
+  render();
+}
+
+function restoreStoreMiniMemosFromBackup(value) {
+  const source = value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : {};
+
+  storeMiniMemoMap = {};
+
+  Object.entries(source).forEach(([storeId, memo]) => {
+    const id = String(storeId || "");
+    const text = [...String(memo || "")
+      .replace(/[\r\n]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()].slice(0, 10).join("");
+
+    if (id && text) storeMiniMemoMap[id] = text;
+  });
+
+  stores.forEach(store => {
+    const id = String(store?.id || "");
+    const fromStore = String(store?.miniMemo || "").trim();
+
+    if (id && fromStore && !storeMiniMemoMap[id]) {
+      storeMiniMemoMap[id] = fromStore;
+    }
+
+    if (id) store.miniMemo = String(storeMiniMemoMap[id] || "");
+  });
+
+  saveStoreMiniMemoMap();
+}
+
+/* =========================
+   保存ルート巡回実績
+========================= */
+
+const SELECTED_ROUTE_RUN_IDS_KEY = "selected_route_run_ids";
+
+function loadSelectedRouteRunIds() {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(SELECTED_ROUTE_RUN_IDS_KEY) || "[]"
+    );
+
+    return new Set(
+      Array.isArray(parsed)
+        ? parsed.map(x => String(x || "")).filter(Boolean)
+        : []
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+let selectedRouteRunIds = loadSelectedRouteRunIds();
+
+function saveSelectedRouteRunIds() {
+  try {
+    localStorage.setItem(
+      SELECTED_ROUTE_RUN_IDS_KEY,
+      JSON.stringify([...selectedRouteRunIds])
+    );
+  } catch (e) {
+    console.error("saveSelectedRouteRunIds error:", e);
+  }
+}
+
+function isSavedRouteSelectedForSummary(routeId) {
+  return selectedRouteRunIds.has(String(routeId || ""));
+}
+
+function toggleSavedRouteSummarySelection(routeId) {
+  const id = String(routeId || "");
+  if (!id) return;
+
+  if (selectedRouteRunIds.has(id)) {
+    selectedRouteRunIds.delete(id);
+  } else {
+    selectedRouteRunIds.add(id);
+  }
+
+  saveSelectedRouteRunIds();
+  forceStoreRenderRefresh();
+  render();
+}
+
+function clearSavedRouteSummarySelection() {
+  selectedRouteRunIds.clear();
+  saveSelectedRouteRunIds();
+  forceStoreRenderRefresh();
+  render();
+}
+
+function normalizeRouteRunDate(value) {
+  const text = String(value || "").trim().slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
+}
+
+function getRouteRunHistoryForRoute(routeId) {
+  const id = String(routeId || "");
+
+  return routeRunHistory
+    .filter(item => String(item.routeId || "") === id)
+    .sort((a, b) => {
+      const dateDiff = String(b.date || "").localeCompare(String(a.date || ""));
+      if (dateDiff !== 0) return dateDiff;
+
+      return String(b.updatedAt || b.createdAt || "")
+        .localeCompare(String(a.updatedAt || a.createdAt || ""));
+    });
+}
+
+function getRouteRunHistoryItem(historyId) {
+  const id = String(historyId || "");
+  return routeRunHistory.find(item => String(item.id || "") === id) || null;
+}
+
+function calcSavedRouteRunSnapshot(route, dayStr) {
+  if (!route) return null;
+
+  const date = normalizeRouteRunDate(dayStr);
+  if (!date) return null;
+
+  const routeStoreIds = Array.isArray(route.storeIds)
+    ? route.storeIds.map(x => String(x || "")).filter(Boolean)
+    : [];
+
+  const routeStoreIdSet = new Set(routeStoreIds);
+  const perStore = {};
+
+  logs.forEach(log => {
+    const logDate = String(log.date || "").slice(0, 10);
+    const storeId = String(log.storeId || "");
+
+    if (logDate !== date || !routeStoreIdSet.has(storeId)) return;
+
+    if (!perStore[storeId]) {
+      perStore[storeId] = {
+        storeId,
+        profit: 0,
+        items: 0,
+        visits: 0,
+        success: 0
+      };
+    }
+
+    const delta = Number(log.delta || 0);
+    const type = String(log.type || "");
+
+    if (type === "profit" || type === "profit_adjust") {
+      perStore[storeId].profit += delta;
+    } else if (type === "items") {
+      perStore[storeId].items += delta;
+    } else if (type === "visit") {
+      perStore[storeId].visits += delta;
+    } else if (type === "success") {
+      perStore[storeId].success += delta;
+    }
+  });
+
+  const rows = Object.values(perStore);
+
+  const profit = rows.reduce((sum, row) => sum + Number(row.profit || 0), 0);
+  const items = rows.reduce((sum, row) => sum + Number(row.items || 0), 0);
+  const visitCount = rows.reduce((sum, row) => sum + Number(row.visits || 0), 0);
+  const successCount = rows.reduce((sum, row) => sum + Number(row.success || 0), 0);
+
+  const visitedStoreIds = rows
+    .filter(row => Number(row.visits || 0) > 0)
+    .map(row => row.storeId);
+
+  const successStoreIds = rows
+    .filter(row => Number(row.success || 0) > 0)
+    .map(row => row.storeId);
+
+  const activeStoreIds = rows
+    .filter(row =>
+      Number(row.profit || 0) !== 0 ||
+      Number(row.items || 0) !== 0 ||
+      Number(row.visits || 0) !== 0 ||
+      Number(row.success || 0) !== 0
+    )
+    .map(row => row.storeId);
+
+  return {
+    date,
+    routeId: String(route.id || ""),
+    routeName: String(route.name || "保存ルート"),
+    profit: Number(profit || 0),
+    items: Math.max(0, Number(items || 0)),
+    visitCount: Math.max(0, Number(visitCount || 0)),
+    successCount: Math.max(0, Number(successCount || 0)),
+    visitedStoreCount: visitedStoreIds.length,
+    successStoreCount: successStoreIds.length,
+    storeIds: routeStoreIds,
+    visitedStoreIds,
+    successStoreIds,
+    activeStoreIds
+  };
+}
+
+function formatSavedRouteRunConfirmText(route, snapshot) {
+  return [
+    `${snapshot.date} の巡回実績を記録します。`,
+    "",
+    `ルート：${route.name || "保存ルート"}`,
+    `ルート登録店舗：${snapshot.storeIds.length}件`,
+    `記録がある店舗：${snapshot.activeStoreIds.length}件`,
+    "",
+    `利益：${Number(snapshot.profit || 0).toLocaleString()}円`,
+    `仕入れ個数：${Number(snapshot.items || 0).toLocaleString()}個`,
+    `訪問店舗数：${snapshot.visitedStoreCount}件`,
+    `訪問記録：${snapshot.visitCount}回`,
+    `成功店舗数：${snapshot.successStoreCount}件`,
+    `成功記録：${snapshot.successCount}回`,
+    "",
+    "この内容で保存しますか？"
+  ].join("\n");
+}
+
+function recordSavedRouteRun(routeId) {
+  const route = savedRoutes.find(
+    item => String(item.id || "") === String(routeId || "")
+  );
+
+  if (!route) {
+    alert("保存ルートが見つかりません。");
+    return;
+  }
+
+  const input = prompt(
+    "巡回した日付を入力してください。\n例：2026-06-18",
+    tokyoDateStr()
+  );
+
+  if (input === null) return;
+
+  const date = normalizeRouteRunDate(input);
+  if (!date) {
+    alert("日付は YYYY-MM-DD の形式で入力してください。");
+    return;
+  }
+
+  const snapshot = calcSavedRouteRunSnapshot(route, date);
+  if (!snapshot) {
+    alert("巡回実績を集計できませんでした。");
+    return;
+  }
+
+  if (!snapshot.activeStoreIds.length) {
+    if (!confirm(
+      `${date} は、このルート内店舗の記録がありません。\n\n利益0円・個数0個として巡回履歴を保存しますか？`
+    )) return;
+  } else if (!confirm(formatSavedRouteRunConfirmText(route, snapshot))) {
+    return;
+  }
+
+  const existing = routeRunHistory.find(item =>
+    String(item.routeId || "") === String(route.id || "") &&
+    String(item.date || "") === date
+  );
+
+  const nowIso = new Date().toISOString();
+
+  if (existing) {
+    if (!confirm(
+      `${date} の「${route.name}」はすでに記録されています。\n\nカレンダーの現在の内容で上書きしますか？`
+    )) return;
+
+    Object.assign(
+      existing,
+      normalizeRouteRunHistoryItem({
+        ...existing,
+        ...snapshot,
+        id: existing.id,
+        createdAt: existing.createdAt,
+        updatedAt: nowIso
+      })
+    );
+  } else {
+    routeRunHistory.push(
+      normalizeRouteRunHistoryItem({
+        id: ensureId(),
+        ...snapshot,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      })
+    );
+  }
+
+  openSavedRouteId = route.id;
+  saveAll();
+  forceStoreRenderRefresh();
+  render();
+  alert("巡回実績を保存しました。");
+}
+
+function recalculateSavedRouteRun(historyId) {
+  const history = getRouteRunHistoryItem(historyId);
+
+  if (!history) {
+    alert("巡回履歴が見つかりません。");
+    return;
+  }
+
+  const route = savedRoutes.find(
+    item => String(item.id || "") === String(history.routeId || "")
+  );
+
+  if (!route) {
+    alert("この履歴に対応する保存ルートが見つかりません。");
+    return;
+  }
+
+  const snapshot = calcSavedRouteRunSnapshot(route, history.date);
+  if (!snapshot) {
+    alert("再集計できませんでした。");
+    return;
+  }
+
+  if (!confirm([
+    `${history.date} の巡回実績を再集計します。`,
+    "",
+    `現在の利益：${Number(history.profit || 0).toLocaleString()}円`,
+    `再集計後：${Number(snapshot.profit || 0).toLocaleString()}円`,
+    "",
+    `現在の個数：${Number(history.items || 0).toLocaleString()}個`,
+    `再集計後：${Number(snapshot.items || 0).toLocaleString()}個`,
+    "",
+    "カレンダーの最新記録で上書きしますか？"
+  ].join("\n"))) return;
+
+  Object.assign(
+    history,
+    normalizeRouteRunHistoryItem({
+      ...history,
+      ...snapshot,
+      id: history.id,
+      createdAt: history.createdAt,
+      updatedAt: new Date().toISOString()
+    })
+  );
+
+  openSavedRouteId = route.id;
+  saveAll();
+  forceStoreRenderRefresh();
+  render();
+  alert("巡回実績を再集計しました。");
+}
+
+function deleteSavedRouteRun(historyId) {
+  const history = getRouteRunHistoryItem(historyId);
+  if (!history) return;
+
+  if (!confirm([
+    `${history.date} の巡回履歴を削除しますか？`,
+    "",
+    `ルート：${history.routeName || "保存ルート"}`,
+    `利益：${Number(history.profit || 0).toLocaleString()}円`,
+    `個数：${Number(history.items || 0).toLocaleString()}個`,
+    "",
+    "店舗の訪問・利益ログ自体は削除されません。"
+  ].join("\n"))) return;
+
+  routeRunHistory = routeRunHistory.filter(
+    item => String(item.id || "") !== String(historyId || "")
+  );
+
+  saveAll();
+  forceStoreRenderRefresh();
+  render();
+  alert("巡回履歴を削除しました。");
+}
+
+function toggleBackupAccordion(forceOpen = null) {
+  const body = document.getElementById("backupAccordionBody");
+  const header = document.getElementById("backupAccordionHeader");
+  const chevron = document.getElementById("backupAccordionChevron");
+  if (!body || !header || !chevron) return;
+
+  const willOpen =
+    forceOpen === null
+      ? body.style.display === "none"
+      : !!forceOpen;
+
+  body.style.display = willOpen ? "block" : "none";
+  header.setAttribute("aria-expanded", willOpen ? "true" : "false");
+  chevron.textContent = willOpen ? "▲" : "▼";
+}
+
+function exportBackup() {
+  const data = {
+    version: 5,
+    storeDwellHistory: loadStoreDwellHistory(),
+    activeStoreDwell: loadActiveStoreDwell(),
+    exportedAt: new Date().toISOString(),
+    stores,
+    logs,
+    savedRoutes,
+    todayRouteOrder,
+    routeRunHistory,
+    sourcingSessions: loadSourcingSessions(),
+    activeSourcingSession: loadActiveSourcingSession(),
+    storeMiniMemos: { ...storeMiniMemoMap }
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: "application/json"
+  });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `sedori-backup-${tokyoDateStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function importBackup(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(String(e.target?.result || ""));
+      if (!Array.isArray(parsed.stores)) throw new Error("invalid backup");
+
+      if (!confirm("現在のデータをバックアップで上書きします。よろしいですか？")) {
+        event.target.value = "";
+        return;
+      }
+
+      stores = parsed.stores.map(normalizeStore);
+      logs = Array.isArray(parsed.logs) ? parsed.logs.map(normalizeLog) : [];
+      savedRoutes = Array.isArray(parsed.savedRoutes)
+        ? parsed.savedRoutes.map(normalizeRoute)
+        : [];
+      todayRouteOrder = Array.isArray(parsed.todayRouteOrder)
+        ? normalizeTodayRouteOrder(parsed.todayRouteOrder)
+        : [];
+
+      routeRunHistory = Array.isArray(parsed.routeRunHistory)
+        ? normalizeRouteRunHistory(parsed.routeRunHistory)
+        : [];
+
+      restoreStoreMiniMemosFromBackup(parsed.storeMiniMemos || {});
+      restoreSourcingSessionsFromBackup(parsed);
+      restoreStoreDwellFromBackup(parsed);
+
+      syncStoreProfitsFromLogs();
+
+      nearbyMode = false;
+      noCoordsOnlyMode = false;
+      nearbyStoreIds = new Set();
+      clearSplitRouteCache();
+      openSavedRouteId = null;
+      todayRouteVisitedIds = [];
+      selectedRouteRunIds = new Set();
+      saveSelectedRouteRunIds();
+
+      syncTodayRouteOrder();
+      saveTodayRouteVisitedIds();
+      saveAll();
+      render();
+      alert("バックアップを読み込みました。");
+    } catch (e) {
+      console.error(e);
+      alert("バックアップの読込に失敗しました。");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  reader.readAsText(file, "utf-8");
+}
+
+function restoreAutoBackup() {
+  const data = getAutoBackup();
+  if (!data) {
+    alert("このアプリ内に復元できる自動バックアップがありません。");
+    return;
+  }
+
+  if (!confirm("自動バックアップで現在のデータを上書きします。よろしいですか？")) return;
+
+  stores = Array.isArray(data.stores) ? data.stores.map(normalizeStore) : [];
+  logs = Array.isArray(data.logs) ? data.logs.map(normalizeLog) : [];
+  savedRoutes = Array.isArray(data.savedRoutes)
+    ? data.savedRoutes.map(normalizeRoute)
+    : [];
+  todayRouteOrder = Array.isArray(data.todayRouteOrder)
+    ? normalizeTodayRouteOrder(data.todayRouteOrder)
+    : [];
+
+  routeRunHistory = Array.isArray(data.routeRunHistory)
+    ? normalizeRouteRunHistory(data.routeRunHistory)
+    : [];
+
+  restoreStoreMiniMemosFromBackup(data.storeMiniMemos || {});
+  restoreSourcingSessionsFromBackup(data);
+  restoreStoreDwellFromBackup(data);
+
+  syncStoreProfitsFromLogs();
+
+  nearbyMode = false;
+  noCoordsOnlyMode = false;
+  nearbyStoreIds = new Set();
+  clearSplitRouteCache();
+  openSavedRouteId = null;
+  todayRouteVisitedIds = [];
+  selectedRouteRunIds = new Set();
+  saveSelectedRouteRunIds();
+
+  syncTodayRouteOrder();
+  saveTodayRouteVisitedIds();
+  saveAll();
+  render();
+  alert("自動バックアップから復元しました。");
+}
+
+function showAutoBackupInfo() {
+  const data = getAutoBackup();
+  if (!data) {
+    alert("自動バックアップはありません。");
+    return;
+  }
+
+  alert([
+    `保存日時: ${data.savedAt || "不明"}`,
+    `店舗数: ${data.stores.length}件`,
+    `ログ数: ${data.logs.length}件`,
+    `保存ルート数: ${data.savedRoutes.length}件`,
+    `巡回履歴数: ${data.routeRunHistory.length}件`
+  ].join("\n"));
+}
+
+function syncTodayRouteOrder() {
+  const todayIds = stores.filter(s => s.today).map(s => s.id);
+  const todaySet = new Set(todayIds);
+
+  todayRouteOrder = todayRouteOrder.filter(id => todaySet.has(id));
+
+  todayIds.forEach(id => {
+    if (!todayRouteOrder.includes(id)) {
+      todayRouteOrder.push(id);
+    }
+  });
+}
+
+function getTodayRouteStores() {
+  syncTodayRouteOrder();
+
+  return todayRouteOrder
+    .map(id => stores.find(s => s.id === id))
+    .filter(s => s && s.today)
+    .filter(s => hasCoords(s) || s.address);
+}
+
+function getPendingTodayRouteStores() {
+  syncTodayRouteOrder();
+  syncTodayRouteVisitedIds();
+
+  return todayRouteOrder
+    .map(id => stores.find(s => s.id === id))
+    .filter(s => s && s.today)
+    .filter(s => !isTodayRouteVisited(s.id))
+    .filter(s => hasCoords(s) || s.address);
+}
+
+function clearSplitRouteCache() {
+  splitRouteCache = null;
+}
+
+function chunkRouteStores(routeStores, chunkSize = 9) {
+  const chunks = [];
+  for (let i = 0; i < routeStores.length; i += chunkSize) {
+    chunks.push(routeStores.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
+function moveTodayRouteItem(index, delta) {
+  syncTodayRouteOrder();
+
+  const nextIndex = index + delta;
+  if (
+    index < 0 ||
+    nextIndex < 0 ||
+    index >= todayRouteOrder.length ||
+    nextIndex >= todayRouteOrder.length
+  ) return;
+
+  const arr = [...todayRouteOrder];
+  const temp = arr[index];
+  arr[index] = arr[nextIndex];
+  arr[nextIndex] = temp;
+  todayRouteOrder = arr;
+
+  clearSplitRouteCache();
+  saveAll();
+  render();
+}
+
+function removeTodayRouteItem(index) {
+  syncTodayRouteOrder();
+
+  const id = todayRouteOrder[index];
+  if (!id) return;
+
+  const store = stores.find(s => s.id === id);
+  if (store) store.today = false;
+
+  todayRouteOrder = todayRouteOrder.filter((_, i) => i !== index);
+  unmarkTodayRouteVisited(id);
+  clearSplitRouteCache();
+
+  saveAll();
+  render();
+}
+
+function buildGoogleMapsRouteUrl(routeStores) {
+  if (!routeStores.length) return "";
+
+  const makeDest = s => {
+    if (hasCoords(s)) return `${s.lat},${s.lng}`;
+    return s.address;
+  };
+
+  const destination = makeDest(routeStores[routeStores.length - 1]);
+  const waypoints = routeStores.slice(0, -1).map(makeDest).slice(0, 8);
+  const origin = "Current Location";
+
+  return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving${waypoints.length ? `&waypoints=${encodeURIComponent(waypoints.join("|"))}` : ""}`;
+}
+
+function setSplitRouteCache(routeStores) {
+  const chunks = chunkRouteStores(routeStores, 9);
+
+  let carryStartPos =
+    window.lastPos &&
+    typeof window.lastPos.lat === "number" &&
+    typeof window.lastPos.lng === "number"
+      ? { lat: window.lastPos.lat, lng: window.lastPos.lng }
+      : null;
+
+  splitRouteCache = {
+    parts: chunks.map((storesPart, idx) => {
+      const estimatedMinutes = estimateRouteMinutes(storesPart, carryStartPos);
+
+      const lastStoreWithCoords = [...storesPart]
+        .reverse()
+        .find(store => hasCoords(store));
+
+      if (lastStoreWithCoords) {
+        carryStartPos = {
+          lat: lastStoreWithCoords.lat,
+          lng: lastStoreWithCoords.lng
+        };
+      } else {
+        carryStartPos = null;
+      }
+
+      return {
+        index: idx + 1,
+        stores: storesPart,
+        url: buildGoogleMapsRouteUrl(storesPart),
+        start: idx * 9 + 1,
+        end: idx * 9 + storesPart.length,
+        estimatedMinutes
+      };
+    })
+  };
+}
+
+function openSplitRoutePart(part) {
+  if (!splitRouteCache?.parts?.length) {
+    alert("分割ルートがありません。もう一度「この順番でルート作成」を押してください。");
+    return;
+  }
+
+  const target = splitRouteCache.parts.find(p => p.index === part);
+  if (!target || !target.url) {
+    alert(`ルート${part}を開けませんでした。`);
+    return;
+  }
+
+  window.open(target.url, "_blank");
+}
+
+function getNearestNeighborRoute(routeStores, startPos = null) {
+  const remaining = [...routeStores];
+  const ordered = [];
+
+  let currentPoint =
+    startPos &&
+    typeof startPos.lat === "number" &&
+    typeof startPos.lng === "number"
+      ? { lat: startPos.lat, lng: startPos.lng }
+      : null;
+
+  while (remaining.length) {
+    let bestIndex = 0;
+
+    if (currentPoint) {
+      let bestDist = Infinity;
+
+      remaining.forEach((store, idx) => {
+        if (!hasCoords(store)) return;
+        const dist = distanceKm(
+          currentPoint.lat,
+          currentPoint.lng,
+          store.lat,
+          store.lng
+        );
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIndex = idx;
+        }
+      });
+    }
+
+    const nextStore = remaining.splice(bestIndex, 1)[0];
+    ordered.push(nextStore);
+
+    if (hasCoords(nextStore)) {
+      currentPoint = { lat: nextStore.lat, lng: nextStore.lng };
+    } else {
+      currentPoint = null;
+    }
+  }
+
+  return ordered;
+}
+
+function openRouteInGoogleMaps(routeStores) {
+  if (!routeStores.length) {
+    alert("ルートに使える店舗がありません。");
+    return;
+  }
+
+  if (routeStores.length <= 9) {
+    clearSplitRouteCache();
+    const url = buildGoogleMapsRouteUrl(routeStores);
+    if (!url) {
+      alert("ルートに使える店舗がありません。");
+      return;
+    }
+    window.open(url, "_blank");
+    render();
+    return;
+  }
+
+  setSplitRouteCache(routeStores);
+  render();
+
+  const parts = splitRouteCache?.parts || [];
+  alert(`店舗数が ${routeStores.length} 件あるため、ルートを ${parts.length} 本に分けました。今日のルート欄の各ルートボタンから開いてください。`);
+}
+
+function autoOptimizeTodayRoute() {
+  const routeStores = getPendingTodayRouteStores();
+  if (!routeStores.length) {
+    alert("未訪問の今日ルート店舗がありません。");
+    return;
+  }
+
+  const optimized = getNearestNeighborRoute(routeStores, window.lastPos);
+
+  const pendingIds = optimized.map(s => s.id);
+  const visitedIdsInOrder = todayRouteOrder.filter(id => isTodayRouteVisited(id));
+  todayRouteOrder = [...visitedIdsInOrder, ...pendingIds];
+
+  clearSplitRouteCache();
+  saveAll();
+  render();
+  alert("未訪問の今日ルートを自動最適化しました。");
+}
+
+function buildTodayRoute() {
+  const routeStores = getPendingTodayRouteStores();
+
+  if (!routeStores.length) {
+    alert("未訪問の「今日行く」店舗がありません。");
+    return;
+  }
+
+  openRouteInGoogleMaps(routeStores);
+}
+
+function sortSavedRoutes() {
+  savedRoutes.sort((a, b) => {
+    if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
+    return String(b.updatedAt).localeCompare(String(a.updatedAt));
+  });
+}
+
+function toggleSavedRouteOpen(routeId) {
+  openSavedRouteId = openSavedRouteId === routeId ? null : routeId;
+  renderSavedRoutesList();
+}
+
+function buildSavedRouteStores(route) {
+  const ids = Array.isArray(route?.storeIds) ? route.storeIds : [];
+  return ids
+    .map(id => stores.find(s => s.id === id))
+    .filter(Boolean);
+}
+
+function getSavedRoutePreviewText(route, count = 3) {
+  const routeStores = buildSavedRouteStores(route);
+  return routeStores
+    .slice(0, count)
+    .map(s => s?.name || "店舗名なし")
+    .filter(Boolean)
+    .join(" / ");
+}
+
+function saveCurrentRoute() {
+  const routeStores = getTodayRouteStores();
+  if (!routeStores.length) {
+    alert("保存できる今日のルートがありません。");
+    return;
+  }
+
+  const defaultName = `ルート ${tokyoDateStr()}`;
+  const name = prompt("保存するルート名", defaultName);
+  if (name === null) return;
+
+  const note = prompt("メモ（任意）", "") ?? "";
+
+  const newRoute = normalizeRoute({
+    id: ensureId(),
+    name: String(name).trim() || defaultName,
+    note: String(note).trim(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    favorite: false,
+    storeIds: routeStores.map(s => s.id)
+  });
+
+  savedRoutes.unshift(newRoute);
+
+  if (savedRoutes.length > 50) {
+    savedRoutes = savedRoutes.slice(0, 50);
+  }
+
+  sortSavedRoutes();
+  openSavedRouteId = newRoute.id;
+  saveAll();
+  render();
+  alert("ルートを保存しました。");
+}
+
+function openSavedRoute(routeId) {
+  const route = savedRoutes.find(r => r.id === routeId);
+  if (!route) return;
+
+  const routeStores = buildSavedRouteStores(route);
+  if (!routeStores.length) {
+    alert("このルートの店舗が見つかりません。");
+    return;
+  }
+
+  stores.forEach(s => {
+    s.today = route.storeIds.includes(s.id);
+  });
+
+  todayRouteOrder = route.storeIds.filter(id =>
+    stores.some(s => s.id === id && s.today)
+  );
+
+  todayRouteVisitedIds = [];
+  saveTodayRouteVisitedIds();
+
+  clearSplitRouteCache();
+  syncTodayRouteOrder();
+
+  saveAll();
+  render();
+  alert(`「${route.name}」を今日のルートに読み込みました。`);
+}
+
+function openSavedRouteInMaps(routeId) {
+  const route = savedRoutes.find(r => r.id === routeId);
+  if (!route) return;
+
+  const routeStores = buildSavedRouteStores(route).filter(
+    s => hasCoords(s) || s.address
+  );
+  if (!routeStores.length) {
+    alert("このルートの店舗が見つかりません。");
+    return;
+  }
+
+  openRouteInGoogleMaps(routeStores);
+}
+
+function toggleFavoriteRoute(routeId) {
+  const route = savedRoutes.find(r => r.id === routeId);
+  if (!route) return;
+
+  route.favorite = !route.favorite;
+  route.updatedAt = new Date().toISOString();
+
+  sortSavedRoutes();
+  openSavedRouteId = routeId;
+  saveAll();
+  render();
+}
+
+function editSavedRoute(routeId) {
+  const route = savedRoutes.find(r => r.id === routeId);
+  if (!route) return;
+
+  const name = prompt("ルート名を変更", route.name || "");
+  if (name === null) return;
+
+  const note = prompt("メモを変更", route.note || "");
+  if (note === null) return;
+
+  route.name = String(name).trim() || route.name || "保存ルート";
+  route.note = String(note).trim();
+  route.updatedAt = new Date().toISOString();
+
+  sortSavedRoutes();
+  openSavedRouteId = routeId;
+  saveAll();
+  render();
+}
+
+function deleteSavedRoute(routeId) {
+  const route = savedRoutes.find(
+    r => String(r.id || "") === String(routeId || "")
+  );
+
+  if (!route) return;
+
+  const relatedHistory = routeRunHistory.filter(
+    item => String(item.routeId || "") === String(routeId || "")
+  );
+
+  const message = relatedHistory.length
+    ? [
+        `「${route.name}」を削除しますか？`,
+        "",
+        `このルートには巡回履歴が ${relatedHistory.length}件あります。`,
+        "ルートを削除すると、関連する巡回履歴も削除されます。"
+      ].join("\n")
+    : `「${route.name}」を削除しますか？`;
+
+  if (!confirm(message)) return;
+
+  savedRoutes = savedRoutes.filter(
+    r => String(r.id || "") !== String(routeId || "")
+  );
+
+  routeRunHistory = routeRunHistory.filter(
+    item => String(item.routeId || "") !== String(routeId || "")
+  );
+
+  selectedRouteRunIds.delete(String(routeId || ""));
+  saveSelectedRouteRunIds();
+
+  if (openSavedRouteId === routeId) {
+    openSavedRouteId = null;
+  }
+
+  saveAll();
+  forceStoreRenderRefresh();
+  render();
+}
+
+function getSelectedRegularClosedDaysFromForm() {
+  return [...document.querySelectorAll('input[name="regularClosedDays"]:checked')]
+    .map(el => String(el.value || "").trim())
+    .filter(Boolean);
+}
+
+function clearRegularClosedDaysForm() {
+  document.querySelectorAll('input[name="regularClosedDays"]').forEach(el => {
+    el.checked = false;
+  });
+}
+
+function parseClosedDaysInput(text) {
+  const allowed = ["月", "火", "水", "木", "金", "土", "日"];
+  return [...new Set(
+    String(text || "")
+      .split(",")
+      .map(x => String(x || "").trim())
+      .filter(x => allowed.includes(x))
+  )];
+}
+
+function ensureStoreEditModal() {
+  if (document.getElementById("storeEditModal")) return;
+
+  const modal = document.createElement("div");
+  modal.id = "storeEditModal";
+  modal.className = "qtyCategoryModal";
+  modal.innerHTML = `
+    <div class="qtyCategoryCard">
+      <div class="qtyCategoryTitle">店舗情報を編集</div>
+      <div class="qtyCategorySub">基本情報・営業時間・定休日・メモをまとめて編集できます</div>
+
+      <div class="formGrid" style="margin-top:12px;">
+        <input id="editStoreName" type="text" placeholder="店舗名">
+        <input id="editPrefName" type="text" placeholder="都道府県">
+        <input id="editAddress" type="text" placeholder="住所">
+        <input id="editMapUrl" type="text" placeholder="GoogleマップURL（任意）">
+      </div>
+
+      <div class="storeHoursGrid">
+        <input
+          id="editOpenTime"
+          type="text"
+          inputmode="numeric"
+          maxlength="5"
+          autocomplete="off"
+          placeholder="開店時間（例 1000）"
+        >
+        <input
+          id="editCloseTime"
+          type="text"
+          inputmode="numeric"
+          maxlength="5"
+          autocomplete="off"
+          placeholder="閉店時間（例 1900）"
+        >
+      </div>
+
+      <div class="mt12">
+        <div class="mini" style="font-weight:700; margin-bottom:8px;">📅 定休日</div>
+        <div class="closedDaysGrid" id="editClosedDaysGrid">
+          ${["月", "火", "水", "木", "金", "土", "日"].map(day => `
+            <label class="closedDayChip">
+              <input type="checkbox" name="editRegularClosedDays" value="${day}">
+              <span>${day}</span>
+            </label>
+          `).join("")}
+        </div>
+      </div>
+
+      <div class="mt12">
+        <textarea
+          id="editStoreMemo"
+          class="storeMemoInput"
+          placeholder="メモ（例: 5/20 棚卸し休み、入口は裏側 など）"
+          rows="4"
+        ></textarea>
+      </div>
+
+      <div class="categoryPickerActions">
+        <button type="button" class="ghostBtn" onclick="closeStoreEditModal()">キャンセル</button>
+        <button type="button" class="primaryBtn" onclick="saveStoreEditModal()">保存</button>
+      </div>
+    </div>
+  `;
+
+  modal.addEventListener("click", e => {
+    if (e.target === modal) closeStoreEditModal();
+  });
+
+  document.body.appendChild(modal);
+}
+
+function setupEditTimeInputAutoFormat() {
+  const ids = ["editOpenTime", "editCloseTime"];
+
+  ids.forEach(id => {
+    const input = document.getElementById(id);
+    if (!input || input.dataset.timeAutoFormatReady === "1") return;
+
+    input.dataset.timeAutoFormatReady = "1";
+
+    input.addEventListener("input", () => {
+      input.value = String(input.value || "").replace(/\D/g, "").slice(0, 4);
+    });
+
+    input.addEventListener("blur", () => {
+      if (typeof formatTimeInputValue === "function") {
+        input.value = formatTimeInputValue(input.value);
+      }
+    });
+  });
+}
+
+let storeEditTargetIndex = -1;
+
+function openStoreEditModal(index) {
+  const s = stores[index];
+  if (!s) return;
+
+  ensureStoreEditModal();
+  setupEditTimeInputAutoFormat();
+  storeEditTargetIndex = index;
+
+  const nameEl = document.getElementById("editStoreName");
+  const prefEl = document.getElementById("editPrefName");
+  const addressEl = document.getElementById("editAddress");
+  const mapUrlEl = document.getElementById("editMapUrl");
+  const openEl = document.getElementById("editOpenTime");
+  const closeEl = document.getElementById("editCloseTime");
+  const memoEl = document.getElementById("editStoreMemo");
+
+  if (nameEl) nameEl.value = s.name || "";
+  if (prefEl) prefEl.value = s.pref || "";
+  if (addressEl) addressEl.value = s.address || "";
+  if (mapUrlEl) mapUrlEl.value = s.mapUrl || "";
+  if (openEl) openEl.value = s.openTime || "";
+  if (closeEl) closeEl.value = s.closeTime || "";
+  if (memoEl) memoEl.value = s.memo || "";
+
+  const selectedDays = Array.isArray(s.regularClosedDays) ? s.regularClosedDays : [];
+  document.querySelectorAll('input[name="editRegularClosedDays"]').forEach(el => {
+    el.checked = selectedDays.includes(el.value);
+  });
+
+  const modal = document.getElementById("storeEditModal");
+  if (modal) modal.classList.add("show");
+}
+
+function closeStoreEditModal() {
+  const modal = document.getElementById("storeEditModal");
+  if (modal) modal.classList.remove("show");
+  storeEditTargetIndex = -1;
+}
+
+async function saveStoreEditModal() {
+  if (storeEditTargetIndex < 0) return;
+
+  const s = stores[storeEditTargetIndex];
+  if (!s) {
+    closeStoreEditModal();
+    return;
+  }
+
+  const name = document.getElementById("editStoreName")?.value?.trim() || "";
+  const pref = document.getElementById("editPrefName")?.value?.trim() || "";
+  const address = document.getElementById("editAddress")?.value?.trim() || "";
+  const mapUrl = document.getElementById("editMapUrl")?.value?.trim() || "";
+  const rawOpenTime = document.getElementById("editOpenTime")?.value?.trim() || "";
+  const rawCloseTime = document.getElementById("editCloseTime")?.value?.trim() || "";
+  const memo = document.getElementById("editStoreMemo")?.value?.trim() || "";
+
+  const openTime =
+    typeof formatTimeInputValue === "function"
+      ? formatTimeInputValue(rawOpenTime)
+      : rawOpenTime;
+
+  const closeTime =
+    typeof formatTimeInputValue === "function"
+      ? formatTimeInputValue(rawCloseTime)
+      : rawCloseTime;
+
+  const regularClosedDays = [...document.querySelectorAll('input[name="editRegularClosedDays"]:checked')]
+    .map(el => String(el.value || "").trim())
+    .filter(Boolean);
+
+  if (!name) {
+    alert("店舗名を入れてください。");
+    return;
+  }
+
+  s.name = name;
+  s.pref = pref;
+  s.address = address;
+  s.mapUrl = mapUrl;
+  s.openTime = openTime;
+  s.closeTime = closeTime;
+  s.memo = memo;
+  s.regularClosedDays = regularClosedDays;
+
+  const pos = await resolveStoreLatLng(s.pref, s.address, s.name, s.mapUrl, true);
+  s.lat = pos.lat;
+  s.lng = pos.lng;
+
+  saveAll();
+  render();
+  closeStoreEditModal();
+}
+
+async function addStore() {
+  const name = document.getElementById("storeName")?.value?.trim() || "";
+  const pref = document.getElementById("prefName")?.value?.trim() || "";
+  const address = document.getElementById("address")?.value?.trim() || "";
+  const mapUrl = document.getElementById("mapUrl")?.value?.trim() || "";
+  const openTime = document.getElementById("openTime")?.value?.trim() || "";
+  const closeTime = document.getElementById("closeTime")?.value?.trim() || "";
+  const regularClosedDays = getSelectedRegularClosedDaysFromForm();
+  const memo = document.getElementById("storeMemo")?.value?.trim() || "";
+
+  if (!name) {
+    alert("店舗名を入れてください。");
+    return;
+  }
+
+  const pos = await resolveStoreLatLng(pref, address, name, mapUrl, true);
+
+  stores.push(normalizeStore({
+    id: ensureId(),
+    name,
+    pref,
+    address,
+    mapUrl,
+    openTime,
+    closeTime,
+    regularClosedDays,
+    memo,
+    lat: pos.lat,
+    lng: pos.lng,
+    visits: 0,
+    buyDays: 0,
+    items: 0,
+    profit: 0,
+    defaultCategory: "",
+    categoryCounts: {},
+    lastVisitDate: "",
+    today: false
+  }));
+
+  document.getElementById("storeName").value = "";
+  document.getElementById("prefName").value = "";
+  document.getElementById("address").value = "";
+  document.getElementById("mapUrl").value = "";
+  if (document.getElementById("openTime")) document.getElementById("openTime").value = "";
+  if (document.getElementById("closeTime")) document.getElementById("closeTime").value = "";
+  if (document.getElementById("storeMemo")) document.getElementById("storeMemo").value = "";
+  clearRegularClosedDaysForm();
+
+  saveAll();
+  render();
+}
+
+async function editStore(i) {
+  const s = stores[i];
+  if (!s) return;
+
+  const menu = prompt(
+`設定メニュー
+1: 基本情報編集
+2: カテゴリを追加
+3: カテゴリを減らす
+4: 成功を増やす
+5: 成功を減らす
+6: デフォルトカテゴリ変更
+7: 利益を修正
+
+番号を入力してください`,
+    "1"
+  );
+
+  if (menu === null) return;
+
+  if (menu === "1") {
+    openStoreEditModal(i);
+    return;
+  }
+
+  if (menu === "2") {
+    const text = prompt("追加するカテゴリを入力\n例: 楽器:2, 家電:1", "");
+    if (text !== null) {
+      const deltaMap = parseCategoryInput(text);
+      applyCategoryDelta(s, deltaMap, 1);
+      s.items = sumCategoryCounts(s.categoryCounts);
+      Object.entries(deltaMap).forEach(([cat, qty]) => addLog(s.id, "category", qty, cat));
+    }
+  }
+
+  if (menu === "3") {
+    const text = prompt("減らすカテゴリを入力\n例: 楽器:1, 家電:1", "");
+    if (text !== null) {
+      const deltaMap = parseCategoryInput(text);
+      applyCategoryDelta(s, deltaMap, -1);
+      s.items = sumCategoryCounts(s.categoryCounts);
+      Object.entries(deltaMap).forEach(([cat, qty]) => addLog(s.id, "category", -qty, cat));
+    }
+  }
+
+  if (menu === "4") {
+    const n = clampNonNeg(parseInt(prompt("増やす成功回数", "1"), 10));
+    if (n) {
+      s.buyDays += n;
+      if (s.buyDays > s.visits) s.visits = s.buyDays;
+      addLog(s.id, "success", n);
+    }
+  }
+
+  if (menu === "5") {
+    const n = clampNonNeg(parseInt(prompt("減らす成功回数", "1"), 10));
+    if (n) {
+      s.buyDays = Math.max(0, s.buyDays - n);
+      addLog(s.id, "success", -n);
+    }
+  }
+
+  if (menu === "6") {
+    const cat = prompt("デフォルトカテゴリ", s.defaultCategory || "");
+    if (cat !== null) {
+      s.defaultCategory = String(cat).trim();
+      categoryHistoryDirty = true;
+    }
+  }
+
+  if (menu === "7") {
+    openProfitEditModal(i);
+    return;
+  }
+
+  saveAll();
+  render();
+}
+
+function deleteStore(i) {
+  const s = stores[i];
+  if (!s) return;
+  const activeDwell = loadActiveStoreDwell();
+  if (activeDwell && String(activeDwell.storeId) === String(s.id)) {
+    alert("滞在中の店舗は削除できません。先に店舗退出を記録してください。"); return;
+  }
+  if (!confirm(`「${s.name}」を削除しますか？`)) return;
+
+  stores.splice(i, 1);
+  todayRouteOrder = todayRouteOrder.filter(id => id !== s.id);
+  unmarkTodayRouteVisited(s.id);
+  clearSplitRouteCache();
+  saveAll();
+  render();
+}
+
+function navigateToStore(i) {
+  const s = stores[i];
+  if (!s) return;
+
+  if (hasCoords(s)) {
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${s.lat},${s.lng}`)}&travelmode=driving`,
+      "_blank"
+    );
+    return;
+  }
+
+  if (s.address) {
+    window.open(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address)}`,
+      "_blank"
+    );
+    return;
+  }
+
+  alert("住所または座標が登録されていません。");
+}
+
+async function refreshStoreCoordinates(i) {
+  const s = stores[i];
+  if (!s) return;
+
+  const pos = await resolveStoreLatLng(s.pref, s.address, s.name, s.mapUrl, true);
+  s.lat = pos.lat;
+  s.lng = pos.lng;
+
+  saveAll();
+  render();
+}
+
+async function refreshAllCoordinates() {
+  const targets = stores.filter(s => !hasCoords(s));
+  if (!targets.length) {
+    alert("座標なし店舗はありません。");
+    return;
+  }
+
+  if (!confirm(`座標なし店舗 ${targets.length} 件の座標を再取得します。よろしいですか？`)) return;
+
+  for (let idx = 0; idx < targets.length; idx++) {
+    const s = targets[idx];
+    const pos = await resolveStoreLatLng(s.pref, s.address, s.name, s.mapUrl, false);
+    s.lat = pos.lat;
+    s.lng = pos.lng;
+
+    if (idx < targets.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 180));
+    }
+  }
+
+  saveAll();
+  render();
+  alert("座標再取得が完了しました。");
+}
+
+function visit(i) {
+  const s = stores[i];
+  if (!s) return;
+
+  const arrivedAt = new Date().toISOString();
+  const openStore = loadActiveStoreDwell();
+  if (openStore && !askPreviousStoreExit(openStore, arrivedAt)) return;
+
+  if (!loadActiveSourcingSession()) {
+    startSourcingSession(s);
+  }
+  recordSourcingVisit(s.id);
+  saveActiveStoreDwell({
+    id: typeof ensureId === "function" ? ensureId() : `dwell_${Date.now()}`,
+    storeId: String(s.id), storeName: String(s.name || ""), enteredAt: arrivedAt
+  });
+  forceStoreRenderRefresh();
+
+  s.visits += 1;
+  s.lastVisitDate = tokyoDateStr();
+
+  if (s.today) {
+    markTodayRouteVisited(s.id);
+  }
+
+  addLog(s.id, "visit", 1);
+
+  checkAndCountCompletedRoute();
+
+  saveAll();
+  render();
+}
+
+function removeLatestPositiveLog(storeId, type) {
+  const targetStoreId = String(storeId || "");
+  const targetType = String(type || "");
+
+  for (let i = logs.length - 1; i >= 0; i--) {
+    const log = logs[i];
+
+    if (String(log.storeId || "") !== targetStoreId) continue;
+    if (String(log.type || "") !== targetType) continue;
+    if (Number(log.delta || 0) <= 0) continue;
+
+    logs.splice(i, 1);
+    return true;
+  }
+
+  return false;
+}
+
+function recalcStoreLastVisitDateFromLogs(store) {
+  if (!store || !store.id) return;
+
+  const dates = logs
+    .filter(log => String(log.storeId || "") === String(store.id))
+    .filter(log => ["visit", "success", "items"].includes(String(log.type || "")))
+    .filter(log => Number(log.delta || 0) > 0)
+    .map(log => String(log.date || "").slice(0, 10))
+    .filter(Boolean)
+    .sort();
+
+  store.lastVisitDate = dates.length ? dates[dates.length - 1] : "";
+}
+
+function forceStoreRenderRefresh() {
+  lastListRenderSignature = "";
+  lastMapRenderSignature = "";
+}
+
+function visitMinus(i) {
+  const s = stores[i];
+  if (!s) return;
+  if (loadActiveStoreDwell()?.storeId === String(s.id)) {
+    alert("滞在中の訪問回数は減らせません。先に店舗退出を記録してください。"); return;
+  }
+
+  const currentVisits = Number(s.visits || 0);
+  const currentSuccess = Number(s.buyDays || 0);
+
+  if (currentVisits <= 0) {
+    alert("減らせる訪問回数がありません。");
+    return;
+  }
+
+  if (currentVisits <= currentSuccess) {
+    alert("成功回数より訪問回数を少なくできません。先に成功回数を減らしてください。");
+    return;
+  }
+
+  s.visits = clampNonNeg(currentVisits - 1);
+
+  const removed = removeLatestPositiveLog(s.id, "visit");
+
+  if (!removed) {
+    addLog(s.id, "visit", -1);
+  }
+
+  recalcStoreLastVisitDateFromLogs(s);
+  forceStoreRenderRefresh();
+
+  saveAll();
+  render();
+}
+
+function itemsPlus(i) {
+  const s = stores[i];
+  if (!s) return;
+
+  const history = getCategoryHistory();
+
+  openQtyCategoryModal({
+    history,
+    defaultCategory: s.defaultCategory
+  }).then(result => {
+    if (!result) return;
+
+    const n = clampNonNeg(parseInt(result.qty || "0", 10));
+    const catMap =
+      result.categoryMap && typeof result.categoryMap === "object"
+        ? result.categoryMap
+        : null;
+    const profit = clampNonNeg(parseInt(result.profit || "0", 10));
+
+    if (!n || !catMap) return;
+
+    const keys = Object.keys(catMap);
+    if (!keys.length) return;
+
+    const total = Object.values(catMap).reduce((sum, v) => sum + Number(v || 0), 0);
+    if (total !== n) {
+      alert("カテゴリ個数の合計が一致していません。");
+      return;
+    }
+
+    s.items += n;
+    s.buyDays += 1;
+    if (s.buyDays > s.visits) s.visits = s.buyDays;
+    s.lastVisitDate = tokyoDateStr();
+
+    addLog(s.id, "success", 1);
+    addLog(s.id, "items", n);
+
+    keys.forEach(cat => {
+      const addQty = clampNonNeg(catMap[cat] || 0);
+      if (!addQty) return;
+
+      s.categoryCounts[cat] = (s.categoryCounts[cat] || 0) + addQty;
+      addLog(s.id, "category", addQty, cat);
+    });
+
+    if (profit > 0) {
+      s.profit += profit;
+      addLog(s.id, "profit", profit);
+    }
+
+    const firstCat = keys[0];
+    if (firstCat) s.defaultCategory = firstCat;
+
+    saveAll();
+    render();
+  });
+}
+
+function itemsMinus(i) {
+  const s = stores[i];
+  if (!s) return;
+
+  const currentTotal = Number(s.items || 0);
+  if (currentTotal <= 0) {
+    alert("減らせる個数がありません。");
+    return;
+  }
+
+  const history =
+    Object.keys(s.categoryCounts || {}).length
+      ? Object.keys(s.categoryCounts || {})
+      : getCategoryHistory();
+
+  openQtyCategoryModal({
+    history,
+    defaultCategory: s.defaultCategory
+  }).then(result => {
+    if (!result) return;
+
+    const n = clampNonNeg(parseInt(result.qty || "0", 10));
+    const catMap =
+      result.categoryMap && typeof result.categoryMap === "object"
+        ? result.categoryMap
+        : null;
+
+    if (!n || !catMap) return;
+
+    const total = Object.values(catMap).reduce((sum, v) => sum + Number(v || 0), 0);
+    if (total !== n) {
+      alert("カテゴリ個数の合計が一致していません。");
+      return;
+    }
+
+    if (n > currentTotal) {
+      alert(`現在個数 ${currentTotal} 個を超えて減らすことはできません。`);
+      return;
+    }
+
+    for (const [cat, qty] of Object.entries(catMap)) {
+      const current = Number(s.categoryCounts[cat] || 0);
+      if (qty > current) {
+        alert(`カテゴリ「${cat}」は現在 ${current} 個です。`);
+        return;
+      }
+    }
+
+    s.items = clampNonNeg(s.items - n);
+
+    Object.entries(catMap).forEach(([cat, qty]) => {
+      const current = Number(s.categoryCounts[cat] || 0);
+      const next = Math.max(0, current - qty);
+
+      if (next <= 0) delete s.categoryCounts[cat];
+      else s.categoryCounts[cat] = next;
+
+      addLog(s.id, "category", -qty, cat);
+    });
+
+    addLog(s.id, "items", -n);
+
+    if (!Object.keys(s.categoryCounts || {}).length && s.items === 0) {
+      s.defaultCategory = "";
+    } else if (s.defaultCategory && !s.categoryCounts[s.defaultCategory]) {
+      const remainCats = Object.keys(s.categoryCounts || {});
+      s.defaultCategory = remainCats[0] || s.defaultCategory || "";
+    }
+
+    saveAll();
+    render();
+  });
+}
+
+function toggleToday(i, checked) {
+  const s = stores[i];
+  if (!s) return;
+
+  s.today = !!checked;
+
+  if (s.today) {
+    if (!todayRouteOrder.includes(s.id)) {
+      todayRouteOrder.push(s.id);
+    }
+  } else {
+    todayRouteOrder = todayRouteOrder.filter(id => id !== s.id);
+    unmarkTodayRouteVisited(s.id);
+  }
+
+  clearSplitRouteCache();
+  syncTodayRouteOrder();
+  saveAll();
+  render();
+}
+
+function toggleTodayByStoreId(storeId, checked) {
+  const idx = stores.findIndex(s => s.id === storeId);
+  if (idx < 0) return;
+
+  preserveMapViewOnNextRender = true;
+  toggleToday(idx, checked);
+}
+
+function clearTodayChecks() {
+  stores.forEach(s => {
+    s.today = false;
+  });
+  todayRouteOrder = [];
+  todayRouteVisitedIds = [];
+  saveTodayRouteVisitedIds();
+  clearSplitRouteCache();
+  saveAll();
+  render();
+}
+
+function clearNearbyMode() {
+  nearbyMode = false;
+  noCoordsOnlyMode = false;
+  nearbyStoreIds = new Set();
+  lastListRenderSignature = "";
+  lastMapRenderSignature = "";
+}
+
+function showNearbyStores() {
+  if (!navigator.geolocation) {
+    alert("この端末では位置情報が使えません。");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      window.lastPos = { lat, lng };
+
+      try {
+        if (!map && typeof initMap === "function") {
+          initMap();
+        }
+      } catch (e) {
+        console.error("initMap showNearbyStores error:", e);
+      }
+
+      try {
+        if (typeof renderCurrentLocationMarker === "function") {
+          renderCurrentLocationMarker();
+        }
+      } catch (e) {
+        console.error("renderCurrentLocationMarker showNearbyStores error:", e);
+      }
+
+      nearbyStoreIds = new Set();
+      const distances = [];
+
+      stores.forEach(s => {
+        if (!hasCoords(s)) return;
+        const dist = distanceKm(lat, lng, s.lat, s.lng);
+        distances.push({ id: s.id, dist });
+        if (dist <= 3) nearbyStoreIds.add(s.id);
+      });
+
+      if (!distances.length) {
+        alert("座標入りの店舗がありません。");
+        return;
+      }
+
+      if (!nearbyStoreIds.size) {
+        distances.sort((a, b) => a.dist - b.dist);
+        nearbyStoreIds = new Set(distances.map(x => x.id));
+        alert(`3km以内の店舗はありません。最寄りは ${distances[0].dist.toFixed(1)}km です。近い順で表示します。`);
+      }
+
+      nearbyMode = true;
+      noCoordsOnlyMode = false;
+      lastListRenderSignature = "";
+      lastMapRenderSignature = "";
+
+      try {
+        render();
+      } catch (e) {
+        console.error("showNearbyStores render error:", e);
+      }
+    },
+    err => {
+      console.error("showNearbyStores geolocation error:", err);
+
+      let msg = "現在地を取得できませんでした。";
+
+      if (err.code === 1) {
+        msg = "位置情報の許可がオフになっています。iPhoneの設定から位置情報を許可してください。";
+      } else if (err.code === 2) {
+        msg = "現在地を特定できませんでした。屋外や電波の良い場所で再度お試しください。";
+      } else if (err.code === 3) {
+        msg = "位置情報の取得がタイムアウトしました。もう一度お試しください。";
+      }
+
+      alert(msg);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 60000
+    }
+  );
+}
+
+function autoDetectNearbyStores() {
+  if (!navigator.geolocation) return;
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      window.lastPos = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude
+      };
+
+      try {
+        if (!map && typeof initMap === "function") {
+          initMap();
+        }
+      } catch (e) {
+        console.error("initMap autoDetectNearbyStores error:", e);
+      }
+
+      try {
+        if (typeof renderCurrentLocationMarker === "function") {
+          renderCurrentLocationMarker();
+        }
+      } catch (e) {
+        console.error("renderCurrentLocationMarker autoDetectNearbyStores error:", e);
+      }
+
+      lastListRenderSignature = "";
+      lastMapRenderSignature = "";
+
+      const sortType = document.getElementById("sortType")?.value || "expected";
+
+      try {
+        if (sortType === "route" || nearbyMode) {
+          render();
+        } else if (typeof scheduleRenderMapMarkers === "function") {
+          scheduleRenderMapMarkers();
+        }
+      } catch (e) {
+        console.error("autoDetectNearbyStores render error:", e);
+      }
+    },
+    err => {
+      console.error("autoDetectNearbyStores geolocation error:", err);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 60000
+    }
+  );
+}
+
+function moveToCurrentLocation() {
+  if (!navigator.geolocation) {
+    alert("この端末では位置情報が使えません。");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      window.lastPos = { lat, lng };
+
+      try {
+        if (!map && typeof initMap === "function") {
+          initMap();
+        }
+      } catch (e) {
+        console.error("initMap moveToCurrentLocation error:", e);
+      }
+
+      try {
+        if (map) {
+          map.setView([lat, lng], 15);
+        }
+      } catch (e) {
+        console.error("map setView error:", e);
+      }
+
+      try {
+        if (typeof renderCurrentLocationMarker === "function") {
+          renderCurrentLocationMarker();
+        }
+      } catch (e) {
+        console.error("renderCurrentLocationMarker moveToCurrentLocation error:", e);
+      }
+
+      lastListRenderSignature = "";
+      lastMapRenderSignature = "";
+      preserveMapViewOnNextRender = true;
+
+      try {
+        render();
+      } catch (e) {
+        console.error("moveToCurrentLocation render error:", e);
+      }
+
+      setTimeout(() => {
+        preserveMapViewOnNextRender = false;
+      }, 300);
+    },
+    err => {
+      console.error("moveToCurrentLocation geolocation error:", err);
+
+      let msg = "現在地を取得できませんでした。";
+
+      if (err.code === 1) {
+        msg = "位置情報の許可がオフになっています。iPhoneの設定から位置情報を許可してください。";
+      } else if (err.code === 2) {
+        msg = "現在地を特定できませんでした。屋外や電波の良い場所で再度お試しください。";
+      } else if (err.code === 3) {
+        msg = "位置情報の取得がタイムアウトしました。もう一度お試しください。";
+      }
+
+      alert(msg);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 60000
+    }
+  );
+}
+
+function showNoCoordsOnly() {
+  noCoordsOnlyMode = true;
+  nearbyMode = false;
+  lastListRenderSignature = "";
+  lastMapRenderSignature = "";
+  render();
+}
+
+function setLayoutMode(mode) {
+  currentLayoutMode = mode === "compact" ? "compact" : "detail";
+  localStorage.setItem("store_layout_mode", currentLayoutMode);
+  updateLayoutButtons();
+  lastListRenderSignature = "";
+  render();
+}
+
+function ensureQtyCategoryModal() {
+  if (document.getElementById("qtyCategoryModal")) return;
+
+  const modal = document.createElement("div");
+  modal.id = "qtyCategoryModal";
+  modal.className = "qtyCategoryModal";
+  modal.innerHTML = `
+    <div class="qtyCategoryCard">
+      <div class="qtyCategoryTitle">個数・カテゴリ・利益を入力</div>
+      <div class="qtyCategorySub">合計個数、カテゴリごとの個数、利益をまとめて入力できます</div>
+
+      <div class="qtyCategorySectionTitle">合計個数を選択</div>
+      <div class="qtyQuickButtons">
+        <button type="button" class="qtyQuickBtn" data-qty="1" onclick="selectQuickQty(1)">1</button>
+        <button type="button" class="qtyQuickBtn" data-qty="2" onclick="selectQuickQty(2)">2</button>
+        <button type="button" class="qtyQuickBtn" data-qty="3" onclick="selectQuickQty(3)">3</button>
+        <button type="button" class="qtyQuickBtn" data-qty="4" onclick="selectQuickQty(4)">4</button>
+        <button type="button" class="qtyQuickBtn" data-qty="5" onclick="selectQuickQty(5)">5</button>
+      </div>
+
+      <div class="qtyManualRow">
+        <input id="qtyManualInput" class="qtyManualInput" type="number" min="1" step="1" placeholder="5以上はここに入力">
+        <button type="button" class="qtyManualBtn" onclick="applyManualQty()">手入力反映</button>
+      </div>
+
+      <div class="qtySelectedBox">
+        合計個数: <span id="qtySelectedValue">1</span>個
+      </div>
+
+      <div class="qtyCategorySectionTitle">履歴カテゴリ</div>
+      <div id="qtyCategoryChipWrap" class="categoryChipWrap"></div>
+
+      <div class="qtyCategorySectionTitle">新しいカテゴリを追加</div>
+      <div class="categoryAddRow">
+        <input id="qtyNewCategoryInput" class="categoryTextInput" placeholder="新しいカテゴリ名を入力">
+        <button type="button" class="categoryAddBtn" onclick="addNewQtyCategoryChip()">追加</button>
+      </div>
+
+      <div class="qtyCategorySectionTitle">カテゴリごとの個数</div>
+      <div id="qtyCategoryCountEditor" class="qtyCategoryCountEditor">
+        <div class="qtyCategoryEmpty">カテゴリを選択してください</div>
+      </div>
+
+      <div class="qtyRemainPanel" id="qtyRemainPanel">
+        <div class="qtyRemainLabel">残り</div>
+        <div class="qtyRemainValue" id="qtyRemainValue">1</div>
+        <div class="qtyRemainUnit">個</div>
+      </div>
+
+      <div class="qtySelectedBox qtyCategoryTotalCheck" id="qtyCategoryTotalCheck">
+        入力合計: <span id="qtyAssignedTotal">0</span> / <span id="qtyAssignedTarget">1</span>個
+      </div>
+
+      <div class="qtyCategorySectionTitle">利益入力</div>
+
+      <div class="qtyQuickButtons">
+        <button type="button" class="qtyQuickBtn profitQuickBtn" data-profit="1000" onclick="setQuickProfit(1000)">1000</button>
+        <button type="button" class="qtyQuickBtn profitQuickBtn" data-profit="3000" onclick="setQuickProfit(3000)">3000</button>
+        <button type="button" class="qtyQuickBtn profitQuickBtn" data-profit="5000" onclick="setQuickProfit(5000)">5000</button>
+        <button type="button" class="qtyQuickBtn profitQuickBtn" data-profit="10000" onclick="setQuickProfit(10000)">10000</button>
+      </div>
+
+      <div class="qtyManualRow">
+        <input
+          id="qtyProfitInput"
+          class="qtyManualInput"
+          type="number"
+          min="0"
+          step="100"
+          value="0"
+          placeholder="利益を入力"
+          oninput="syncProfitInput()"
+        >
+        <button type="button" class="qtyManualBtn" onclick="applyManualProfit()">利益反映</button>
+      </div>
+
+      <div class="qtySelectedBox">
+        利益: <span id="qtyProfitValue">0</span>円
+      </div>
+
+      <div class="categoryPickerActions">
+        <button type="button" class="ghostBtn" onclick="closeQtyCategoryModal(null)">キャンセル</button>
+        <button type="button" class="primaryBtn" onclick="confirmQtyCategoryModal()">OK</button>
+      </div>
+    </div>
+  `;
+
+  modal.addEventListener("click", e => {
+    if (e.target === modal) closeQtyCategoryModal(null);
+  });
+
+  document.body.appendChild(modal);
+}
+
+function openQtyCategoryModal({ history = [], defaultCategory = "" }) {
+  ensureQtyCategoryModal();
+
+  const modal = document.getElementById("qtyCategoryModal");
+  const chipWrap = document.getElementById("qtyCategoryChipWrap");
+  const manualInput = document.getElementById("qtyManualInput");
+  const newCategoryInput = document.getElementById("qtyNewCategoryInput");
+  const profitInput = document.getElementById("qtyProfitInput");
+
+  qtyCategoryCurrentQty = 1;
+  qtyCategorySelected = {};
+  qtyCategoryProfit = 0;
+
+  let categories = [...history];
+  if (defaultCategory && !categories.includes(defaultCategory)) {
+    categories.unshift(defaultCategory);
+  }
+  if (!categories.length) {
+    categories = ["未分類"];
+  }
+
+  chipWrap.innerHTML = categories.map(cat => `
+    <button
+      type="button"
+      class="categoryChip"
+      data-cat="${escapeHtml(cat)}"
+      onclick="toggleQtyCategoryChip('${escapeJsString(cat)}')"
+    >
+      ${escapeHtml(cat)}
+    </button>
+  `).join("");
+
+  manualInput.value = "";
+  if (newCategoryInput) newCategoryInput.value = "";
+  if (profitInput) profitInput.value = "0";
+
+  updateQtySelectedValue();
+  renderQtyQuickButtons();
+  renderQtyCategoryChipState();
+  renderQtyCategoryCountEditor();
+  updateQtyAssignedSummary();
+  updateProfitView();
+
+  modal.classList.add("show");
+
+  return new Promise(resolve => {
+    qtyCategoryModalResolver = resolve;
+  });
+}
+
+function selectQuickQty(n) {
+  qtyCategoryCurrentQty = Number(n || 1);
+  updateQtySelectedValue();
+  renderQtyQuickButtons();
+  updateQtyAssignedSummary();
+}
+
+function applyManualQty() {
+  const input = document.getElementById("qtyManualInput");
+  if (!input) return;
+
+  const n = clampNonNeg(parseInt(input.value || "0", 10));
+  if (!n) {
+    alert("1以上の個数を入力してください。");
+    return;
+  }
+
+  qtyCategoryCurrentQty = n;
+  updateQtySelectedValue();
+  renderQtyQuickButtons();
+  updateQtyAssignedSummary();
+}
+
+function setQuickProfit(amount) {
+  qtyCategoryProfit += clampNonNeg(Number(amount || 0));
+
+  const input = document.getElementById("qtyProfitInput");
+  if (input) input.value = String(qtyCategoryProfit);
+
+  updateProfitView();
+}
+
+function syncProfitInput() {
+  const input = document.getElementById("qtyProfitInput");
+  if (!input) return;
+
+  qtyCategoryProfit = clampNonNeg(parseInt(input.value || "0", 10));
+  updateProfitView();
+}
+
+function applyManualProfit() {
+  const input = document.getElementById("qtyProfitInput");
+  if (!input) return;
+
+  qtyCategoryProfit = clampNonNeg(parseInt(input.value || "0", 10));
+  input.value = String(qtyCategoryProfit);
+  updateProfitView();
+}
+
+function updateProfitView() {
+  const valueEl = document.getElementById("qtyProfitValue");
+  if (valueEl) {
+    valueEl.textContent = String(qtyCategoryProfit.toLocaleString());
+  }
+
+  document.querySelectorAll(".profitQuickBtn").forEach(btn => {
+    btn.classList.remove("active");
+  });
+}
+
+function updateQtySelectedValue() {
+  const valueEl = document.getElementById("qtySelectedValue");
+  const targetEl = document.getElementById("qtyAssignedTarget");
+  if (valueEl) valueEl.textContent = String(qtyCategoryCurrentQty);
+  if (targetEl) targetEl.textContent = String(qtyCategoryCurrentQty);
+}
+
+function renderQtyQuickButtons() {
+  document.querySelectorAll(".qtyQuickBtn").forEach(btn => {
+    if (btn.classList.contains("profitQuickBtn")) return;
+    const n = Number(btn.getAttribute("data-qty") || "0");
+    btn.classList.toggle("active", n === qtyCategoryCurrentQty);
+  });
+}
+
+function toggleQtyCategoryChip(cat) {
+  if (qtyCategorySelected[cat]) {
+    delete qtyCategorySelected[cat];
+  } else {
+    qtyCategorySelected[cat] = 1;
+  }
+  renderQtyCategoryChipState();
+  renderQtyCategoryCountEditor();
+  updateQtyAssignedSummary();
+}
+
+function renderQtyCategoryChipState() {
+  document.querySelectorAll("#qtyCategoryChipWrap .categoryChip").forEach(el => {
+    const cat = el.getAttribute("data-cat");
+    el.classList.toggle("active", !!qtyCategorySelected[cat]);
+  });
+}
+
+function renderQtyCategoryCountEditor() {
+  const wrap = document.getElementById("qtyCategoryCountEditor");
+  if (!wrap) return;
+
+  const keys = Object.keys(qtyCategorySelected);
+  if (!keys.length) {
+    wrap.innerHTML = `<div class="qtyCategoryEmpty">カテゴリを選択してください</div>`;
+    return;
+  }
+
+  wrap.innerHTML = keys.map(cat => {
+    const value = clampNonNeg(qtyCategorySelected[cat] || 0);
+    return `
+      <div class="qtyCategoryCountRow">
+        <div class="qtyCategoryCountName">${escapeHtml(cat)}</div>
+        <div class="qtyStepper">
+          <button type="button" class="qtyStepBtn minus" onclick="changeQtyCategoryCount('${escapeJsString(cat)}', -1)">−</button>
+          <div class="qtyStepValue">${value}</div>
+          <button type="button" class="qtyStepBtn plus" onclick="changeQtyCategoryCount('${escapeJsString(cat)}', 1)">＋</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function changeQtyCategoryCount(cat, delta) {
+  const current = clampNonNeg(qtyCategorySelected[cat] || 0);
+  const next = Math.max(0, current + Number(delta || 0));
+  qtyCategorySelected[cat] = next;
+  renderQtyCategoryCountEditor();
+  updateQtyAssignedSummary();
+}
+
+function updateQtyAssignedSummary() {
+  const total = Object.values(qtyCategorySelected).reduce((sum, v) => sum + Number(v || 0), 0);
+  const remain = qtyCategoryCurrentQty - total;
+
+  const totalEl = document.getElementById("qtyAssignedTotal");
+  const remainValueEl = document.getElementById("qtyRemainValue");
+  const remainPanelEl = document.getElementById("qtyRemainPanel");
+  const totalCheckEl = document.getElementById("qtyCategoryTotalCheck");
+
+  if (totalEl) totalEl.textContent = String(total);
+  if (remainValueEl) remainValueEl.textContent = String(remain);
+
+  if (remainPanelEl) {
+    remainPanelEl.classList.remove("is-ok", "is-over", "is-under");
+    if (remain === 0) remainPanelEl.classList.add("is-ok");
+    else if (remain < 0) remainPanelEl.classList.add("is-over");
+    else remainPanelEl.classList.add("is-under");
+  }
+
+  if (totalCheckEl) {
+    totalCheckEl.classList.remove("is-ok", "is-over", "is-under");
+    if (remain === 0) totalCheckEl.classList.add("is-ok");
+    else if (remain < 0) totalCheckEl.classList.add("is-over");
+    else totalCheckEl.classList.add("is-under");
+  }
+}
+
+function addNewQtyCategoryChip() {
+  const input = document.getElementById("qtyNewCategoryInput");
+  const chipWrap = document.getElementById("qtyCategoryChipWrap");
+  if (!input || !chipWrap) return;
+
+  const cat = String(input.value || "").trim();
+  if (!cat) return;
+
+  const exists = [...chipWrap.querySelectorAll(".categoryChip")]
+    .some(el => el.getAttribute("data-cat") === cat);
+
+  if (!exists) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "categoryChip active";
+    btn.setAttribute("data-cat", cat);
+    btn.textContent = cat;
+    btn.onclick = () => toggleQtyCategoryChip(cat);
+    chipWrap.appendChild(btn);
+  }
+
+  qtyCategorySelected[cat] = qtyCategorySelected[cat] || 1;
+  input.value = "";
+  renderQtyCategoryChipState();
+  renderQtyCategoryCountEditor();
+  updateQtyAssignedSummary();
+}
+
+function confirmQtyCategoryModal() {
+  const keys = Object.keys(qtyCategorySelected);
+
+  if (!qtyCategoryCurrentQty || qtyCategoryCurrentQty < 1) {
+    alert("合計個数を選択してください。");
+    return;
+  }
+
+  if (!keys.length) {
+    alert("カテゴリを1つ以上選択してください。");
+    return;
+  }
+
+  const resultMap = {};
+  keys.forEach(cat => {
+    resultMap[cat] = clampNonNeg(qtyCategorySelected[cat] || 0);
+  });
+
+  const total = Object.values(resultMap).reduce((sum, v) => sum + Number(v || 0), 0);
+
+  if (total !== qtyCategoryCurrentQty) {
+    alert(`カテゴリ個数の合計(${total})と合計個数(${qtyCategoryCurrentQty})を一致させてください。`);
+    return;
+  }
+
+  const hasZero = Object.values(resultMap).some(v => Number(v || 0) <= 0);
+  if (hasZero) {
+    alert("選択したカテゴリには1個以上を割り当ててください。");
+    return;
+  }
+
+  closeQtyCategoryModal({
+    qty: qtyCategoryCurrentQty,
+    categoryMap: resultMap,
+    profit: clampNonNeg(qtyCategoryProfit || 0)
+  });
+}
+
+function closeQtyCategoryModal(result) {
+  const modal = document.getElementById("qtyCategoryModal");
+  if (modal) modal.classList.remove("show");
+
+  if (qtyCategoryModalResolver) {
+    qtyCategoryModalResolver(result);
+    qtyCategoryModalResolver = null;
+  }
+}
+
+function ensureProfitEditModal() {
+  if (document.getElementById("profitEditModal")) return;
+
+  const modal = document.createElement("div");
+  modal.id = "profitEditModal";
+  modal.className = "qtyCategoryModal";
+  modal.innerHTML = `
+    <div class="qtyCategoryCard">
+      <div class="qtyCategoryTitle">利益を修正</div>
+      <div class="qtyCategorySub">現在の利益を確認して、新しい利益金額に修正できます</div>
+
+      <div class="qtySelectedBox">
+        現在の利益: <span id="profitEditCurrentValue">0</span>円
+      </div>
+
+      <div class="qtyCategorySectionTitle">よく使う金額</div>
+      <div class="qtyQuickButtons">
+        <button type="button" class="qtyQuickBtn profitEditQuickBtn" data-profit="1000" onclick="setProfitEditValue(1000)">1000</button>
+        <button type="button" class="qtyQuickBtn profitEditQuickBtn" data-profit="3000" onclick="setProfitEditValue(3000)">3000</button>
+        <button type="button" class="qtyQuickBtn profitEditQuickBtn" data-profit="5000" onclick="setProfitEditValue(5000)">5000</button>
+        <button type="button" class="qtyQuickBtn profitEditQuickBtn" data-profit="10000" onclick="setProfitEditValue(10000)">10000</button>
+      </div>
+
+      <div class="qtyCategorySectionTitle">利益を入力</div>
+      <div class="qtyManualRow">
+        <input
+          id="profitEditInput"
+          class="qtyManualInput"
+          type="number"
+          min="0"
+          step="100"
+          value="0"
+          placeholder="利益を入力"
+          oninput="syncProfitEditInput()"
+        >
+        <button type="button" class="qtyManualBtn" onclick="applyProfitEditInput()">反映</button>
+      </div>
+
+      <div class="qtySelectedBox">
+        修正後の利益: <span id="profitEditNextValue">0</span>円
+      </div>
+
+      <div class="categoryPickerActions">
+        <button type="button" class="ghostBtn" onclick="closeProfitEditModal()">キャンセル</button>
+        <button type="button" class="primaryBtn" onclick="saveProfitEditModal()">保存</button>
+      </div>
+    </div>
+  `;
+
+  modal.addEventListener("click", e => {
+    if (e.target === modal) closeProfitEditModal();
+  });
+
+  document.body.appendChild(modal);
+}
+
+function openProfitEditModal(index) {
+  const s = stores[index];
+  if (!s) return;
+
+  ensureProfitEditModal();
+  profitEditTargetIndex = index;
+
+  const current = clampNonNeg(Number(s.profit || 0));
+  const currentEl = document.getElementById("profitEditCurrentValue");
+  const nextEl = document.getElementById("profitEditNextValue");
+  const input = document.getElementById("profitEditInput");
+  const modal = document.getElementById("profitEditModal");
+
+  if (currentEl) currentEl.textContent = current.toLocaleString();
+  if (nextEl) nextEl.textContent = current.toLocaleString();
+  if (input) input.value = String(current);
+
+  updateProfitEditQuickState(current);
+
+  if (modal) modal.classList.add("show");
+}
+
+function closeProfitEditModal() {
+  const modal = document.getElementById("profitEditModal");
+  if (modal) modal.classList.remove("show");
+  profitEditTargetIndex = -1;
+}
+
+function getProfitEditValue() {
+  const input = document.getElementById("profitEditInput");
+  return clampNonNeg(parseInt(input?.value || "0", 10));
+}
+
+function setProfitEditValue(amount) {
+  const value = clampNonNeg(Number(amount || 0));
+  const input = document.getElementById("profitEditInput");
+  const nextEl = document.getElementById("profitEditNextValue");
+
+  if (input) input.value = String(value);
+  if (nextEl) nextEl.textContent = value.toLocaleString();
+
+  updateProfitEditQuickState(value);
+}
+
+function syncProfitEditInput() {
+  const value = getProfitEditValue();
+  const nextEl = document.getElementById("profitEditNextValue");
+  if (nextEl) nextEl.textContent = value.toLocaleString();
+  updateProfitEditQuickState(value);
+}
+
+function applyProfitEditInput() {
+  const input = document.getElementById("profitEditInput");
+  if (!input) return;
+
+  const value = clampNonNeg(parseInt(input.value || "0", 10));
+  input.value = String(value);
+
+  const nextEl = document.getElementById("profitEditNextValue");
+  if (nextEl) nextEl.textContent = value.toLocaleString();
+
+  updateProfitEditQuickState(value);
+}
+
+function updateProfitEditQuickState(value) {
+  document.querySelectorAll(".profitEditQuickBtn").forEach(btn => {
+    const n = Number(btn.getAttribute("data-profit") || "0");
+    btn.classList.toggle("active", n === value);
+  });
+}
+
+function saveProfitEditModal() {
+  if (profitEditTargetIndex < 0) return;
+
+  const s = stores[profitEditTargetIndex];
+  if (!s) {
+    closeProfitEditModal();
+    return;
+  }
+
+  const current = clampNonNeg(Number(s.profit || 0));
+  const next = getProfitEditValue();
+  const diff = next - current;
+
+  s.profit = next;
+  if (diff !== 0) {
+    addLog(s.id, "profit", diff);
+  }
+
+  saveAll();
+  render();
+  closeProfitEditModal();
+}
