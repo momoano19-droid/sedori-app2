@@ -5939,3 +5939,14 @@ button {
 .savedRouteEditorAddRow select { flex:1; }
 .savedRouteEditorActions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
 .savedRouteEditorActions button { padding:10px 14px; }
+
+/* 保存済みルート: 検索と選択 */
+.savedRouteEditorAddRow select { flex:1; min-width:0; }
+.savedRouteEditorAddRow button { flex:none; }
+.savedRouteEditorSearchCount { margin-top:6px; font-size:12px; color:#596579; }
+
+/* Saved route editor: touch/mouse reorder handle and drop feedback */
+.savedRouteEditorDragHandle { touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none; font-size:22px; min-width:34px; }
+.savedRouteEditorDragHandle:active { cursor:grabbing; }
+.savedRouteEditorDragging { opacity:.65; background:#eaf2ff; }
+.savedRouteEditorDropTarget { outline:2px solid #2876dd; outline-offset:-2px; background:#eef5ff; }
