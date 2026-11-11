@@ -1,12 +1,12 @@
-const CACHE_NAME = "sedori-v190-route-edit";
+const CACHE_NAME = "sedori-v191-route-search";
 
 const STATIC_URLS = [
   "./",
   "./index.html",
   "./report.html",
   "./manifest.json",
-  "./css/style.css?v=routeedit1",
-  "./js/app.js?v=routeedit1",
+  "./css/style.css?v=routesearch2",
+  "./js/app.js?v=routesearch2",
   "./js/report.js?v=aiaccordion1",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
