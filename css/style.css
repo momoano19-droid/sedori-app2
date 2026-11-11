@@ -5960,3 +5960,11 @@ button {
 .aiChatParagraphGap{height:9px;}
 .aiChatLine{line-height:1.8;overflow-wrap:anywhere;}
 .aiChatBubble,.aiDeepCardBody,.aiPlanCardBody{overflow-wrap:anywhere;}
+
+/* AI Markdown tables: horizontally scroll on narrow iPhone screens */
+.aiChatTableScroll{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:10px 0 14px;border:1px solid #dbe4ef;border-radius:10px;}
+.aiChatTable{border-collapse:collapse;width:100%;min-width:560px;font-size:13px;line-height:1.5;background:#fff;}
+.aiChatTable th,.aiChatTable td{padding:9px 10px;border-bottom:1px solid #e4eaf2;text-align:left;white-space:nowrap;}
+.aiChatTable th{background:#eef4ff;font-weight:800;position:sticky;top:0;}
+.aiChatTable tbody tr:nth-child(even){background:#f8fbff;}
+.aiChatBubble .aiChatTableScroll,.aiDeepCardBody .aiChatTableScroll,.aiPlanCardBody .aiChatTableScroll{overflow-x:auto;}
