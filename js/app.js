@@ -539,16 +539,15 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
       </div>
 
       ${renderStoreDwellInfo(s.id)}
-      <div class="mt10">
+      <div class="row2 mt10 storeDwellActionRow">
         ${renderTodayToggleButton(idx, s.today)}
+        ${renderStoreExitButton(idx, s.id)}
       </div>
 
       <div class="row2 mt8">
         <button ${makeButtonStyle("#dff7e8", "#129b52")} onclick="visit(${idx})">訪問＋</button>
         <button ${makeButtonStyle("#e7f0ff", "#2563eb")} onclick="itemsPlus(${idx})">個数＋</button>
       </div>
-
-      ${renderStoreExitButton(idx, s.id)}
 
       <div class="row2 mt8">
         <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="navigateToStore(${idx})">ナビ</button>
@@ -625,16 +624,15 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
       </div>
 
       ${renderStoreDwellInfo(s.id)}
-      <div class="mt10">
+      <div class="row2 mt10 storeDwellActionRow">
         ${renderTodayToggleButton(idx, s.today)}
+        ${renderStoreExitButton(idx, s.id)}
       </div>
 
       <div class="row2 mt8">
         <button ${makeButtonStyle("#dff7e8", "#129b52")} onclick="visit(${idx})">訪問＋</button>
         <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="visitMinus(${idx})">訪問−</button>
       </div>
-
-      ${renderStoreExitButton(idx, s.id)}
 
       <div class="row2 mt8">
         <button ${makeButtonStyle("#e7f0ff", "#2563eb")} onclick="itemsPlus(${idx})">個数＋</button>
