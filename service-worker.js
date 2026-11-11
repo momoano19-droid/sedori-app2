@@ -1,4 +1,4 @@
-const CACHE_NAME = "sedori-v191-route-search";
+const CACHE_NAME = "sedori-v192-ai-chat";
 
 const STATIC_URLS = [
   "./",
@@ -7,7 +7,7 @@ const STATIC_URLS = [
   "./manifest.json",
   "./css/style.css?v=routesearch2",
   "./js/app.js?v=routesearch2",
-  "./js/report.js?v=aiaccordion1",
+  "./js/report.js?v=aichat1",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
