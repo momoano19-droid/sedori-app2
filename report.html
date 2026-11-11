@@ -30,7 +30,20 @@
       </div>
     </header>
 
-    <section class="card aiSourcingSummaryCard" id="aiSourcingSummaryCard">
+    <section class="card" id="aiPeriodAnalysisCard">
+  <h2 class="sectionTitle">📊 指定期間のAI総評</h2>
+  <div class="mini" id="aiPeriodLabel">3か月・半年・1年・トータルを選んで分析できます。</div>
+  <button class="primaryBtn" type="button" id="aiPeriodAnalysisBtn" onclick="requestAiPeriodAnalysis()">🤖 この期間をAIで分析</button>
+  <div class="mini" id="aiPeriodAnalysisMeta">ボタンを押した時だけAPIを使用します。</div>
+  <div id="aiPeriodAnalysisResult" class="aiDeepAnalysisResult" hidden></div>
+  <div class="aiChatPanel" id="aiChatPanel-period" hidden>
+  <div class="aiChatHeading">💬 このAI分析について質問する</div>
+  <div class="aiChatHistory" id="aiChatHistory-period" aria-live="polite"></div>
+  <div class="aiChatInputRow"><textarea id="aiChatInput-period" rows="2" maxlength="1000" placeholder="例：次回どの店舗を優先すべき？"></textarea><button type="button" class="primaryBtn" id="aiChatSend-period" onclick="sendAiChat('period')">送信</button></div>
+  <div class="mini" id="aiChatStatus-period">質問するとAI APIを使用します。履歴はこの端末に保存されます。</div>
+</div>
+</section>
+<section class="card aiSourcingSummaryCard" id="aiSourcingSummaryCard">
       <div class="aiSourcingSummaryHead">
         <div>
           <h2 id="aiSourcingSummaryTitle" class="sectionTitle" style="margin-bottom:4px;">🤖 今日の仕入れ総評</h2>
@@ -44,7 +57,12 @@
         <button id="aiDeepAnalysisBtn" type="button" class="primaryBtn" onclick="requestAiDeepAnalysis()">🤖 AIで詳しく分析</button>
         <div id="aiDeepAnalysisMeta" class="mini"></div>
       </div>
-      <div id="aiDeepAnalysisResult" class="aiDeepAnalysisResult" hidden></div>
+      <div id="aiDeepAnalysisResult" class="aiDeepAnalysisResult" hidden></div><div class="aiChatPanel" id="aiChatPanel-daily" hidden>
+  <div class="aiChatHeading">💬 このAI分析について質問する</div>
+  <div class="aiChatHistory" id="aiChatHistory-daily" aria-live="polite"></div>
+  <div class="aiChatInputRow"><textarea id="aiChatInput-daily" rows="2" maxlength="1000" placeholder="例：次回どの店舗を優先すべき？"></textarea><button type="button" class="primaryBtn" id="aiChatSend-daily" onclick="sendAiChat('daily')">送信</button></div>
+  <div class="mini" id="aiChatStatus-daily">質問するとAI APIを使用します。履歴はこの端末に保存されます。</div>
+</div>
     </section>
 
     <section class="card aiMonthlySummaryCard" id="aiMonthlySummaryCard">
@@ -59,7 +77,12 @@
         <button id="aiMonthlyAnalysisBtn" type="button" class="primaryBtn" onclick="requestAiMonthlyAnalysis()">📅 この月をAIで総評</button>
         <div id="aiMonthlyAnalysisMeta" class="mini">ボタンを押した時だけAPIを使用します。</div>
       </div>
-      <div id="aiMonthlyAnalysisResult" class="aiDeepAnalysisResult" hidden></div>
+      <div id="aiMonthlyAnalysisResult" class="aiDeepAnalysisResult" hidden></div><div class="aiChatPanel" id="aiChatPanel-monthly" hidden>
+  <div class="aiChatHeading">💬 このAI分析について質問する</div>
+  <div class="aiChatHistory" id="aiChatHistory-monthly" aria-live="polite"></div>
+  <div class="aiChatInputRow"><textarea id="aiChatInput-monthly" rows="2" maxlength="1000" placeholder="例：次回どの店舗を優先すべき？"></textarea><button type="button" class="primaryBtn" id="aiChatSend-monthly" onclick="sendAiChat('monthly')">送信</button></div>
+  <div class="mini" id="aiChatStatus-monthly">質問するとAI APIを使用します。履歴はこの端末に保存されます。</div>
+</div>
     </section>
 
     <section class="card aiNextPlanCard" id="aiNextPlanCard">
@@ -80,7 +103,12 @@
         <button id="aiNextPlanBtn" type="button" class="primaryBtn" onclick="requestAiNextPlan()">🤖 次回の仕入れプランを作る</button>
         <div id="aiNextPlanMeta" class="mini">ボタンを押した時だけAPIを使用します。</div>
       </div>
-      <div id="aiNextPlanResult" class="aiNextPlanResult" hidden></div>
+      <div id="aiNextPlanResult" class="aiNextPlanResult" hidden></div><div class="aiChatPanel" id="aiChatPanel-plan" hidden>
+  <div class="aiChatHeading">💬 このAI分析について質問する</div>
+  <div class="aiChatHistory" id="aiChatHistory-plan" aria-live="polite"></div>
+  <div class="aiChatInputRow"><textarea id="aiChatInput-plan" rows="2" maxlength="1000" placeholder="例：次回どの店舗を優先すべき？"></textarea><button type="button" class="primaryBtn" id="aiChatSend-plan" onclick="sendAiChat('plan')">送信</button></div>
+  <div class="mini" id="aiChatStatus-plan">質問するとAI APIを使用します。履歴はこの端末に保存されます。</div>
+</div>
       <div id="aiNextPlanRouteActions" class="aiNextPlanRouteActions" hidden>
         <button id="aiApplyRouteBtn" type="button" class="primaryBtn" onclick="applyAiNextPlanToTodayRoute()">🗺️ このAIプランを今日のルートに設定</button>
         <button id="aiOptimizeRouteBtn" type="button" class="ghostBtn aiOptimizeRouteBtn" onclick="applyAiOptimizedPlanToTodayRoute()">⚡ 現在地から移動効率も含めて最適化</button>
@@ -158,6 +186,6 @@
     </div>
   </div>
 
-  <script src="./js/report.js?v=aiaccordion1"></script>
+  <script src="./js/report.js?v=aichat1"></script>
 </body>
 </html>
