@@ -3519,3 +3519,136 @@ function scrollReportToBottom(){
 }
 window.scrollReportToTop = scrollReportToTop;
 window.scrollReportToBottom = scrollReportToBottom;
+
+
+/* =========================
+   AI分析への追加質問 / 指定期間分析
+   既存AI・店舗データには変更を加えない
+========================= */
+const AI_CHAT_STORE_KEY = "sedori_ai_chat_history_v1";
+const AI_PERIOD_CACHE_KEY = "sedori_ai_period_cache_v1";
+const aiChatContexts = {};
+const aiChatBusy = new Set();
+function aiChatLoadAll(){try{return JSON.parse(localStorage.getItem(AI_CHAT_STORE_KEY)||"{}")}catch{return {}}}
+function aiChatSaveAll(data){try{localStorage.setItem(AI_CHAT_STORE_KEY,JSON.stringify(data))}catch(e){console.warn("AI chat history save failed",e)}}
+function aiChatEscape(x){return escapeHtml(String(x||""))}
+function aiChatSetContext(kind, label, payload, analysis){
+  const panel=document.getElementById("aiChatPanel-"+kind);
+  if(!panel)return;
+  if(!analysis||!payload){panel.hidden=true;delete aiChatContexts[kind];return;}
+  const fingerprint=aiPayloadFingerprint(payload);
+  const key=kind+":"+label+":"+fingerprint;
+  aiChatContexts[kind]={key,label,payload,analysis:String(analysis)};
+  panel.hidden=false;
+  aiChatRender(kind);
+}
+function aiChatRender(kind){
+  const ctx=aiChatContexts[kind],box=document.getElementById("aiChatHistory-"+kind);
+  if(!box||!ctx)return;
+  const messages=aiChatLoadAll()[ctx.key]||[];
+  box.innerHTML=messages.map(m=>`<div class="aiChatBubble ${m.role==='user'?'aiChatBubbleUser':'aiChatBubbleAi'}"><strong>${m.role==='user'?'あなた':'🤖 AI'}</strong><div>${aiChatEscape(m.text).replace(/\n/g,'<br>')}</div></div>`).join('');
+  box.scrollTop=box.scrollHeight;
+}
+async function sendAiChat(kind){
+  const ctx=aiChatContexts[kind],input=document.getElementById("aiChatInput-"+kind),btn=document.getElementById("aiChatSend-"+kind),status=document.getElementById("aiChatStatus-"+kind);
+  if(!ctx||!input||aiChatBusy.has(kind))return;
+  const question=input.value.trim();if(!question)return;
+  if(question.length>1000){alert('質問は1000文字以内にしてください。');return;}
+  const all=aiChatLoadAll(),history=all[ctx.key]||[];
+  aiChatBusy.add(kind);btn.disabled=true;btn.textContent='回答中…';if(status)status.textContent='AIが回答を作成しています…';
+  try{
+    const res=await fetch(AI_WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'ai_chat',periodLabel:ctx.label,analysisData:ctx.payload,analysis:ctx.analysis,question,history:history.slice(-8)})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok||!data.ok||!data.analysis)throw new Error(data.details||data.error||`HTTP ${res.status}`);
+    all[ctx.key]=[...history,{role:'user',text:question},{role:'assistant',text:String(data.analysis)}].slice(-30);
+    aiChatSaveAll(all);input.value='';aiChatRender(kind);
+    if(status)status.textContent='回答を保存しました。続けて質問できます。';
+  }catch(e){if(status)status.textContent='質問できませんでした：'+String(e?.message||e)}
+  finally{aiChatBusy.delete(kind);btn.disabled=false;btn.textContent='送信';}
+}
+window.sendAiChat=sendAiChat;
+function aiChatRestoreDaily(){
+  const day=selectedDay||todayStr(),payload=buildAiAnalysisPayload(day),cached=loadAiDeepCache()[day];
+  aiChatSetContext('daily',day,payload,cached?.fingerprint===aiPayloadFingerprint(payload)?cached.analysis:null);
+}
+function aiChatRestoreMonthly(){
+  const month=selectedMonth||currentMonthStr(),payload=buildAiMonthlyAnalysisPayload(month),cached=loadAiMonthlyCache()[month];
+  aiChatSetContext('monthly',month,payload,cached?.fingerprint===aiPayloadFingerprint(payload)?cached.analysis:null);
+}
+function aiChatRestorePlan(){
+  const payload=buildAiNextPlanPayload(),fp=aiPlanFingerprint(payload),cached=loadAiNextPlanCache()[fp];
+  aiChatSetContext('plan',String(payload.conditions?.plannedDate||'next_plan'),payload,cached?.plan||null);
+}
+function aiPeriodMonthKeys(){
+  const end=selectedMonth||currentMonthStr(),mode=selectedRangeMode;
+  if(mode==='month')return [end];
+  const count=mode==='3m'?3:mode==='6m'?6:mode==='12m'?12:999;
+  const available=new Set((loadLogs()||[]).map(x=>ym(ymd(x.date))).filter(Boolean));
+  const keys=[];const [year,month]=end.split('-').map(Number);
+  for(let i=0;i<count;i++){
+    const d=new Date(Date.UTC(year,month-1-i,1));const k=`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
+    if(mode==='total'&&i>0&&!available.size)break;
+    if(mode==='total'&&i>0&&keys.length&&k< [...available].sort()[0])break;
+    keys.push(k);
+  }
+  return keys;
+}
+function buildAiPeriodPayload(){
+  const months=aiPeriodMonthKeys(),monthSet=new Set(months),logs=loadLogs(),stores=loadStores();
+  const filtered=logs.filter(x=>monthSet.has(ym(ymd(x.date))));
+  const days=Array.from(new Set(filtered.map(x=>ymd(x.date)).filter(Boolean))).sort().map(d=>aiEnrichDay(aiDayRawStats(filtered,d))).filter(x=>x.visits>0||x.success>0||x.items>0||x.profit!==0);
+  const totals=days.reduce((a,x)=>{for(const k of ['profit','visits','success','items','activityMinutes'])a[k]+=Number(x[k]||0);return a},{profit:0,visits:0,success:0,items:0,activityMinutes:0});
+  totals.successRate=totals.visits?totals.success/totals.visits*100:0;
+  totals.profitPerHour=totals.activityMinutes?totals.profit/(totals.activityMinutes/60):null;
+  totals.profitPerVisit=totals.visits?totals.profit/totals.visits:null;
+  totals.sourcingDays=days.length;
+  const byStore=new Map();
+  for(const m of months){for(const item of aiMonthlyStoreAnalysis(logs,stores,m)){
+    const old=byStore.get(item.storeId)||{storeId:item.storeId,name:item.name,pref:item.pref,visits:0,success:0,items:0,profit:0};
+    for(const k of ['visits','success','items','profit'])old[k]+=Number(item[k]||0);byStore.set(item.storeId,old);
+  }}
+  const topStores=[...byStore.values()].map(x=>({...x,successRate:x.visits?x.success/x.visits*100:0,profitPerVisit:x.visits?x.profit/x.visits:0})).sort((a,b)=>b.profit-a.profit).slice(0,20);
+  return {schemaVersion:1,periodType:selectedRangeMode,periodLabel:getRangeLabel(selectedRangeMode,selectedMonth||currentMonthStr()),months:months.slice().reverse(),totals,averagePerSourcingDay:aiAverageDays(days),topStores,monthlyTotals:months.slice().reverse().map(m=>{const p=buildAiMonthlyAnalysisPayload(m);return {month:m,totals:p.totals}}),dataQuality:{sourcingDays:days.length,logCount:filtered.length}};
+}
+function aiPeriodRestore(){
+  const card=document.getElementById('aiPeriodAnalysisCard');if(!card)return;
+  const active=selectedRangeMode!=='month';card.hidden=!active;
+  if(!active){aiChatSetContext('period','',null,null);return;}
+  const payload=buildAiPeriodPayload(),label=payload.periodLabel,fp=aiPayloadFingerprint(payload),cached=aiPeriodLoad()[label];
+  document.getElementById('aiPeriodLabel').textContent=label;
+  const result=document.getElementById('aiPeriodAnalysisResult'),btn=document.getElementById('aiPeriodAnalysisBtn');
+  if(cached?.fingerprint===fp&&cached.analysis){showAiDeepAnalysis(result,cached.analysis);btn.textContent='🤖 この期間をAIで再分析';aiChatSetContext('period',label,payload,cached.analysis)}
+  else{result.hidden=true;result.innerHTML='';btn.textContent='🤖 この期間をAIで分析';aiChatSetContext('period','',null,null)}
+}
+function aiPeriodLoad(){try{return JSON.parse(localStorage.getItem(AI_PERIOD_CACHE_KEY)||'{}')}catch{return {}}}
+async function requestAiPeriodAnalysis(){
+  const payload=buildAiPeriodPayload(),label=payload.periodLabel,fp=aiPayloadFingerprint(payload),btn=document.getElementById('aiPeriodAnalysisBtn'),result=document.getElementById('aiPeriodAnalysisResult'),meta=document.getElementById('aiPeriodAnalysisMeta');
+  btn.disabled=true;btn.textContent='分析中…';result.hidden=false;result.innerHTML='<div class="aiDeepAnalysisLoading">🤖 指定期間を分析中です…</div>';
+  try{
+    const res=await fetch(AI_WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'period_summary',analysisData:payload})});
+    const data=await res.json().catch(()=>({}));if(!res.ok||!data.ok||!data.analysis)throw new Error(data.details||data.error||`HTTP ${res.status}`);
+    const cache=aiPeriodLoad();cache[label]={fingerprint:fp,analysis:String(data.analysis),createdAt:new Date().toISOString()};localStorage.setItem(AI_PERIOD_CACHE_KEY,JSON.stringify(cache));
+    showAiDeepAnalysis(result,data.analysis);aiChatSetContext('period',label,payload,data.analysis);if(meta)meta.textContent='分析結果を保存しました。';
+  }catch(e){result.innerHTML=`<div class="aiDeepAnalysisError">${aiChatEscape(e?.message||e)}</div>`;if(meta)meta.textContent='Workerの更新を確認してください。'}
+  finally{btn.disabled=false;btn.textContent='🤖 この期間をAIで再分析'}
+}
+window.requestAiPeriodAnalysis=requestAiPeriodAnalysis;
+// Keep existing AI analysis display and caching paths untouched; hook only after render.
+const aiChatOriginalShowDeep=showAiDeepAnalysis;
+showAiDeepAnalysis=function(resultEl,analysis){
+  aiChatOriginalShowDeep(resultEl,analysis);
+  if(resultEl?.id==='aiDeepAnalysisResult')aiChatSetContext('daily',selectedDay||todayStr(),buildAiAnalysisPayload(selectedDay||todayStr()),analysis);
+  if(resultEl?.id==='aiMonthlyAnalysisResult')aiChatSetContext('monthly',selectedMonth||currentMonthStr(),buildAiMonthlyAnalysisPayload(selectedMonth||currentMonthStr()),analysis);
+};
+const aiChatOriginalBoot=bootReport;
+bootReport=function(){aiChatOriginalBoot();aiChatRestoreDaily();aiChatRestoreMonthly();aiPeriodRestore();};
+// Next-plan uses its own renderer, so observe result changes and reuse saved plan.
+function aiChatInitPlanObserver(){
+  const el=document.getElementById('aiNextPlanResult');if(!el)return;
+  const observer=new MutationObserver(()=>{if(!el.hidden&&el.querySelector('.aiPlanCards'))aiChatRestorePlan();else if(!el.hidden)aiChatSetContext('plan','',null,null)});
+  observer.observe(el,{childList:true});
+  aiChatRestorePlan();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',aiChatInitPlanObserver);else aiChatInitPlanObserver();
+
+window.addEventListener("load",()=>{try{aiChatRestoreDaily();aiChatRestoreMonthly();aiPeriodRestore();}catch(e){console.error("AI chat init",e)}});
