@@ -3023,7 +3023,7 @@ function renderAiDeepAnalysisHtml(text) {
     const kind = aiDeepSectionKind(sec.title || (idx===0 ? "総合評価" : ""));
     const body = sec.lines.join("\n").trim();
     const displayTitle = sec.title ? sec.title.replace(/^\d+[\.．、):：]\s*/, "").trim() : kind.label;
-    const safeBody = escapeHtml(body).replace(/^[-・]\s*/gm, "• ").replace(/\n/g,"<br>");
+    const safeBody = aiChatMarkdown(body);
     return `<section class="aiDeepCard aiDeepCard--${kind.cls}"><div class="aiDeepCardTitle"><span>${kind.icon}</span><span>${escapeHtml(displayTitle || kind.label)}</span></div><div class="aiDeepCardBody">${safeBody || "データ不足"}</div></section>`;
   }).join("")}</div></details>`;
 }
@@ -3442,7 +3442,7 @@ function renderAiNextPlanHtml(text) {
   const push=()=>{if(cur.title||cur.lines.some(x=>x.trim()))sections.push(cur);cur={title:"",lines:[]};};
   for(const line of lines){if(isHead(line)){push();cur.title=line.trim().replace(/^#{1,4}\s*/,"").replace(/^【|】$/g,"");}else cur.lines.push(line);} push();
   if(!sections.length)sections.push({title:"おすすめプラン",lines:[raw]});
-  return `<div class="aiDeepAnalysisHeader"><div class="aiDeepAnalysisTitle">🧭 AI次回仕入れプラン</div><div class="aiDeepAnalysisSub">蓄積データと入力条件からAIが作成したプランです</div></div><div class="aiPlanCards">${sections.map((s,i)=>{const k=aiPlanSectionKind(s.title||(i===0?"おすすめプラン":""));const body=escapeHtml(s.lines.join("\n").trim()).replace(/^[-・]\s*/gm,"• ").replace(/\n/g,"<br>");return `<section class="aiPlanCard aiPlanCard--${k.cls}"><div class="aiPlanCardTitle"><span>${k.icon}</span><span>${escapeHtml(s.title||k.label)}</span></div><div class="aiPlanCardBody">${body||"データ不足"}</div></section>`;}).join("")}</div>`;
+  return `<div class="aiDeepAnalysisHeader"><div class="aiDeepAnalysisTitle">🧭 AI次回仕入れプラン</div><div class="aiDeepAnalysisSub">蓄積データと入力条件からAIが作成したプランです</div></div><div class="aiPlanCards">${sections.map((s,i)=>{const k=aiPlanSectionKind(s.title||(i===0?"おすすめプラン":""));const body=aiChatMarkdown(s.lines.join("\n").trim());return `<section class="aiPlanCard aiPlanCard--${k.cls}"><div class="aiPlanCardTitle"><span>${k.icon}</span><span>${escapeHtml(s.title||k.label)}</span></div><div class="aiPlanCardBody">${body||"データ不足"}</div></section>`;}).join("")}</div>`;
 }
 
 async function requestAiNextPlan() {
@@ -3532,6 +3532,29 @@ const aiChatBusy = new Set();
 function aiChatLoadAll(){try{return JSON.parse(localStorage.getItem(AI_CHAT_STORE_KEY)||"{}")}catch{return {}}}
 function aiChatSaveAll(data){try{localStorage.setItem(AI_CHAT_STORE_KEY,JSON.stringify(data))}catch(e){console.warn("AI chat history save failed",e)}}
 function aiChatEscape(x){return escapeHtml(String(x||""))}
+/* 外部ライブラリ不要・HTMLは先にエスケープしてからMarkdownの一部を装飾 */
+function aiChatInlineMarkdown(text){
+  return aiChatEscape(text)
+    .replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>')
+    .replace(/__([^_\n]+)__/g,'<strong>$1</strong>')
+    .replace(/`([^`\n]+)`/g,'<code>$1</code>');
+}
+function aiChatMarkdown(text){
+  const lines=String(text||'').replace(/\r/g,'').split('\n');
+  let html='',listType='';
+  const closeList=()=>{if(listType){html+=`</${listType}>`;listType='';}};
+  for(const line of lines){
+    const s=line.trim();
+    if(!s){closeList();html+='<div class="aiChatParagraphGap"></div>';continue;}
+    const heading=s.match(/^#{1,4}\s+(.+)$/);
+    if(heading){closeList();html+=`<div class="aiChatSubheading">${aiChatInlineMarkdown(heading[1])}</div>`;continue;}
+    const numbered=s.match(/^(\d+)[.)．、]\s+(.+)$/);
+    const bullet=s.match(/^[-*・•]\s+(.+)$/);
+    if(numbered||bullet){const next=numbered?'ol':'ul';if(listType!==next){closeList();html+=`<${next}>`;listType=next;}html+=`<li>${aiChatInlineMarkdown((numbered||bullet)[numbered?2:1])}</li>`;continue;}
+    closeList();html+=`<div class="aiChatLine">${aiChatInlineMarkdown(s)}</div>`;
+  }
+  closeList();return html;
+}
 function aiChatSetContext(kind, label, payload, analysis){
   const panel=document.getElementById("aiChatPanel-"+kind);
   if(!panel)return;
@@ -3546,7 +3569,7 @@ function aiChatRender(kind){
   const ctx=aiChatContexts[kind],box=document.getElementById("aiChatHistory-"+kind);
   if(!box||!ctx)return;
   const messages=aiChatLoadAll()[ctx.key]||[];
-  box.innerHTML=messages.map(m=>`<div class="aiChatBubble ${m.role==='user'?'aiChatBubbleUser':'aiChatBubbleAi'}"><strong>${m.role==='user'?'あなた':'🤖 AI'}</strong><div>${aiChatEscape(m.text).replace(/\n/g,'<br>')}</div></div>`).join('');
+  box.innerHTML=messages.map(m=>`<div class="aiChatBubble ${m.role==='user'?'aiChatBubbleUser':'aiChatBubbleAi'}"><strong>${m.role==='user'?'あなた':'🤖 AI'}</strong><div>${aiChatMarkdown(m.text)}</div></div>`).join('');
   box.scrollTop=box.scrollHeight;
 }
 /* 全期間の実績を質問時に添付する（閲覧対象期間とは区別する） */
@@ -3571,14 +3594,20 @@ function buildAiChatLifetimeContext(){
   totals.successRate=totals.visits>0?totals.success/totals.visits*100:0;
   totals.profitPerVisit=totals.visits>0?totals.profit/totals.visits:null;
   totals.sourcingDays=sourcingDays.size;
-  const allStores=[...byStore.values()].map(x=>({...x,successRate:x.visits>0?x.success/x.visits*100:0,profitPerVisit:x.visits>0?x.profit/x.visits:null}));
-  allStores.sort((a,b)=>b.profit-a.profit);
-  // 全店を送信するが巨大な端末データでもAPI入力が膨らみ過ぎないよう上限を設定。
-  const storeLimit=120;
-  return {schemaVersion:1,scope:'all_recorded_history',firstMonth:months[0]||null,lastMonth:months.at(-1)||null,
+  // 全店舗を省略せずコンパクトな集計レコードとして送信する。
+  // 詳細ログ・住所・メモは送らない。未訪問店舗も0実績として含める。
+  for(const [id,info] of storeNames){
+    if(!byStore.has(id))byStore.set(id,{storeId:id,...info,profit:0,visits:0,success:0,items:0});
+  }
+  const allStores=[...byStore.values()].map(x=>({
+    storeId:x.storeId,name:x.name,pref:x.pref,
+    visits:x.visits,success:x.success,items:x.items,profit:x.profit,
+    successRate:x.visits>0?Math.round(x.success/x.visits*10000)/100:0
+  })).sort((a,b)=>b.profit-a.profit);
+  return {schemaVersion:2,scope:'all_recorded_history',firstMonth:months[0]||null,lastMonth:months.at(-1)||null,
     totals,monthlyTrend:[...byMonth.values()].sort((a,b)=>a.month.localeCompare(b.month)).map(x=>({...x,successRate:x.visits?x.success/x.visits*100:0})),
-    stores:allStores.slice(0,storeLimit),storeCount:allStores.length,storesOmitted:Math.max(0,allStores.length-storeLimit),
-    dataQuality:{logCount:logs.length,storeCount:stores.length,note:'記録された仕入れ活動のみ。未記録の実績は含まない。'}};
+    stores:allStores,storeCount:allStores.length,storesOmitted:0,
+    dataQuality:{logCount:logs.length,storeCount:stores.length,note:'全登録店舗の累計実績。未訪問店舗は0実績。記録された活動のみ。'}};
 }
 async function sendAiChat(kind){
   const ctx=aiChatContexts[kind],input=document.getElementById("aiChatInput-"+kind),btn=document.getElementById("aiChatSend-"+kind),status=document.getElementById("aiChatStatus-"+kind);
@@ -3586,9 +3615,11 @@ async function sendAiChat(kind){
   const question=input.value.trim();if(!question)return;
   if(question.length>1000){alert('質問は1000文字以内にしてください。');return;}
   const all=aiChatLoadAll(),history=all[ctx.key]||[];
+  const lifetimeData=buildAiChatLifetimeContext();
+  if(JSON.stringify(lifetimeData).length>90000){if(status)status.textContent='全店舗データが送信上限を超えました。データを省略せずに扱うため、管理者に相談してください。';return;}
   aiChatBusy.add(kind);btn.disabled=true;btn.textContent='回答中…';if(status)status.textContent='AIが回答を作成しています…';
   try{
-    const res=await fetch(AI_WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'ai_chat',periodLabel:ctx.label,analysisData:ctx.payload,lifetimeData:buildAiChatLifetimeContext(),analysis:ctx.analysis,question,history:history.slice(-8)})});
+    const res=await fetch(AI_WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'ai_chat',periodLabel:ctx.label,analysisData:ctx.payload,lifetimeData,analysis:ctx.analysis,question,history:history.slice(-8)})});
     const data=await res.json().catch(()=>({}));
     if(!res.ok||!data.ok||!data.analysis)throw new Error(data.details||data.error||`HTTP ${res.status}`);
     all[ctx.key]=[...history,{role:'user',text:question},{role:'assistant',text:String(data.analysis)}].slice(-30);
