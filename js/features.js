@@ -42,6 +42,99 @@ function saveActiveSourcingSession(session) {
   localStorage.setItem(ACTIVE_SOURCING_SESSION_KEY, JSON.stringify(session));
 }
 
+/* 店舗別の入退店履歴。仕入れ活動セッションとは独立して保存する。 */
+const STORE_DWELL_HISTORY_KEY = "store_dwell_history_v1";
+const ACTIVE_STORE_DWELL_KEY = "active_store_dwell_v1";
+
+function loadStoreDwellHistory() {
+  try {
+    const v = JSON.parse(localStorage.getItem(STORE_DWELL_HISTORY_KEY) || "[]");
+    return Array.isArray(v) ? v : [];
+  } catch (e) { console.error(e); return []; }
+}
+function loadActiveStoreDwell() {
+  try {
+    const v = JSON.parse(localStorage.getItem(ACTIVE_STORE_DWELL_KEY) || "null");
+    return v && typeof v === "object" && v.storeId && v.enteredAt ? v : null;
+  } catch (e) { console.error(e); return null; }
+}
+function saveActiveStoreDwell(v) {
+  if (v) localStorage.setItem(ACTIVE_STORE_DWELL_KEY, JSON.stringify(v));
+  else localStorage.removeItem(ACTIVE_STORE_DWELL_KEY);
+}
+function formatDwellDateTime(iso) {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "--";
+  const date = [d.getFullYear(), String(d.getMonth()+1).padStart(2,"0"), String(d.getDate()).padStart(2,"0")].join("-");
+  return `${date} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
+function parseDwellExitInput(value) {
+  const m = String(value || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/);
+  if (!m) return null;
+  const [y, mo, day, h, min] = m.slice(1).map(Number);
+  const d = new Date(y, mo-1, day, h, min);
+  if (d.getFullYear() !== y || d.getMonth() !== mo-1 || d.getDate() !== day || d.getHours() !== h || d.getMinutes() !== min) return null;
+  return d.toISOString();
+}
+function closeStoreDwell(exitIso, maximumIso) {
+  const active = loadActiveStoreDwell();
+  if (!active) return false;
+  const start = Date.parse(active.enteredAt), end = Date.parse(exitIso), max = Date.parse(maximumIso || new Date().toISOString());
+  if (![start,end,max].every(Number.isFinite) || end < start || end > max) {
+    alert("退出時刻は入店時刻以降、現在時刻以前で入力してください。");
+    return false;
+  }
+  const history = loadStoreDwellHistory();
+  history.push({ ...active, exitedAt: exitIso, durationMinutes: Math.max(0, Math.round((end-start)/60000)) });
+  localStorage.setItem(STORE_DWELL_HISTORY_KEY, JSON.stringify(history));
+  saveActiveStoreDwell(null);
+  if (typeof saveAutoBackup === "function") saveAutoBackup();
+  if (typeof forceStoreRenderRefresh === "function") forceStoreRenderRefresh();
+  return true;
+}
+function askPreviousStoreExit(active, maximumIso) {
+  const input = prompt([
+    `「${active.storeName}」が退出されていません。`,
+    `入店：${formatDwellDateTime(active.enteredAt)}`,
+    "退出時刻を YYYY-MM-DD HH:mm 形式で入力してください。",
+    "日付をまたいだ場合も日付を指定できます。",
+    "キャンセルすると次の訪問は記録しません。"
+  ].join("\n"), formatDwellDateTime(maximumIso));
+  if (input === null) return false;
+  const iso = parseDwellExitInput(input);
+  if (!iso) { alert("例：2026-11-09 15:30 の形式で入力してください。"); return false; }
+  return closeStoreDwell(iso, maximumIso);
+}
+function exitStore(i) {
+  const store = stores[i];
+  const active = loadActiveStoreDwell();
+  if (!store || !active || String(store.id) !== String(active.storeId)) {
+    alert("この店舗は現在滞在中ではありません。"); return;
+  }
+  if (!closeStoreDwell(new Date().toISOString())) return;
+  render();
+}
+function renderStoreDwellInfo(storeId) {
+  const active = loadActiveStoreDwell();
+  if (active && String(active.storeId) === String(storeId)) {
+    return `<div class="mini mt8" style="color:#137b46;font-weight:700">🟢 滞在中・入店 ${escapeHtml(formatDwellDateTime(active.enteredAt))}</div>`;
+  }
+  const records = loadStoreDwellHistory().filter(x => String(x.storeId) === String(storeId));
+  if (!records.length) return "";
+  const last = records[records.length-1];
+  return `<div class="mini mt8">🕒 前回滞在 ${escapeHtml(formatSourcingDuration(last.durationMinutes))}（${escapeHtml(formatDwellDateTime(last.enteredAt))}）</div>`;
+}
+function renderStoreExitButton(i, storeId) {
+  const active = loadActiveStoreDwell();
+  const here = active && String(active.storeId) === String(storeId);
+  return `<div class="mt8"><button ${makeButtonStyle(here ? "#dff7e8" : "#eef1f7", here ? "#129b52" : "#777777")} onclick="exitStore(${i})" ${here ? "" : "disabled"}>店舗退出${here ? "（滞在中）" : ""}</button></div>`;
+}
+function restoreStoreDwellFromBackup(data) {
+  if (Array.isArray(data.storeDwellHistory)) localStorage.setItem(STORE_DWELL_HISTORY_KEY, JSON.stringify(data.storeDwellHistory));
+  else localStorage.removeItem(STORE_DWELL_HISTORY_KEY);
+  saveActiveStoreDwell(data.activeStoreDwell && typeof data.activeStoreDwell === "object" ? data.activeStoreDwell : null);
+}
+
 function getSourcingTotalsSnapshot() {
   return {
     visits: stores.reduce((sum, x) => sum + Number(x.visits || 0), 0),
@@ -168,6 +261,11 @@ function endSourcingSession() {
     return;
   }
 
+  const openStore = loadActiveStoreDwell();
+  if (openStore) {
+    alert(`「${openStore.storeName}」が退出されていません。先に店舗退出を記録してください。`);
+    return;
+  }
   const nowIso = new Date().toISOString();
   const duration = calcSourcingDurationMinutes(active.startAt, nowIso);
   const ok = confirm([
@@ -242,6 +340,11 @@ function resolveStaleSourcingSession() {
   const end = new Date(y, m - 1, d, hh, mm, 0, 0);
   if (end.getTime() < new Date(active.startAt).getTime()) {
     alert("終了時刻が開始時刻より前になっています。");
+    return;
+  }
+  const openStore = loadActiveStoreDwell();
+  if (openStore) {
+    alert(`「${openStore.storeName}」が退出されていません。先に店舗退出を記録してください。`);
     return;
   }
   completeSourcingSession(active, end.toISOString());
@@ -728,7 +831,9 @@ function toggleBackupAccordion(forceOpen = null) {
 
 function exportBackup() {
   const data = {
-    version: 4,
+    version: 5,
+    storeDwellHistory: loadStoreDwellHistory(),
+    activeStoreDwell: loadActiveStoreDwell(),
     exportedAt: new Date().toISOString(),
     stores,
     logs,
@@ -785,6 +890,7 @@ function importBackup(event) {
 
       restoreStoreMiniMemosFromBackup(parsed.storeMiniMemos || {});
       restoreSourcingSessionsFromBackup(parsed);
+      restoreStoreDwellFromBackup(parsed);
 
       syncStoreProfitsFromLogs();
 
@@ -837,6 +943,7 @@ function restoreAutoBackup() {
 
   restoreStoreMiniMemosFromBackup(data.storeMiniMemos || {});
   restoreSourcingSessionsFromBackup(data);
+  restoreStoreDwellFromBackup(data);
 
   syncStoreProfitsFromLogs();
 
@@ -1652,6 +1759,10 @@ async function editStore(i) {
 function deleteStore(i) {
   const s = stores[i];
   if (!s) return;
+  const activeDwell = loadActiveStoreDwell();
+  if (activeDwell && String(activeDwell.storeId) === String(s.id)) {
+    alert("滞在中の店舗は削除できません。先に店舗退出を記録してください。"); return;
+  }
   if (!confirm(`「${s.name}」を削除しますか？`)) return;
 
   stores.splice(i, 1);
@@ -1726,10 +1837,19 @@ function visit(i) {
   const s = stores[i];
   if (!s) return;
 
+  const arrivedAt = new Date().toISOString();
+  const openStore = loadActiveStoreDwell();
+  if (openStore && !askPreviousStoreExit(openStore, arrivedAt)) return;
+
   if (!loadActiveSourcingSession()) {
     startSourcingSession(s);
   }
   recordSourcingVisit(s.id);
+  saveActiveStoreDwell({
+    id: typeof ensureId === "function" ? ensureId() : `dwell_${Date.now()}`,
+    storeId: String(s.id), storeName: String(s.name || ""), enteredAt: arrivedAt
+  });
+  forceStoreRenderRefresh();
 
   s.visits += 1;
   s.lastVisitDate = tokyoDateStr();
@@ -1786,6 +1906,9 @@ function forceStoreRenderRefresh() {
 function visitMinus(i) {
   const s = stores[i];
   if (!s) return;
+  if (loadActiveStoreDwell()?.storeId === String(s.id)) {
+    alert("滞在中の訪問回数は減らせません。先に店舗退出を記録してください。"); return;
+  }
 
   const currentVisits = Number(s.visits || 0);
   const currentSuccess = Number(s.buyDays || 0);

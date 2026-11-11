@@ -538,6 +538,7 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
         <span>個数 ${m.items}個</span>
       </div>
 
+      ${renderStoreDwellInfo(s.id)}
       <div class="mt10">
         ${renderTodayToggleButton(idx, s.today)}
       </div>
@@ -546,6 +547,8 @@ function renderCompactStoreCard(s, idx, m, dist, evalData, rateClass, expectedCl
         <button ${makeButtonStyle("#dff7e8", "#129b52")} onclick="visit(${idx})">訪問＋</button>
         <button ${makeButtonStyle("#e7f0ff", "#2563eb")} onclick="itemsPlus(${idx})">個数＋</button>
       </div>
+
+      ${renderStoreExitButton(idx, s.id)}
 
       <div class="row2 mt8">
         <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="navigateToStore(${idx})">ナビ</button>
@@ -621,6 +624,7 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
         ${streak >= 3 ? `<div class="detailLine detailWarn">⚠️ ${streak}回連続成功なし</div>` : ``}
       </div>
 
+      ${renderStoreDwellInfo(s.id)}
       <div class="mt10">
         ${renderTodayToggleButton(idx, s.today)}
       </div>
@@ -629,6 +633,8 @@ function renderDetailStoreCard(s, idx, m, dist, evalData, rateClass, expectedCla
         <button ${makeButtonStyle("#dff7e8", "#129b52")} onclick="visit(${idx})">訪問＋</button>
         <button ${makeButtonStyle("#eef1f7", "#1f2340")} onclick="visitMinus(${idx})">訪問−</button>
       </div>
+
+      ${renderStoreExitButton(idx, s.id)}
 
       <div class="row2 mt8">
         <button ${makeButtonStyle("#e7f0ff", "#2563eb")} onclick="itemsPlus(${idx})">個数＋</button>
@@ -1123,6 +1129,8 @@ function render() {
   const filterValues = getFilterValues();
   const signature = JSON.stringify({
     ids: list.map(s => s.id),
+    activeStoreDwell: typeof loadActiveStoreDwell === "function" ? loadActiveStoreDwell() : null,
+    storeDwellHistoryCount: typeof loadStoreDwellHistory === "function" ? loadStoreDwellHistory().length : 0,
     q: filterValues.q,
     prefFilter: filterValues.prefFilter,
     minExpected: filterValues.minExpected,

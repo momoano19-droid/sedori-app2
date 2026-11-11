@@ -427,7 +427,9 @@ function saveAutoBackup() {
     localStorage.setItem(
       PRIMARY_AUTO_BACKUP_KEY,
       JSON.stringify({
-        version: 4,
+        version: 5,
+        storeDwellHistory: typeof loadStoreDwellHistory === "function" ? loadStoreDwellHistory() : [],
+        activeStoreDwell: typeof loadActiveStoreDwell === "function" ? loadActiveStoreDwell() : null,
         savedAt: new Date().toISOString(),
         stores:
           typeof stores !== "undefined" &&
@@ -487,6 +489,8 @@ function getAutoBackup() {
       return {
         version: Number(parsed.version || 1),
         savedAt: String(parsed.savedAt || ""),
+        storeDwellHistory: Array.isArray(parsed.storeDwellHistory) ? parsed.storeDwellHistory : [],
+        activeStoreDwell: parsed.activeStoreDwell && typeof parsed.activeStoreDwell === "object" ? parsed.activeStoreDwell : null,
 
         stores: Array.isArray(parsed.stores)
           ? parsed.stores.map(normalizeStore)
