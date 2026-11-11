@@ -3543,9 +3543,23 @@ function aiChatMarkdown(text){
   const lines=String(text||'').replace(/\r/g,'').split('\n');
   let html='',listType='';
   const closeList=()=>{if(listType){html+=`</${listType}>`;listType='';}};
-  for(const line of lines){
-    const s=line.trim();
+  const isTableLine=(line)=>/^\s*\|.*\|\s*$/.test(line);
+  const cells=(line)=>line.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(x=>x.trim());
+  const isSeparator=(line)=>{const a=cells(line);return a.length>1&&a.every(x=>/^:?-{3,}:?$/.test(x));};
+  for(let i=0;i<lines.length;i++){
+    const s=lines[i].trim();
     if(!s){closeList();html+='<div class="aiChatParagraphGap"></div>';continue;}
+    // Markdown tables: render as scrollable HTML tables, never interpret table cells as HTML.
+    if(isTableLine(s)&&i+1<lines.length&&isTableLine(lines[i+1])&&isSeparator(lines[i+1])&&cells(s).length===cells(lines[i+1]).length){
+      closeList();const headers=cells(s),width=headers.length;
+      html+='<div class="aiChatTableScroll"><table class="aiChatTable"><thead><tr>'+headers.map(x=>`<th scope="col">${aiChatInlineMarkdown(x)}</th>`).join('')+'</tr></thead><tbody>';
+      i+=1;
+      while(i+1<lines.length&&isTableLine(lines[i+1])&&!isSeparator(lines[i+1])){
+        const row=cells(lines[++i]);
+        html+='<tr>'+Array.from({length:width},(_,j)=>`<td>${aiChatInlineMarkdown(row[j]||'')}</td>`).join('')+'</tr>';
+      }
+      html+='</tbody></table></div>';continue;
+    }
     const heading=s.match(/^#{1,4}\s+(.+)$/);
     if(heading){closeList();html+=`<div class="aiChatSubheading">${aiChatInlineMarkdown(heading[1])}</div>`;continue;}
     const numbered=s.match(/^(\d+)[.)．、]\s+(.+)$/);
@@ -3573,41 +3587,45 @@ function aiChatRender(kind){
   box.scrollTop=box.scrollHeight;
 }
 /* 全期間の実績を質問時に添付する（閲覧対象期間とは区別する） */
+/* 原記録は一切変更しない。成功イベント数が訪問数を超える店舗は成功率を未確定として扱う。 */
+function aiLifetimeRate(visits,success){
+  return visits>0 && success>=0 && success<=visits ? Math.round(success/visits*10000)/100 : null;
+}
 function buildAiChatLifetimeContext(){
-  const logs=loadLogs()||[], stores=loadStores()||[];
-  const months=[...new Set(logs.map(x=>ym(ymd(x.date))).filter(Boolean))].sort();
+  const logs=loadLogs()||[],stores=loadStores()||[];
+  const registered=new Map(stores.map(x=>[String(x.id),{name:String(x.name||'不明店舗'),pref:String(x.pref||'')}]));
   const byStore=new Map();
-  const storeNames=new Map(stores.map(s=>[String(s.id),{name:String(s.name||'不明店舗'),pref:String(s.pref||'')} ]));
   const totals={profit:0,visits:0,success:0,items:0};
-  const byMonth=new Map();
-  const sourcingDays=new Set();
+  const byMonth=new Map(),sourcingDays=new Set(),months=new Set();
   for(const log of logs){
     const date=ymd(log.date),month=ym(date),id=String(log.storeId||'');
     const n=Number(log.delta||0);if(!Number.isFinite(n))continue;
     const field=log.type==='visit'?'visits':log.type==='success'?'success':log.type==='items'?'items':(log.type==='profit'||log.type==='profit_adjust')?'profit':null;
     if(!field)continue;
     totals[field]+=n;
-    if(month){if(!byMonth.has(month))byMonth.set(month,{month,profit:0,visits:0,success:0,items:0});byMonth.get(month)[field]+=n;}
+    if(month){months.add(month);if(!byMonth.has(month))byMonth.set(month,{month,profit:0,visits:0,success:0,items:0});byMonth.get(month)[field]+=n;}
     if(date&&n>0&&log.type==='visit')sourcingDays.add(date);
-    if(id){if(!byStore.has(id))byStore.set(id,{storeId:id,...(storeNames.get(id)||{name:'不明店舗',pref:''}),profit:0,visits:0,success:0,items:0});byStore.get(id)[field]+=n;}
+    if(id){if(!byStore.has(id))byStore.set(id,{storeId:id,...(registered.get(id)||{name:'記録のみの店舗（登録なし）',pref:''}),profit:0,visits:0,success:0,items:0});byStore.get(id)[field]+=n;}
   }
-  totals.successRate=totals.visits>0?totals.success/totals.visits*100:0;
+  for(const [id,info] of registered){if(!byStore.has(id))byStore.set(id,{storeId:id,...info,profit:0,visits:0,success:0,items:0});}
+  const allStores=[...byStore.values()].map(x=>({
+    storeId:x.storeId,name:x.name,pref:x.pref,registered:registered.has(x.storeId),
+    visits:x.visits,success:x.success,items:x.items,profit:x.profit,
+    successRate:aiLifetimeRate(x.visits,x.success),
+    successRateStatus:x.visits===0?'no_visits':x.success>x.visits?'success_exceeds_visits':x.success<0?'negative_success':'valid'
+  })).sort((a,b)=>b.profit-a.profit);
+  const anomalies=allStores.filter(x=>x.successRateStatus==='success_exceeds_visits'||x.successRateStatus==='negative_success');
+  const monthList=[...months].sort();
+  totals.successRate=aiLifetimeRate(totals.visits,totals.success);
   totals.profitPerVisit=totals.visits>0?totals.profit/totals.visits:null;
   totals.sourcingDays=sourcingDays.size;
-  // 全店舗を省略せずコンパクトな集計レコードとして送信する。
-  // 詳細ログ・住所・メモは送らない。未訪問店舗も0実績として含める。
-  for(const [id,info] of storeNames){
-    if(!byStore.has(id))byStore.set(id,{storeId:id,...info,profit:0,visits:0,success:0,items:0});
-  }
-  const allStores=[...byStore.values()].map(x=>({
-    storeId:x.storeId,name:x.name,pref:x.pref,
-    visits:x.visits,success:x.success,items:x.items,profit:x.profit,
-    successRate:x.visits>0?Math.round(x.success/x.visits*10000)/100:0
-  })).sort((a,b)=>b.profit-a.profit);
-  return {schemaVersion:2,scope:'all_recorded_history',firstMonth:months[0]||null,lastMonth:months.at(-1)||null,
-    totals,monthlyTrend:[...byMonth.values()].sort((a,b)=>a.month.localeCompare(b.month)).map(x=>({...x,successRate:x.visits?x.success/x.visits*100:0})),
+  return {schemaVersion:3,scope:'all_recorded_history',firstMonth:monthList[0]||null,lastMonth:monthList.at(-1)||null,
+    totals,monthlyTrend:[...byMonth.values()].sort((a,b)=>a.month.localeCompare(b.month)).map(x=>({...x,successRate:aiLifetimeRate(x.visits,x.success)})),
     stores:allStores,storeCount:allStores.length,storesOmitted:0,
-    dataQuality:{logCount:logs.length,storeCount:stores.length,note:'全登録店舗の累計実績。未訪問店舗は0実績。記録された活動のみ。'}};
+    registeredStoreCount:registered.size,unregisteredLogStoreCount:allStores.filter(x=>!x.registered).length,
+    dataQuality:{logCount:logs.length,registeredStoreCount:registered.size,anomalousSuccessStoreCount:anomalies.length,
+      anomalousStoreIds:anomalies.map(x=>x.storeId),
+      note:'storeCountは登録店舗と登録外のログに残る店舗IDの和集合。registeredStoreCountが現在の登録店舗数。成功はイベント回数であり、訪問回数を超える店舗の成功率はnull（算出不可）。成功率ランキングから除外し、元の記録は変更していない。'}};
 }
 async function sendAiChat(kind){
   const ctx=aiChatContexts[kind],input=document.getElementById("aiChatInput-"+kind),btn=document.getElementById("aiChatSend-"+kind),status=document.getElementById("aiChatStatus-"+kind);
