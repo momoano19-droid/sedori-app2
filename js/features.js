@@ -1355,6 +1355,7 @@ function toggleFavoriteRoute(routeId) {
 
 // 保存済みルートの編集は、保存ボタンを押すまで本体に反映しない。
 let savedRouteEditorDraft = null;
+let savedRouteEditorSearchQuery = "";
 
 function editSavedRoute(routeId) {
   const route = savedRoutes.find(r => String(r.id) === String(routeId));
@@ -1365,15 +1366,21 @@ function editSavedRoute(routeId) {
     note: String(route.note || ""),
     storeIds: [...new Set((route.storeIds || []).map(String))]
   };
+  savedRouteEditorSearchQuery = "";
   renderSavedRouteEditor();
 }
 
 function closeSavedRouteEditor() {
   savedRouteEditorDraft = null;
+  savedRouteEditorSearchQuery = "";
   document.getElementById("savedRouteEditorOverlay")?.remove();
 }
 
 function renderSavedRouteEditor() {
+  // Keep the editor at its current scroll position after reordering.
+  const previousPanel = document.querySelector("#savedRouteEditorOverlay .savedRouteEditorPanel");
+  const previousScroll = previousPanel ? previousPanel.scrollTop : 0;
+  const pageScroll = window.scrollY;
   const draft = savedRouteEditorDraft;
   if (!draft) return;
   let overlay = document.getElementById("savedRouteEditorOverlay");
@@ -1400,7 +1407,8 @@ function renderSavedRouteEditor() {
       <div class="savedRouteEditorStores">
         ${draft.storeIds.length ? draft.storeIds.map((id, index) => {
           const store = stores.find(s => String(s.id) === id);
-          return `<div class="savedRouteEditorStore">
+          return `<div class="savedRouteEditorStore" data-route-index="${index}">
+            <button type="button" class="savedRouteEditorDragHandle" aria-label="ドラッグして順番を変更" title="ドラッグして並べ替え">⠿</button>
             <span class="savedRouteEditorStoreName">${index + 1}. ${escapeHtml(store?.name || `削除済み店舗（${id}）`)}</span>
             <button type="button" aria-label="上へ" ${index === 0 ? "disabled" : ""} onclick="moveSavedRouteEditorStore(${index},-1)">▲</button>
             <button type="button" aria-label="下へ" ${index === draft.storeIds.length - 1 ? "disabled" : ""} onclick="moveSavedRouteEditorStore(${index},1)">▼</button>
@@ -1408,19 +1416,94 @@ function renderSavedRouteEditor() {
           </div>`;
         }).join("") : '<div class="mini">店舗がありません。下から追加してください。</div>'}
       </div>
-      <label class="savedRouteEditorLabel" for="savedRouteEditorAdd">店舗を追加</label>
+      <label class="savedRouteEditorLabel" for="savedRouteEditorSearch">店舗を追加</label>
+      <input id="savedRouteEditorSearch" type="search" autocomplete="off" placeholder="店舗名・住所・都道府県で検索" value="${escapeHtml(savedRouteEditorSearchQuery)}" oninput="filterSavedRouteEditorStores(this.value)">
       <div class="savedRouteEditorAddRow">
-        <select id="savedRouteEditorAdd">
+        <select id="savedRouteEditorAdd" aria-label="追加する店舗を選択">
           <option value="">追加する店舗を選択</option>
           ${available.map(s => `<option value="${escapeHtml(String(s.id))}">${escapeHtml(s.name || "店舗名なし")}</option>`).join("")}
         </select>
-        <button type="button" class="primaryBtn" onclick="addSavedRouteEditorStore()" ${available.length ? "" : "disabled"}>追加</button>
+        <button id="savedRouteEditorAddButton" type="button" class="primaryBtn" onclick="addSavedRouteEditorStore()" disabled>追加</button>
       </div>
+      <div id="savedRouteEditorSearchCount" class="savedRouteEditorSearchCount" aria-live="polite"></div>
       <div class="savedRouteEditorActions">
         <button type="button" class="ghostBtn" onclick="closeSavedRouteEditor()">キャンセル</button>
         <button type="button" class="primaryBtn" onclick="saveSavedRouteEditor()">変更を保存</button>
       </div>
     </section>`;
+  filterSavedRouteEditorStores(savedRouteEditorSearchQuery);
+  const panel = overlay.querySelector(".savedRouteEditorPanel");
+  if (panel) panel.scrollTop = previousScroll;
+  // No page jump when the editor is refreshed.
+  if (window.scrollY !== pageScroll) window.scrollTo(0, pageScroll);
+  initSavedRouteEditorDrag(overlay);
+}
+
+// Pointer events work with both mouse and touch; drag starts only on the handle.
+function initSavedRouteEditorDrag(overlay) {
+  const list = overlay.querySelector(".savedRouteEditorStores");
+  if (!list) return;
+  let drag = null;
+  list.addEventListener("pointerdown", event => {
+    const handle = event.target.closest(".savedRouteEditorDragHandle");
+    if (!handle || event.button !== 0) return;
+    const row = handle.closest("[data-route-index]");
+    if (!row) return;
+    drag = { from: Number(row.dataset.routeIndex), to: Number(row.dataset.routeIndex), pointerId: event.pointerId };
+    handle.setPointerCapture(event.pointerId);
+    row.classList.add("savedRouteEditorDragging");
+    event.preventDefault();
+  });
+  list.addEventListener("pointermove", event => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const hovered = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-route-index]");
+    if (!hovered || !list.contains(hovered)) return;
+    drag.to = Number(hovered.dataset.routeIndex);
+    list.querySelectorAll(".savedRouteEditorDropTarget").forEach(el => el.classList.remove("savedRouteEditorDropTarget"));
+    hovered.classList.add("savedRouteEditorDropTarget");
+  });
+  const finish = event => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const { from, to } = drag;
+    drag = null;
+    list.querySelectorAll(".savedRouteEditorDragging, .savedRouteEditorDropTarget").forEach(el => {
+      el.classList.remove("savedRouteEditorDragging", "savedRouteEditorDropTarget");
+    });
+    if (event.type === "pointercancel" || from === to) return;
+    const ids = savedRouteEditorDraft?.storeIds;
+    if (!ids || from < 0 || to < 0 || from >= ids.length || to >= ids.length) return;
+    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    renderSavedRouteEditor();
+  };
+  list.addEventListener("pointerup", finish);
+  list.addEventListener("pointercancel", finish);
+}
+
+// 入力中は編集画面全体を再描画せず、店舗候補だけを絞り込む。
+function filterSavedRouteEditorStores(query) {
+  savedRouteEditorSearchQuery = String(query || "");
+  const draft = savedRouteEditorDraft;
+  const select = document.getElementById("savedRouteEditorAdd");
+  const addButton = document.getElementById("savedRouteEditorAddButton");
+  const count = document.getElementById("savedRouteEditorSearchCount");
+  if (!draft || !select) return;
+
+  const normalize = value => String(value || "").normalize("NFKC").toLocaleLowerCase("ja").replace(/\s+/g, "");
+  const words = savedRouteEditorSearchQuery.trim().split(/\s+/).map(normalize).filter(Boolean);
+  const selected = new Set(draft.storeIds.map(String));
+  const matches = stores.filter(store => {
+    if (selected.has(String(store.id))) return false;
+    const haystack = normalize([store.name, store.address, store.pref, store.prefecture].join(" "));
+    return words.every(word => haystack.includes(word));
+  }).sort((a,b) => String(a.name || "").localeCompare(String(b.name || ""), "ja"));
+
+  const previousId = select.value;
+  select.replaceChildren(new Option("追加する店舗を選択", ""));
+  matches.forEach(store => select.add(new Option(String(store.name || "店舗名なし"), String(store.id))));
+  if (matches.some(store => String(store.id) === previousId)) select.value = previousId;
+  if (addButton) addButton.disabled = !select.value;
+  select.onchange = () => { if (addButton) addButton.disabled = !select.value; };
+  if (count) count.textContent = matches.length ? `${matches.length}店舗が候補にあります` : "該当する店舗がありません";
 }
 
 function moveSavedRouteEditorStore(index, delta) {
