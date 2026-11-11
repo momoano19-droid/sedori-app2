@@ -1,13 +1,13 @@
-const CACHE_NAME = "sedori-v194-ai-chat-allstores";
+const CACHE_NAME = "sedori-v195-ai-tables-dataquality";
 
 const STATIC_URLS = [
   "./",
   "./index.html",
   "./report.html",
   "./manifest.json",
-  "./css/style.css?v=aichat3",
+  "./css/style.css?v=aichat4",
   "./js/app.js?v=routesearch2",
-  "./js/report.js?v=aichat3",
+  "./js/report.js?v=aichat4",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
