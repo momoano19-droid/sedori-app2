@@ -3549,6 +3549,37 @@ function aiChatRender(kind){
   box.innerHTML=messages.map(m=>`<div class="aiChatBubble ${m.role==='user'?'aiChatBubbleUser':'aiChatBubbleAi'}"><strong>${m.role==='user'?'あなた':'🤖 AI'}</strong><div>${aiChatEscape(m.text).replace(/\n/g,'<br>')}</div></div>`).join('');
   box.scrollTop=box.scrollHeight;
 }
+/* 全期間の実績を質問時に添付する（閲覧対象期間とは区別する） */
+function buildAiChatLifetimeContext(){
+  const logs=loadLogs()||[], stores=loadStores()||[];
+  const months=[...new Set(logs.map(x=>ym(ymd(x.date))).filter(Boolean))].sort();
+  const byStore=new Map();
+  const storeNames=new Map(stores.map(s=>[String(s.id),{name:String(s.name||'不明店舗'),pref:String(s.pref||'')} ]));
+  const totals={profit:0,visits:0,success:0,items:0};
+  const byMonth=new Map();
+  const sourcingDays=new Set();
+  for(const log of logs){
+    const date=ymd(log.date),month=ym(date),id=String(log.storeId||'');
+    const n=Number(log.delta||0);if(!Number.isFinite(n))continue;
+    const field=log.type==='visit'?'visits':log.type==='success'?'success':log.type==='items'?'items':(log.type==='profit'||log.type==='profit_adjust')?'profit':null;
+    if(!field)continue;
+    totals[field]+=n;
+    if(month){if(!byMonth.has(month))byMonth.set(month,{month,profit:0,visits:0,success:0,items:0});byMonth.get(month)[field]+=n;}
+    if(date&&n>0&&log.type==='visit')sourcingDays.add(date);
+    if(id){if(!byStore.has(id))byStore.set(id,{storeId:id,...(storeNames.get(id)||{name:'不明店舗',pref:''}),profit:0,visits:0,success:0,items:0});byStore.get(id)[field]+=n;}
+  }
+  totals.successRate=totals.visits>0?totals.success/totals.visits*100:0;
+  totals.profitPerVisit=totals.visits>0?totals.profit/totals.visits:null;
+  totals.sourcingDays=sourcingDays.size;
+  const allStores=[...byStore.values()].map(x=>({...x,successRate:x.visits>0?x.success/x.visits*100:0,profitPerVisit:x.visits>0?x.profit/x.visits:null}));
+  allStores.sort((a,b)=>b.profit-a.profit);
+  // 全店を送信するが巨大な端末データでもAPI入力が膨らみ過ぎないよう上限を設定。
+  const storeLimit=120;
+  return {schemaVersion:1,scope:'all_recorded_history',firstMonth:months[0]||null,lastMonth:months.at(-1)||null,
+    totals,monthlyTrend:[...byMonth.values()].sort((a,b)=>a.month.localeCompare(b.month)).map(x=>({...x,successRate:x.visits?x.success/x.visits*100:0})),
+    stores:allStores.slice(0,storeLimit),storeCount:allStores.length,storesOmitted:Math.max(0,allStores.length-storeLimit),
+    dataQuality:{logCount:logs.length,storeCount:stores.length,note:'記録された仕入れ活動のみ。未記録の実績は含まない。'}};
+}
 async function sendAiChat(kind){
   const ctx=aiChatContexts[kind],input=document.getElementById("aiChatInput-"+kind),btn=document.getElementById("aiChatSend-"+kind),status=document.getElementById("aiChatStatus-"+kind);
   if(!ctx||!input||aiChatBusy.has(kind))return;
@@ -3557,7 +3588,7 @@ async function sendAiChat(kind){
   const all=aiChatLoadAll(),history=all[ctx.key]||[];
   aiChatBusy.add(kind);btn.disabled=true;btn.textContent='回答中…';if(status)status.textContent='AIが回答を作成しています…';
   try{
-    const res=await fetch(AI_WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'ai_chat',periodLabel:ctx.label,analysisData:ctx.payload,analysis:ctx.analysis,question,history:history.slice(-8)})});
+    const res=await fetch(AI_WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'ai_chat',periodLabel:ctx.label,analysisData:ctx.payload,lifetimeData:buildAiChatLifetimeContext(),analysis:ctx.analysis,question,history:history.slice(-8)})});
     const data=await res.json().catch(()=>({}));
     if(!res.ok||!data.ok||!data.analysis)throw new Error(data.details||data.error||`HTTP ${res.status}`);
     all[ctx.key]=[...history,{role:'user',text:question},{role:'assistant',text:String(data.analysis)}].slice(-30);
