@@ -127,7 +127,7 @@ function renderStoreDwellInfo(storeId) {
 function renderStoreExitButton(i, storeId) {
   const active = loadActiveStoreDwell();
   const here = active && String(active.storeId) === String(storeId);
-  return `<div class="mt8"><button ${makeButtonStyle(here ? "#dff7e8" : "#eef1f7", here ? "#129b52" : "#777777")} onclick="exitStore(${i})" ${here ? "" : "disabled"}>店舗退出${here ? "（滞在中）" : ""}</button></div>`;
+  return `<button type="button" class="storeDwellExitBtn" ${makeButtonStyle(here ? "#dff7e8" : "#eef1f7", here ? "#129b52" : "#777777")} onclick="exitStore(${i})" ${here ? "" : "disabled"}>店舗退出${here ? "（滞在中）" : ""}</button>`;
 }
 function restoreStoreDwellFromBackup(data) {
   if (Array.isArray(data.storeDwellHistory)) localStorage.setItem(STORE_DWELL_HISTORY_KEY, JSON.stringify(data.storeDwellHistory));
@@ -1353,24 +1353,120 @@ function toggleFavoriteRoute(routeId) {
   render();
 }
 
+// 保存済みルートの編集は、保存ボタンを押すまで本体に反映しない。
+let savedRouteEditorDraft = null;
+
 function editSavedRoute(routeId) {
-  const route = savedRoutes.find(r => r.id === routeId);
+  const route = savedRoutes.find(r => String(r.id) === String(routeId));
   if (!route) return;
+  savedRouteEditorDraft = {
+    routeId: String(route.id),
+    name: String(route.name || ""),
+    note: String(route.note || ""),
+    storeIds: [...new Set((route.storeIds || []).map(String))]
+  };
+  renderSavedRouteEditor();
+}
 
-  const name = prompt("ルート名を変更", route.name || "");
-  if (name === null) return;
+function closeSavedRouteEditor() {
+  savedRouteEditorDraft = null;
+  document.getElementById("savedRouteEditorOverlay")?.remove();
+}
 
-  const note = prompt("メモを変更", route.note || "");
-  if (note === null) return;
+function renderSavedRouteEditor() {
+  const draft = savedRouteEditorDraft;
+  if (!draft) return;
+  let overlay = document.getElementById("savedRouteEditorOverlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "savedRouteEditorOverlay";
+    overlay.className = "savedRouteEditorOverlay";
+    document.body.appendChild(overlay);
+  }
+  const selected = new Set(draft.storeIds);
+  const available = stores.filter(s => !selected.has(String(s.id)))
+    .sort((a,b) => String(a.name || "").localeCompare(String(b.name || ""), "ja"));
+  overlay.innerHTML = `
+    <section class="savedRouteEditorPanel" role="dialog" aria-modal="true" aria-label="保存済みルートを編集">
+      <div class="savedRouteEditorHeader">
+        <strong>保存済みルートを編集</strong>
+        <button type="button" class="ghostBtn" onclick="closeSavedRouteEditor()">閉じる ×</button>
+      </div>
+      <label class="savedRouteEditorLabel" for="savedRouteEditorName">ルート名</label>
+      <input id="savedRouteEditorName" maxlength="100" value="${escapeHtml(draft.name)}" oninput="savedRouteEditorDraft.name=this.value">
+      <label class="savedRouteEditorLabel" for="savedRouteEditorNote">メモ</label>
+      <textarea id="savedRouteEditorNote" rows="2" oninput="savedRouteEditorDraft.note=this.value">${escapeHtml(draft.note)}</textarea>
+      <div class="savedRouteEditorLabel">巡回順（${draft.storeIds.length}店舗）</div>
+      <div class="savedRouteEditorStores">
+        ${draft.storeIds.length ? draft.storeIds.map((id, index) => {
+          const store = stores.find(s => String(s.id) === id);
+          return `<div class="savedRouteEditorStore">
+            <span class="savedRouteEditorStoreName">${index + 1}. ${escapeHtml(store?.name || `削除済み店舗（${id}）`)}</span>
+            <button type="button" aria-label="上へ" ${index === 0 ? "disabled" : ""} onclick="moveSavedRouteEditorStore(${index},-1)">▲</button>
+            <button type="button" aria-label="下へ" ${index === draft.storeIds.length - 1 ? "disabled" : ""} onclick="moveSavedRouteEditorStore(${index},1)">▼</button>
+            <button type="button" class="savedRouteEditorRemove" onclick="removeSavedRouteEditorStore(${index})">外す</button>
+          </div>`;
+        }).join("") : '<div class="mini">店舗がありません。下から追加してください。</div>'}
+      </div>
+      <label class="savedRouteEditorLabel" for="savedRouteEditorAdd">店舗を追加</label>
+      <div class="savedRouteEditorAddRow">
+        <select id="savedRouteEditorAdd">
+          <option value="">追加する店舗を選択</option>
+          ${available.map(s => `<option value="${escapeHtml(String(s.id))}">${escapeHtml(s.name || "店舗名なし")}</option>`).join("")}
+        </select>
+        <button type="button" class="primaryBtn" onclick="addSavedRouteEditorStore()" ${available.length ? "" : "disabled"}>追加</button>
+      </div>
+      <div class="savedRouteEditorActions">
+        <button type="button" class="ghostBtn" onclick="closeSavedRouteEditor()">キャンセル</button>
+        <button type="button" class="primaryBtn" onclick="saveSavedRouteEditor()">変更を保存</button>
+      </div>
+    </section>`;
+}
 
-  route.name = String(name).trim() || route.name || "保存ルート";
-  route.note = String(note).trim();
+function moveSavedRouteEditorStore(index, delta) {
+  const ids = savedRouteEditorDraft?.storeIds;
+  if (!ids || index + delta < 0 || index + delta >= ids.length) return;
+  [ids[index], ids[index + delta]] = [ids[index + delta], ids[index]];
+  renderSavedRouteEditor();
+}
+
+function removeSavedRouteEditorStore(index) {
+  if (!savedRouteEditorDraft) return;
+  savedRouteEditorDraft.storeIds.splice(index, 1);
+  renderSavedRouteEditor();
+}
+
+function addSavedRouteEditorStore() {
+  const draft = savedRouteEditorDraft;
+  const id = document.getElementById("savedRouteEditorAdd")?.value;
+  if (!draft || !id || draft.storeIds.includes(id) || !stores.some(s => String(s.id) === id)) return;
+  draft.storeIds.push(id);
+  renderSavedRouteEditor();
+}
+
+function saveSavedRouteEditor() {
+  const draft = savedRouteEditorDraft;
+  if (!draft) return;
+  const route = savedRoutes.find(r => String(r.id) === draft.routeId);
+  if (!route) {
+    alert("編集対象のルートが見つかりません。");
+    closeSavedRouteEditor();
+    return;
+  }
+  if (!draft.storeIds.length) {
+    alert("ルートには店舗を1件以上登録してください。");
+    return;
+  }
+  route.name = String(draft.name).trim() || route.name || "保存ルート";
+  route.note = String(draft.note).trim();
+  route.storeIds = [...draft.storeIds];
   route.updatedAt = new Date().toISOString();
-
   sortSavedRoutes();
-  openSavedRouteId = routeId;
+  openSavedRouteId = route.id;
+  closeSavedRouteEditor();
   saveAll();
   render();
+  alert("保存済みルートを更新しました。今日のルートや過去の巡回履歴は変更していません。");
 }
 
 function deleteSavedRoute(routeId) {
