@@ -3663,28 +3663,55 @@ function aiRouteStoreReason(x){
   const interpretation=days==null?'初回訪問候補':days<=3?'直近訪問のため再仕入れは慎重に':days>=30&&success>0?'再訪間隔が空いた仕入れ成功店':success>0?'過去の成功実績あり':'仕入れ成功実績はまだ少なめ';
   return `${visitText}／${profitText}／${revisit}。${interpretation}`;
 }
+function aiRouteDisplayChoices(){
+  if(!aiRouteOptions.length)return [];
+  const picks=[aiRouteOptions[0]];
+  const signature=x=>(x.route||[]).map(s=>String(s.storeId)).sort().join('|');
+  const distinct=x=>!picks.some(y=>signature(x)===signature(y));
+  const near=aiRouteOptions.find(x=>x.kind==='near'&&distinct(x));
+  if(near)picks.push(near);
+  const different=aiRouteOptions.find(x=>distinct(x)&&picks.every(y=>aiRouteHaversineKm(x.seed.lat,x.seed.lng,y.seed.lat,y.seed.lng)>35));
+  if(different)picks.push(different);
+  for(const x of aiRouteOptions){if(picks.length>=3)break;if(distinct(x))picks.push(x);}
+  return picks;
+}
 function aiRouteConsistentPlanHtml(workerText){
-  const current=aiRouteOptions[aiRouteChoiceIndex]||aiRouteOptions[0],pace=aiRoutePace();
-  if(!current)return renderAiNextPlanHtml(workerText);
+  if(!aiRouteOptions.length)return renderAiNextPlanHtml(workerText);
   const day=document.getElementById('aiPlanDate')?.value||'';
   const hours=Number(document.getElementById('aiPlanHours')?.value)||8;
-  const route=current.route;
-  const sum=route.reduce((n,x)=>n+Math.max(0,Number(x.expectedProfitPerVisit)||0),0);
-  const totalVisits=route.reduce((n,x)=>n+Math.max(0,Number(x.visits)||0),0);
-  const totalSuccess=route.reduce((n,x)=>n+Math.max(0,Number(x.success)||0),0);
-  const recordedProfit=route.reduce((n,x)=>n+(Number(x.totalProfit)||0),0);
-  const experienced=route.filter(x=>Number(x.visits)>0).length;
-  const revisit=route.filter(x=>(x.daysSinceLastVisitAtPlan??x.daysSinceLastVisit)>=30 && (x.daysSinceLastVisitAtPlan??x.daysSinceLastVisit)!=null).length;
-  const near=current.kind==='near',label=near?'🚗 近場':current.kind==='best'?'🏆 最優先':current.kind==='anchor'?'⭐ 高評価店舗':'🗺️ 別エリア';
-  const rows=route.map(x=>`<li><strong>${escapeHtml(x.name)}</strong><div class="mini">${escapeHtml(aiRouteStoreReason(x))}</div></li>`).join('');
-  return `<div class="aiDeepAnalysisHeader"><div class="aiDeepAnalysisTitle">🧭 AI次回仕入れプラン</div><div class="aiDeepAnalysisSub">選択中のルートの実績とおすすめ理由を表示</div></div>
-  <div class="aiPlanCards"><section class="aiPlanCard"><div class="aiPlanCardTitle">${label}：${escapeHtml(current.seed.name)}周辺の${route.length}店舗</div>
-  <div class="aiPlanCardBody"><p>予定日：${escapeHtml(day)} ／ 現地仕入れ：${hours}時間 ／ 過去の訪問ペース：約${pace.rate.toFixed(2)}店舗/時</p>
-  <p><strong>このルートをおすすめする根拠：</strong>対象${route.length}店舗のうち${experienced}店舗に訪問実績があり、合計${totalVisits}回訪問・${totalSuccess}回仕入れ成功${totalVisits?`（記録上の成功率${Math.round(totalSuccess/totalVisits*100)}%）`:''}。累計利益${aiRouteYen(recordedProfit)}。予定日時点で前回訪問から30日以上の店舗は${revisit}店舗です。</p>
-  <p>各店舗の過去の1訪問あたり平均利益を合計した<strong>参考値：${aiRouteYen(sum)}</strong>。未訪問店舗や実績が少ない店舗の予測精度は低く、実際の利益を保証するものではありません。</p>
-  <p>成功実績・利益・再訪間隔・店舗間の距離を総合評価しています。下の店舗ごとの数字も確認してください。</p>
-  <ol>${rows}</ol><p>※再訪日数は仕入れ予定日を基準に計算。店舗間移動は直線距離に基づく概算で、往復の自宅移動は現地仕入れ時間に含みません。</p></div></section></div>
-  <details style="margin:14px 0"><summary>🤖 AIの追加分析（参考・選択中のルートと異なる店舗名を含む場合があります）</summary>${renderAiNextPlanHtml(workerText)}</details>`;
+  const pace=aiRoutePace();
+  const picks=aiRouteDisplayChoices();
+  const cards=picks.map((option,i)=>{
+    const idx=aiRouteOptions.indexOf(option),active=idx===aiRouteChoiceIndex;
+    const route=option.route||[];
+    const title=i===0?'🏆 最もおすすめするルート':`🗺️ 次のおすすめルート${i===1?'①':'②'}`;
+    const sum=route.reduce((n,x)=>n+Math.max(0,Number(x.expectedProfitPerVisit)||0),0);
+    const travel=route.reduce((n,x)=>n+(Number(x.legHours)||0),0);
+    const visits=route.reduce((n,x)=>n+Math.max(0,Number(x.visits)||0),0);
+    const success=route.reduce((n,x)=>n+Math.max(0,Number(x.success)||0),0);
+    const profit=route.reduce((n,x)=>n+(Number(x.totalProfit)||0),0);
+    const known=route.filter(x=>Number(x.visits)>0).length;
+    const days=x=>x.daysSinceLastVisitAtPlan??x.daysSinceLastVisit;
+    const revisit=route.filter(x=>days(x)!=null&&Number(days(x))>=30).length;
+    const recent=route.filter(x=>days(x)!=null&&Number(days(x))<=3).length;
+    const reason=`${route.length}店舗中${known}店舗に訪問履歴があり、合計${visits}回訪問・${success}回成功${visits?`（成功率${Math.round(success/visits*100)}%）`:''}。記録された累計利益は${aiRouteYen(profit)}、1訪問あたり平均利益の合計参考値は${aiRouteYen(sum)}です。予定日時点で30日以上再訪していない店舗は${revisit}店、直近3日以内に訪問した店舗は${recent}店。店舗間の移動概算${Math.round(travel*60)}分と仕入れ実績を総合評価しました。`;
+    const list=route.map(x=>`<li style="padding:7px 0;border-bottom:1px solid #e8edf1;line-height:1.55"><strong>${escapeHtml(x.name)}</strong><div style="font-size:.82em;color:#586578">${escapeHtml(aiRouteStoreReason(x))}</div></li>`).join('');
+    return `<section class="aiPlanCard" style="margin:0 0 14px;border:${active?'2px solid #248d73':'1px solid #dfe5eb'};border-radius:15px;overflow:hidden;background:#fff">
+      <div style="padding:15px;background:${active?'#f1faf6':'#f6f8fb'}">
+        <div style="font-weight:800;font-size:1.05em">${title}</div>
+        <div style="font-weight:700;margin-top:6px">${escapeHtml(option.seed.name)}周辺・${route.length}店舗</div>
+        <div style="font-size:.85em;color:#586578;margin-top:5px">店舗間移動 約${Math.round(travel*60)}分 ／ 利益参考値 ${aiRouteYen(sum)}</div>
+        <button type="button" onclick="aiChangeRouteChoice('${idx}')" style="margin-top:11px;border:0;border-radius:9px;padding:10px 14px;background:${active?'#207c65':'#315eb5'};color:white;font-weight:700;width:100%">${active?'✓ このルートを選択中':'このルートを選択する'}</button>
+      </div>
+      <details ${i===0||active?'open':''} style="padding:12px 15px"><summary style="cursor:pointer;font-weight:700">巡回する${route.length}店舗の順番と実績</summary><ol style="padding-left:23px;margin:12px 0 5px">${list}</ol></details>
+      <div style="padding:0 15px 15px"><div style="font-weight:800;margin:8px 0 6px">💡 おすすめする理由</div><p style="margin:0;line-height:1.7;font-size:.9em">${escapeHtml(reason)}</p></div>
+    </section>`;
+  }).join('');
+  return `<div class="aiDeepAnalysisHeader"><div class="aiDeepAnalysisTitle">🧭 AI次回仕入れプラン</div><div class="aiDeepAnalysisSub">おすすめ${picks.length}ルートを実績数値で比較</div></div>
+    <div style="padding:8px 2px 13px;font-size:.9em;color:#586578">予定日：${escapeHtml(day)} ／ 現地仕入れ：${hours}時間 ／ 過去実績：約${pace.rate.toFixed(2)}店舗/時</div>
+    <div class="aiPlanCards">${cards}</div>
+    <p style="font-size:.82em;color:#667085">※利益参考値は各店舗の過去平均を単純合計したもので予測利益や保証額ではありません。再訪間隔は仕入れ予定日基準です。移動は直線距離からの概算で、自宅から最初の店舗・最後の店舗から自宅への移動は現地仕入れ時間に含みません。</p>
+    <details style="margin:14px 0"><summary>🤖 AIの追加分析（参考・選択ルートと異なる店舗名を含む場合があります）</summary>${renderAiNextPlanHtml(workerText)}</details>`;
 }
 function aiRouteRefreshPlan(){
   const result=document.getElementById('aiNextPlanResult');
