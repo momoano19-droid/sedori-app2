@@ -3240,12 +3240,13 @@ function buildAiNextPlanPayload() {
   const historyMap=new Map(history.map(x=>[String(x.storeId),x]));
   const candidates=(stores||[]).map(s=>{
     const h=historyMap.get(String(s.id)) || {visits:0,success:0,successRate:0,items:0,profit:0,profitPerVisit:0,lastVisitDate:null};
-    const daysSince=h.lastVisitDate ? aiDateDiffDays(h.lastVisitDate, plannedDate) : null;
+    const daysSince=h.lastVisitDate ? aiDateDiffDays(h.lastVisitDate, todayStr()) : null;
+    const daysAtPlan=h.lastVisitDate && plannedDate ? aiDateDiffDays(h.lastVisitDate, plannedDate) : null;
     return {
       storeId:String(s.id||""), name:String(s.name||""), pref:String(s.pref||""), address:String(s.address||""),
       visits:Number(h.visits||0), success:Number(h.success||0), successRate:Number(h.successRate||0), items:Number(h.items||0),
       totalProfit:Number(h.profit||0), expectedProfitPerVisit:Number(h.profitPerVisit||0), lastVisitDate:h.lastVisitDate||null,
-      daysSinceLastVisit:daysSince,
+      daysSinceLastVisit:daysSince, daysSinceLastVisitAtPlan:daysAtPlan,
       hasCoordinates:aiHasValidStoreCoords(s.lat,s.lng),
       lat:aiHasValidStoreCoords(s.lat,s.lng)?Number(s.lat):null, lng:aiHasValidStoreCoords(s.lat,s.lng)?Number(s.lng):null
     };
@@ -3256,7 +3257,7 @@ function buildAiNextPlanPayload() {
   const wd=aiWeekdayLabel(plannedDate);
   const sameWd=activeDays.filter(d=>aiWeekdayLabel(d)===wd).slice(0,12).map(d=>aiEnrichDay(aiDayRawStats(logs,d))).filter(x=>x.visits>0||x.success>0||x.items>0||x.profit!==0);
   return {
-    schemaVersion:2, generatedAt:new Date().toISOString(), requestType:"next_sourcing_plan",
+    schemaVersion:3, generatedAt:new Date().toISOString(), requestType:"next_sourcing_plan",
     conditions:{plannedDate, weekday:wd, startTime, plannedHours:hours, targetProfit,
       timeBudgetDefinition:"仕入れ予定時間は現地の店舗滞在・店舗間移動・休憩の合計。自宅から最初の店舗までの往路と最後の店舗から自宅までの復路は含めない。",
       startTimeDefinition:"開始予定時刻は最初の店舗で仕入れを開始する現地時刻。自宅の出発時刻ではない。",
@@ -3490,7 +3491,7 @@ async function requestAiNextPlan() {
     return;
   }
   const payload=buildAiNextPlanPayload(), fp=aiPlanFingerprint(payload), cache=loadAiNextPlanCache(), cached=cache[fp];
-  if(cached?.plan && btn.dataset.cacheShown!=="1") { result.hidden=false; result.innerHTML=renderAiNextPlanHtml(cached.plan); updateAiPlanRouteAction(cached.plan); await aiPrepareRouteChoices(); btn.dataset.cacheShown="1"; if(meta)meta.textContent=`保存済みプラン：${formatAiDeepSavedAt(cached.createdAt)}。条件が同じなら再利用します。`; return; }
+  if(cached?.plan && btn.dataset.cacheShown!=="1") { result.hidden=false; await aiPrepareRouteChoices(); result.innerHTML=aiRouteConsistentPlanHtml(cached.plan); updateAiPlanRouteAction(cached.plan); btn.dataset.cacheShown="1"; if(meta)meta.textContent=`保存済みプラン：${formatAiDeepSavedAt(cached.createdAt)}。条件が同じなら再利用します。`; return; }
   btn.disabled=true; btn.textContent="AIプラン作成中…"; result.hidden=false; result.innerHTML='<div class="aiDeepAnalysisLoading">🤖 店舗実績を分析してプランを作成しています…</div>'; if(meta)meta.textContent="現地の仕入れ・店舗間移動・休憩で時間を計算します（自宅からの往復は除外）。";
   try {
     // APIへ送る候補データはAI判断に必要な項目だけに絞る。
@@ -3499,7 +3500,7 @@ async function requestAiNextPlan() {
       storeId:c.storeId,name:c.name,pref:c.pref,visits:c.visits,success:c.success,
       successRate:c.successRate,items:c.items,totalProfit:c.totalProfit,
       expectedProfitPerVisit:c.expectedProfitPerVisit,lastVisitDate:c.lastVisitDate,
-      daysSinceLastVisit:c.daysSinceLastVisit
+      daysSinceLastVisit:c.daysSinceLastVisit, daysSinceLastVisitAtPlan:c.daysSinceLastVisitAtPlan
     }))};
     const res=await fetch(AI_WORKER_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode:"next_plan",analysisData:apiPayload,conditions:apiPayload.conditions})});
     const data=await res.json().catch(()=>({}));
@@ -3508,7 +3509,7 @@ async function requestAiNextPlan() {
       const err=new Error(detail); err.httpStatus=res.status; throw err;
     }
     cache[fp]={plan:String(data.analysis),createdAt:new Date().toISOString(),conditions:payload.conditions}; saveAiNextPlanCache(cache);
-    result.innerHTML=renderAiNextPlanHtml(data.analysis); updateAiPlanRouteAction(data.analysis); await aiPrepareRouteChoices(); btn.dataset.cacheShown="0"; if(meta)meta.textContent=`プランを保存しました：${formatAiDeepSavedAt(cache[fp].createdAt)}`;
+    await aiPrepareRouteChoices(); result.innerHTML=aiRouteConsistentPlanHtml(data.analysis); updateAiPlanRouteAction(data.analysis); btn.dataset.cacheShown="0"; if(meta)meta.textContent=`プランを保存しました：${formatAiDeepSavedAt(cache[fp].createdAt)}`;
   } catch(e) {
     const msg=String(e?.message||e||"");
     const isRateLimit=/rate limit|tokens per min|tpm|429/i.test(msg)||Number(e?.httpStatus)===429;
@@ -3631,22 +3632,39 @@ function aiRouteFindChoices(origin){
   }
   ranked.sort((a,b)=>b.score-a.score);
   const chosen=[];
-  // 成功率・再訪時期・利益で最高評価の店舗を含む候補を必ず表示。
+  // 「最優先」は個別店舗の順位ではなく、8時間のルート全体の評価で決める。
+  // 最上位の単独店舗を含むルートは別候補として必ず残す。
+  if(ranked.length)chosen.push({...ranked[0],kind:'best'});
   const top=quality[0];
   const topChoice=ranked.find(x=>x.route.some(s=>s.storeId===top.storeId))||{seed:top,route:aiRouteOrderAround(top,candidates,hours,origin),score:0};
-  chosen.push({...topChoice,seed:top,kind:'best'});
+  if(!chosen.some(x=>x.route.some(s=>s.storeId===top.storeId)))chosen.push({...topChoice,seed:top,kind:'anchor'});
   if(origin){
     const closest=candidates.slice().sort((a,b)=>aiRouteHaversineKm(origin.lat,origin.lng,a.lat,a.lng)-aiRouteHaversineKm(origin.lat,origin.lng,b.lat,b.lng))[0];
     const near=aiRouteOrderAround(closest,candidates,hours,origin);
     chosen.push({seed:closest,route:near,score:aiRouteRank(near),kind:'near'});
   }
   for(const item of ranked){
-    if(chosen.some(x=>aiRouteHaversineKm(x.seed.lat,x.seed.lng,item.seed.lat,item.seed.lng)<32))continue;
+    if(chosen.some(x=>aiRouteHaversineKm(x.seed.lat,x.seed.lng,item.seed.lat,item.seed.lng)<40))continue;
     chosen.push(item);if(chosen.length>=8)break;
   }
   return chosen;
 }
 function aiRouteFormatHours(h){return `${Math.round(h*60)}分`;}
+function aiRouteConsistentPlanHtml(workerText){
+  const best=aiRouteOptions[0],pace=aiRoutePace();
+  if(!best)return renderAiNextPlanHtml(workerText);
+  const day=document.getElementById('aiPlanDate')?.value||'';
+  const hours=Number(document.getElementById('aiPlanHours')?.value)||8;
+  const sum=best.route.reduce((n,x)=>n+(Math.max(0,Number(x.expectedProfitPerVisit)||0)),0);
+  const rows=best.route.map((x,i)=>`<li>${i+1}. ${escapeHtml(x.name)}（成功 ${x.success}/${x.visits}回・前回訪問から今日時点 ${x.daysSinceLastVisit==null?'不明':x.daysSinceLastVisit+'日'}）</li>`).join('');
+  return `<div class="aiDeepAnalysisHeader"><div class="aiDeepAnalysisTitle">🧭 AI次回仕入れプラン</div><div class="aiDeepAnalysisSub">おすすめ本文とルート候補を同じ店舗評価・巡回順で統一</div></div>
+  <div class="aiPlanCards"><section class="aiPlanCard"><div class="aiPlanCardTitle">🏆 最優先：${escapeHtml(best.seed.name)}周辺の${best.route.length}店舗</div>
+  <div class="aiPlanCardBody"><p>予定日：${escapeHtml(day)} ／ 現地仕入れ：${hours}時間 ／ 過去実績：約${pace.rate.toFixed(2)}店舗/時</p>
+  <p>成功率・期待利益・再訪間隔と、店舗間移動を合わせて評価しました。軸店舗は1店舗目に固定しません。下の選択欄で近場や別エリアも選べます。</p>
+  <p>各店の期待利益実績を単純合計した参考値：約${Math.round(sum).toLocaleString('ja-JP')}円（実際の利益を保証するものではありません）。</p>
+  <ol>${rows}</ol><p>※経過日数は今日時点。予定日当日の経過日数とは異なります。移動時間は直線距離ベースの概算です。</p></div></section></div>
+  <details style="margin:14px 0"><summary>🤖 AIの追加分析（参考・ルート順は上記を優先）</summary>${renderAiNextPlanHtml(workerText)}</details>`;
+}
 function aiRenderRouteChoices(){
   const wrap=document.getElementById('aiRouteChoicePanel');if(!wrap)return;
   if(!aiRouteOptions.length){wrap.hidden=false;wrap.innerHTML='<div class="mini">座標が登録された候補店舗がありません。店舗の位置情報を確認してください。</div>';return;}
@@ -3659,8 +3677,8 @@ function aiRenderRouteChoices(){
   wrap.hidden=false;
   wrap.innerHTML=`<div class="aiRouteChoiceTitle">🗺️ 全店舗ルート・遠征先を選択</div>
     <p class="mini">最初の店舗への往復移動は${escapeHtml(String(hours))}時間に含めません。店舗間移動は直線距離からの概算で、実際の道路時間ではありません。</p>
-    <label class="aiRouteChoiceLabel">仕入れルート（候補を変更できます）<select id="aiRouteChoiceSelect" onchange="aiChangeRouteChoice(this.value)">${aiRouteOptions.map((x,i)=>`<option value="${i}" ${i===aiRouteChoiceIndex?'selected':''}>${x.kind==='best'?'🏆 最優先：':x.kind==='near'?'🚗 近場：':'🗺️ 別エリア：'}${escapeHtml(x.seed.name)} を含む（${x.route.length}店舗）</option>`).join('')}</select></label>
-    <div class="mini">過去実績：${pace.measured?`約${pace.rate.toFixed(2)}店舗/時（時間記録${pace.timed}日）`:`時間記録が不足のため暫定 ${pace.rate.toFixed(1)}店舗/時`} ／ 目標 約${Math.round(hours*pace.rate)}店舗。おすすめ軸店舗は途中に配置可能。訪問1〜3日以内の店舗は低評価。</div>
+    <label class="aiRouteChoiceLabel">仕入れルート（候補を変更できます）<select id="aiRouteChoiceSelect" onchange="aiChangeRouteChoice(this.value)">${aiRouteOptions.map((x,i)=>`<option value="${i}" ${i===aiRouteChoiceIndex?'selected':''}>${x.kind==='best'?'🏆 最優先：':x.kind==='near'?'🚗 近場：':x.kind==='anchor'?'⭐ 高評価店舗：':'🗺️ 別エリア：'}${escapeHtml(x.seed.name)} を含む（${x.route.length}店舗）</option>`).join('')}</select></label>
+    <div class="mini">過去実績：${pace.measured?`約${pace.rate.toFixed(2)}店舗/時（時間記録${pace.timed}日）`:`時間記録が不足のため暫定 ${pace.rate.toFixed(1)}店舗/時`} ／ 目標 約${Math.round(hours*pace.rate)}店舗。おすすめ軸店舗は途中に配置可能。訪問1〜3日以内の店舗は低評価。経過日数は今日時点。</div>
     <div class="aiRouteBudget">候補 ${aiSelectedRoute.length}店舗 ／ 店舗滞在 約${aiRouteFormatHours(dwell)} ／ 店舗間移動 約${aiRouteFormatHours(travel)} ／ 合計 約${aiRouteFormatHours(dwell+travel)}（上限 ${hours}時間）</div>
     <div class="aiRouteStoreList">${aiSelectedRoute.map((x,i)=>`<label class="aiRouteStoreRow"><input type="checkbox" checked onchange="aiToggleRouteStore('${escapeHtml(String(x.storeId))}',this.checked)"><span><strong>${i+1}. ${escapeHtml(x.name)}</strong><small>${i===0?'最初の店舗（自宅からの移動は予算外）':`前店舗から直線 約${x.legKm.toFixed(1)}km／移動概算 ${aiRouteFormatHours(x.legHours)}`} · 成功 ${x.success}/${x.visits}回</small></span></label>`).join('')}</div>
     <div class="mini">チェックを外すと除外してルートを再計算します。除外を戻すにはエリアを選び直してください。登録店舗の座標と実績から計算しています。</div>`;
