@@ -5995,3 +5995,17 @@ button {
   .aiPlanCardTitle { flex-wrap: wrap; }
   .aiPlanCardBody { font-size: 12.5px; line-height: 1.75; }
 }
+
+/* AIルート候補と全店舗表示 */
+.aiRouteChoicePanel{margin-top:14px;padding:14px;border:1px solid #bfd9ee;border-radius:16px;background:#f8fbff;}
+.aiRouteChoiceTitle{font-size:16px;font-weight:900;margin-bottom:8px;}
+.aiRouteChoiceLabel{display:block;font-weight:800;font-size:13px;margin:12px 0;}
+.aiRouteChoiceLabel select{display:block;width:100%;max-width:100%;padding:11px;border:1px solid #b7c7d7;border-radius:9px;background:white;margin-top:6px;font-size:14px;}
+.aiRouteBudget{font-size:12px;font-weight:800;padding:10px;border-radius:10px;background:#eaf4ff;line-height:1.6;}
+.aiRouteStoreList{display:grid;gap:7px;margin:12px 0;}
+.aiRouteStoreRow{display:flex;gap:10px;align-items:flex-start;background:white;border:1px solid #dbe5ed;border-radius:10px;padding:11px;line-height:1.5;}
+.aiRouteStoreRow input{flex:none;margin-top:5px;width:18px;height:18px;}
+.aiRouteStoreRow span{min-width:0;overflow-wrap:anywhere;}
+.aiRouteStoreRow strong{display:block;font-size:13px;}
+.aiRouteStoreRow small{display:block;color:#59697a;font-size:11px;margin-top:3px;}
+#aiOptimizeRouteBtn[hidden]{display:none!important;}
