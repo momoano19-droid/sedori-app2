@@ -3202,7 +3202,7 @@ bootReport=function(){originalBootReportForMonthlyAi();renderAiMonthlyAnalysisFo
 /* =========================
    AI次回仕入れプラン v1
 ========================= */
-const AI_NEXT_PLAN_CACHE_KEY = "ai_next_plan_cache_v1";
+const AI_NEXT_PLAN_CACHE_KEY = "ai_next_plan_cache_v2_local_hours";
 
 function aiPlanTomorrowStr() {
   const now = new Date();
@@ -3257,7 +3257,14 @@ function buildAiNextPlanPayload() {
   const sameWd=activeDays.filter(d=>aiWeekdayLabel(d)===wd).slice(0,12).map(d=>aiEnrichDay(aiDayRawStats(logs,d))).filter(x=>x.visits>0||x.success>0||x.items>0||x.profit!==0);
   return {
     schemaVersion:2, generatedAt:new Date().toISOString(), requestType:"next_sourcing_plan",
-    conditions:{plannedDate, weekday:wd, startTime, plannedHours:hours, targetProfit},
+    conditions:{plannedDate, weekday:wd, startTime, plannedHours:hours, targetProfit,
+      timeBudgetDefinition:"仕入れ予定時間は現地の店舗滞在・店舗間移動・休憩の合計。自宅から最初の店舗までの往路と最後の店舗から自宅までの復路は含めない。",
+      startTimeDefinition:"開始予定時刻は最初の店舗で仕入れを開始する現地時刻。自宅の出発時刻ではない。",
+      firstStoreTravelPolicy:"最初の店舗までの自宅からの距離・所要時間を現地仕入れ時間から差し引かない。初回移動の遠さだけを理由に遠征候補を除外しない。",
+      betweenStoresTravelPolicy:"2店舗目以降は店舗間の移動時間を現地仕入れ時間に含め、地理的に近い店舗を優先。県境を越える候補も可。",
+      returnTravelPolicy:"最後の店舗から自宅までの帰路は現地仕入れ時間に含めない。",
+      priorityPolicy:"実績のある店舗の仕入れ成功率を最優先し、期待利益・補充周期・店舗間移動を補助評価する。未訪問店舗は成功率不明として扱う。",
+      scheduleAccuracyPolicy:"営業時間や実際の道路移動時間が不明な場合は推定と明記し、確定値を捏造しない。"},
     benchmarks:{recent30:aiAverageDays(recent30), sameWeekday:aiAverageDays(sameWd)},
     timeBands:aiTimeBandAnalysis(logs, cutoff), candidates,
     dataQuality:{totalStores:(stores||[]).length, candidateStores:candidates.length, totalLogCount:(logs||[]).length, recentSampleDays:recent30.length, sameWeekdaySampleDays:sameWd.length, note:"訪問時刻の記録開始前は時間帯データが不足します。未訪問店舗は実績0として候補に含まれます。"}
@@ -3483,11 +3490,11 @@ async function requestAiNextPlan() {
   }
   const payload=buildAiNextPlanPayload(), fp=aiPlanFingerprint(payload), cache=loadAiNextPlanCache(), cached=cache[fp];
   if(cached?.plan && btn.dataset.cacheShown!=="1") { result.hidden=false; result.innerHTML=renderAiNextPlanHtml(cached.plan); updateAiPlanRouteAction(cached.plan); btn.dataset.cacheShown="1"; if(meta)meta.textContent=`保存済みプラン：${formatAiDeepSavedAt(cached.createdAt)}。条件が同じなら再利用します。`; return; }
-  btn.disabled=true; btn.textContent="AIプラン作成中…"; result.hidden=false; result.innerHTML='<div class="aiDeepAnalysisLoading">🤖 店舗実績を分析してプランを作成しています…</div>'; if(meta)meta.textContent="AIが次回の仕入れ候補を分析しています。";
+  btn.disabled=true; btn.textContent="AIプラン作成中…"; result.hidden=false; result.innerHTML='<div class="aiDeepAnalysisLoading">🤖 店舗実績を分析してプランを作成しています…</div>'; if(meta)meta.textContent="現地の仕入れ・店舗間移動・休憩で時間を計算します（自宅からの往復は除外）。";
   try {
     // APIへ送る候補データはAI判断に必要な項目だけに絞る。
     // 住所・緯度経度は端末内のルート最適化では使うが、AI本文生成には送らない。
-    const apiPayload={...payload,candidates:(payload.candidates||[]).map(c=>({
+    const apiPayload={...payload,planningRules:payload.conditions,candidates:(payload.candidates||[]).map(c=>({
       storeId:c.storeId,name:c.name,pref:c.pref,visits:c.visits,success:c.success,
       successRate:c.successRate,items:c.items,totalProfit:c.totalProfit,
       expectedProfitPerVisit:c.expectedProfitPerVisit,lastVisitDate:c.lastVisitDate,
