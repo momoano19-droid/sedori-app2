@@ -3631,16 +3631,29 @@ function aiRouteMetrics(route){
   const durationMin=route.length*aiRouteDwellHours()*60+travelMin;
   return {visits,success,profit,travelMin,known,revisit,avg,rate,adjustedProfit,durationMin};
 }
+function aiRoutePlannedHours(){
+  const raw=document.getElementById('aiPlanHours')?.value;
+  const n=Number(raw);
+  return raw!=null && String(raw).trim()!=='' && Number.isFinite(n) && n>0
+    ? Math.max(.5,Math.min(16,n)) : 8;
+}
 function aiRouteRank(route){
   if(!route.length)return -Infinity;
   const m=aiRouteMetrics(route);
-  // 1訪問当たりの利益・成功実績を重視。30日以上未訪問は小さな補助要素。
-  // 直線距離からの移動推計は誤差があるため過剰に重み付けしない。
+  const plannedMinutes=aiRoutePlannedHours()*60;
+  // 入力された仕入れ予定時間内で比較する。8時間(480分)固定の補正は使わない。
+  // 過去利益/訪問を基本に、時間内で回れる店舗数と店舗間移動の負担を反映。
+  const usedMinutes=Math.max(1,m.durationMin);
+  const timeCoverage=Math.min(1,usedMinutes/plannedMinutes);
+  const sourcingMinutes=Math.max(0,usedMinutes-m.travelMin);
+  const sourcingShare=sourcingMinutes/usedMinutes;
   const profitScore=Math.log1p(m.adjustedProfit/1000);
   const successScore=m.rate*(m.visits/(m.visits+12));
   const revisitScore=m.revisit/route.length;
-  const travelPenalty=m.travelMin/480;
-  return profitScore*5+successScore*1.8+revisitScore*.35-travelPenalty*.8;
+  const travelPenalty=m.travelMin/plannedMinutes;
+  // 短時間プランで遠回りを不当に有利にしない一方、時間を使い切るだけで高評価にしない。
+  return profitScore*5+successScore*1.8+revisitScore*.35
+    +sourcingShare*.6+timeCoverage*.15-travelPenalty*.8;
 }
 // 全登録店舗を軸候補として評価し、ルート全体の得点で順位を決める。
 // 同じ店舗構成の重複を除き、近いエリアのほぼ同一ルートを上位3件で占めないようにする。
@@ -3651,7 +3664,7 @@ function aiRouteOverlap(a,b){
   return common/Math.max(1,Math.min(ids.size,other.size));
 }
 function aiRouteFindChoices(origin){
-  const candidates=aiRouteAllCandidates(),hours=Math.max(.5,Math.min(16,Number(document.getElementById('aiPlanHours')?.value)||8));
+  const candidates=aiRouteAllCandidates(),hours=aiRoutePlannedHours();
   if(!candidates.length)return [];
   const ranked=[];
   // 従来の上位90店舗制限や近場・単独高評価店舗の優先枠を廃止。
@@ -3689,7 +3702,7 @@ function aiRouteDisplayChoices(){
 function aiRouteConsistentPlanHtml(workerText){
   if(!aiRouteOptions.length)return renderAiNextPlanHtml(workerText);
   const day=document.getElementById('aiPlanDate')?.value||'';
-  const hours=Number(document.getElementById('aiPlanHours')?.value)||8;
+  const hours=aiRoutePlannedHours();
   const pace=aiRoutePace();
   const picks=aiRouteDisplayChoices();
   const cards=picks.map((option,i)=>{
@@ -3747,7 +3760,7 @@ function aiRenderRouteChoices(){
   const current=aiRouteOptions[Math.max(0,Math.min(aiRouteChoiceIndex,aiRouteOptions.length-1))];
   aiSelectedRoute=current.route.slice();
   aiRouteRefreshPlan();
-  const hours=Number(document.getElementById('aiPlanHours')?.value)||8;
+  const hours=aiRoutePlannedHours();
   const travel=aiSelectedRoute.reduce((v,x)=>v+(x.legHours||0),0);
   const dwell=aiSelectedRoute.length*aiRouteDwellHours();
   const pace=aiRoutePace();
@@ -3772,7 +3785,7 @@ function aiToggleRouteStore(id,checked){
   const candidates=aiRouteAllCandidates();
   const seed=current.route.find(x=>!aiRouteExcludedIds.has(String(x.storeId))) || candidates.find(x=>!aiRouteExcludedIds.has(String(x.storeId))&&aiRouteHaversineKm(x.lat,x.lng,current.seed.lat,current.seed.lng)<35);
   if(!seed){alert('このエリアの店舗がすべて除外されました。');aiSelectedRoute=[];return;}
-  const hours=Math.max(.5,Math.min(16,Number(document.getElementById('aiPlanHours')?.value)||8));
+  const hours=aiRoutePlannedHours();
   current.route=aiRouteOrderAround(seed,candidates,hours,aiRouteOrigin);aiRenderRouteChoices();
 }
 window.aiToggleRouteStore=aiToggleRouteStore;
