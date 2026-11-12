@@ -3221,6 +3221,12 @@ function loadAiNextPlanCache() {
 }
 function saveAiNextPlanCache(x) { try { localStorage.setItem(AI_NEXT_PLAN_CACHE_KEY, JSON.stringify(x||{})); } catch {} }
 
+function aiHasValidStoreCoords(lat,lng) {
+  if (lat == null || lng == null || String(lat).trim()==="" || String(lng).trim()==="") return false;
+  const a=Number(lat), b=Number(lng);
+  return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a)<=90 && Math.abs(b)<=180 && !(a===0 && b===0);
+}
+
 function buildAiNextPlanPayload() {
   const plannedDate=document.getElementById("aiPlanDate")?.value || "";
   const startTime=document.getElementById("aiPlanStartTime")?.value || "";
@@ -3240,8 +3246,8 @@ function buildAiNextPlanPayload() {
       visits:Number(h.visits||0), success:Number(h.success||0), successRate:Number(h.successRate||0), items:Number(h.items||0),
       totalProfit:Number(h.profit||0), expectedProfitPerVisit:Number(h.profitPerVisit||0), lastVisitDate:h.lastVisitDate||null,
       daysSinceLastVisit:daysSince,
-      hasCoordinates:Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lng)),
-      lat:Number.isFinite(Number(s.lat))?Number(s.lat):null, lng:Number.isFinite(Number(s.lng))?Number(s.lng):null
+      hasCoordinates:aiHasValidStoreCoords(s.lat,s.lng),
+      lat:aiHasValidStoreCoords(s.lat,s.lng)?Number(s.lat):null, lng:aiHasValidStoreCoords(s.lat,s.lng)?Number(s.lng):null
     };
   }).filter(x=>x.name).sort((a,b)=>b.expectedProfitPerVisit-a.expectedProfitPerVisit || b.successRate-a.successRate).slice(0,40);
 
@@ -3363,28 +3369,38 @@ function aiRouteValueScore(c) {
 function optimizeAiRouteFromPoint(hits,startLat,startLng) {
   const stores=loadStores(), storeMap=new Map(stores.map(s=>[String(s.id),s]));
   const candidateMap=aiRouteCandidateMap();
-  const withCoords=[], withoutCoords=[];
-  for (const h of hits) {
-    const s=storeMap.get(String(h.id));
-    const lat=Number(s?.lat), lng=Number(s?.lng);
-    if (Number.isFinite(lat)&&Number.isFinite(lng)) withCoords.push({...h,lat,lng,c:candidateMap.get(String(h.id))});
-    else withoutCoords.push(h);
+  const selectedIds=new Set(hits.map(h=>String(h.id)));
+  const plannedHours=Number(document.getElementById("aiPlanHours")?.value)||0;
+  // 移動込みで1店舗45〜60分を暫定上限に。過去実績があればそちらを優先。
+  const payload=buildAiNextPlanPayload();
+  const historicalRate=Number(payload.benchmarks?.recent30?.visitsPerHour)||0;
+  const perHour=historicalRate>0 ? Math.min(2.5,Math.max(.5,historicalRate)) : 1.1;
+  const maxStops=plannedHours>0 ? Math.max(1,Math.min(25,Math.round(plannedHours*perHour))) : Math.max(1,hits.length);
+  const pool=[];
+  for (const s of stores) {
+    if (!aiHasValidStoreCoords(s.lat,s.lng)) continue;
+    const id=String(s.id), c=candidateMap.get(id);
+    const fromStart=aiRouteHaversineKm(startLat,startLng,Number(s.lat),Number(s.lng));
+    // 登録店舗全体を対象にしつつ、AI推薦店舗には優先ボーナスを付与。
+    const value=aiRouteValueScore(c)*(selectedIds.has(id)?1.28:1);
+    pool.push({id,name:String(s.name||id),lat:Number(s.lat),lng:Number(s.lng),c,fromStart,value,aiSelected:selectedIds.has(id)});
   }
-  const remaining=[...withCoords], ordered=[];
+  const ordered=[], remaining=pool;
   let lat=Number(startLat),lng=Number(startLng),totalKm=0;
-  while (remaining.length) {
-    let bestI=0,bestScore=-Infinity,bestDist=0;
+  while (remaining.length && ordered.length<maxStops) {
+    let bestI=-1,bestScore=-Infinity,bestDist=0;
     remaining.forEach((x,i)=>{
       const dist=aiRouteHaversineKm(lat,lng,x.lat,x.lng);
-      const value=aiRouteValueScore(x.c);
-      // 近さを強くしすぎず、高期待値店舗なら多少遠くても選べるバランス
-      const score=value/Math.pow(Math.max(.7,dist+1),.72);
-      if (score>bestScore) { bestScore=score; bestI=i; bestDist=dist; }
+      // 現在地からの遠さも評価し、無駄な遠征・折り返しを抑える。
+      const score=x.value/(Math.pow(dist+2,.85)*Math.pow(x.fromStart+4,.24));
+      if(score>bestScore){bestScore=score;bestI=i;bestDist=dist;}
     });
+    if(bestI<0)break;
     const [pick]=remaining.splice(bestI,1);
-    totalKm+=bestDist; ordered.push({...pick,legKm:bestDist}); lat=pick.lat;lng=pick.lng;
+    totalKm+=bestDist;ordered.push({...pick,legKm:bestDist});lat=pick.lat;lng=pick.lng;
   }
-  return {ordered:[...ordered,...withoutCoords], optimizedCount:ordered.length, noCoordsCount:withoutCoords.length, straightKm:totalKm};
+  const noCoords=hits.filter(h=>!aiHasValidStoreCoords(storeMap.get(String(h.id))?.lat,storeMap.get(String(h.id))?.lng));
+  return {ordered,optimizedCount:ordered.length,noCoordsCount:noCoords.length,straightKm:totalKm,maxStops,addedCount:ordered.filter(x=>!x.aiSelected).length,omittedCount:hits.filter(h=>!ordered.some(x=>x.id===String(h.id))).length};
 }
 
 function saveAiRouteOrder(hits) {
@@ -3413,11 +3429,11 @@ function applyAiOptimizedPlanToTodayRoute() {
     const result=optimizeAiRouteFromPoint(hits,pos.coords.latitude,pos.coords.longitude);
     const preview=result.ordered.slice(0,8).map((x,i)=>`${i+1}. ${x.name}${Number.isFinite(x.legKm)?`（直線 約${x.legKm.toFixed(1)}km）`:"（座標未登録）"}`).join("\n");
     const current=loadStores().filter(s=>s.today).length;
-    const warning=result.noCoordsCount?`\n\n※ 座標未登録 ${result.noCoordsCount}店舗は最適化後の末尾に配置します。`:"";
-    const msg=`${current?`現在の「今日行く」${current}店舗を置き換えます。\n\n`:""}現在地からAI×移動効率で並べ替えました。\n\n${preview}${result.ordered.length>8?`\n…ほか${result.ordered.length-8}店舗`:""}${warning}\n\n※距離は道路距離ではなく直線距離です。\nこの順番で反映しますか？`;
+    const warning=result.noCoordsCount?`\n\n※ AI提案中の座標未登録 ${result.noCoordsCount}店舗は距離を計算できないため対象外です。`:"";
+    const msg=`${current?`現在の「今日行く」${current}店舗を置き換えます。\n\n`:""}現在地・店舗実績・移動効率から登録店舗全体を再選定しました（最大${result.maxStops}店舗）。\nAI提案外から追加：${result.addedCount}店舗／AI提案から除外：${result.omittedCount}店舗\n\n${preview}${result.ordered.length>8?`\n…ほか${result.ordered.length-8}店舗`:""}${warning}\n\n※距離は道路距離ではなく直線距離です。\nこの順番で反映しますか？`;
     if (!confirm(msg)) { if(meta) meta.textContent="最適化ルートの反映をキャンセルしました。"; return; }
     const order=saveAiRouteOrder(result.ordered);
-    if (meta) meta.textContent=`✅ ${order.length}店舗を移動効率込みで設定しました。座標あり${result.optimizedCount}店舗${result.noCoordsCount?`／座標なし${result.noCoordsCount}店舗`:""}。`;
+    if (meta) meta.textContent=`✅ ${order.length}店舗を移動効率込みで設定しました。座標あり${result.optimizedCount}店舗（新規候補${result.addedCount}店舗）。`;
     alert(`AI×移動効率ルートを設定しました。\n${order.length}店舗を「今日のルート」に反映しました。`);
   },err=>{
     if (btn) { btn.disabled=false; btn.textContent="⚡ 現在地から移動効率も含めて最適化"; }
