@@ -6009,3 +6009,82 @@ button {
 .aiRouteStoreRow strong{display:block;font-size:13px;}
 .aiRouteStoreRow small{display:block;color:#59697a;font-size:11px;margin-top:3px;}
 #aiOptimizeRouteBtn[hidden]{display:none!important;}
+/* Saved route editor modal */
+#savedRouteEditorOverlay.savedRouteEditorOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(20, 28, 45, .62);
+  overflow: auto;
+  box-sizing: border-box;
+}
+#savedRouteEditorOverlay .savedRouteEditorPanel {
+  box-sizing: border-box;
+  width: min(100%, 680px);
+  max-height: min(90dvh, 900px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  color: #1f2340;
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 20px 65px rgba(0,0,0,.3);
+}
+#savedRouteEditorOverlay .savedRouteEditorHeader,
+#savedRouteEditorOverlay .savedRouteEditorActions,
+#savedRouteEditorOverlay .savedRouteEditorAddRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+#savedRouteEditorOverlay .savedRouteEditorHeader { margin-bottom: 16px; }
+#savedRouteEditorOverlay .savedRouteEditorHeader strong { font-size: 18px; }
+#savedRouteEditorOverlay .savedRouteEditorLabel {
+  display: block;
+  margin: 14px 0 6px;
+  font-weight: 700;
+}
+#savedRouteEditorOverlay input,
+#savedRouteEditorOverlay textarea,
+#savedRouteEditorOverlay select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2340;
+  font-size: 16px;
+}
+#savedRouteEditorOverlay .savedRouteEditorAddRow select { flex: 1 1 200px; width: auto; }
+#savedRouteEditorOverlay .savedRouteEditorStores { display: grid; gap: 8px; }
+#savedRouteEditorOverlay .savedRouteEditorStore {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+#savedRouteEditorOverlay .savedRouteEditorStoreName { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+#savedRouteEditorOverlay .savedRouteEditorStore button { flex-shrink: 0; }
+#savedRouteEditorOverlay .savedRouteEditorDragHandle { cursor: grab; touch-action: none; }
+#savedRouteEditorOverlay .savedRouteEditorDragging { opacity: .6; }
+#savedRouteEditorOverlay .savedRouteEditorDropTarget { outline: 2px solid #3976f6; }
+#savedRouteEditorOverlay .savedRouteEditorSearchCount { margin-top: 8px; font-size: 13px; color: #6b7280; }
+#savedRouteEditorOverlay .savedRouteEditorActions { margin-top: 18px; justify-content: flex-end; }
+#savedRouteEditorOverlay button { min-height: 36px; }
+@media (max-width: 520px) {
+  #savedRouteEditorOverlay.savedRouteEditorOverlay { padding: 8px; align-items: center; }
+  #savedRouteEditorOverlay .savedRouteEditorPanel { padding: 12px; max-height: 94dvh; }
+  #savedRouteEditorOverlay .savedRouteEditorStore { gap: 4px; padding: 6px 4px; }
+  #savedRouteEditorOverlay .savedRouteEditorStore button { padding: 6px; }
+}
