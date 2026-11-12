@@ -109,6 +109,7 @@
   <div class="aiChatInputRow"><textarea id="aiChatInput-plan" rows="2" maxlength="1000" placeholder="例：次回どの店舗を優先すべき？"></textarea><button type="button" class="primaryBtn" id="aiChatSend-plan" onclick="sendAiChat('plan')">送信</button></div>
   <div class="mini" id="aiChatStatus-plan">質問するとAI APIを使用します。履歴はこの端末に保存されます。</div>
 </div>
+      <div id="aiRouteChoicePanel" class="aiRouteChoicePanel" hidden></div>
       <div id="aiNextPlanRouteActions" class="aiNextPlanRouteActions" hidden>
         <button id="aiApplyRouteBtn" type="button" class="primaryBtn" onclick="applyAiNextPlanToTodayRoute()">🗺️ このAIプランを今日のルートに設定</button>
         <button id="aiOptimizeRouteBtn" type="button" class="ghostBtn aiOptimizeRouteBtn" onclick="applyAiOptimizedPlanToTodayRoute()">⚡ 現在地から移動効率も含めて最適化</button>
