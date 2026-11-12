@@ -3614,11 +3614,33 @@ function aiRouteOrderAroundFallback(anchor,others,hours,origin,dwell){
   }
   return route;
 }
+// 利益実績を主軸に、標本数・成功実績・再訪時期・店舗間移動を評価する。
+// 合計平均利益をそのまま予測利益として扱わず、極端な高額実績を緩和する。
+function aiRouteMetrics(route){
+  const visits=route.reduce((n,x)=>n+Math.max(0,Number(x.visits)||0),0);
+  const success=route.reduce((n,x)=>n+Math.max(0,Number(x.success)||0),0);
+  const profit=route.reduce((n,x)=>n+Math.max(0,Number(x.totalProfit)||0),0);
+  const travelMin=route.reduce((n,x)=>n+Math.max(0,Number(x.legHours)||0)*60,0);
+  const known=route.filter(x=>Number(x.visits)>0).length;
+  const revisit=route.filter(x=>{const d=x.daysSinceLastVisitAtPlan??x.daysSinceLastVisit;return d!=null&&Number(d)>=30}).length;
+  const avg=visits?profit/visits:0;
+  const rate=visits?Math.min(1,success/visits):0;
+  // 少数の高額利益だけで決まらないよう、実績の厚みを考慮。
+  const reliability=visits/(visits+18);
+  const adjustedProfit=avg*reliability;
+  const durationMin=route.length*aiRouteDwellHours()*60+travelMin;
+  return {visits,success,profit,travelMin,known,revisit,avg,rate,adjustedProfit,durationMin};
+}
 function aiRouteRank(route){
   if(!route.length)return -Infinity;
-  const values=route.reduce((sum,x)=>sum+aiRouteValueScore(x),0);
-  const distance=route.reduce((sum,x)=>sum+(x.legKm||0),0);
-  return values/(1+distance*.009);
+  const m=aiRouteMetrics(route);
+  // 1訪問当たりの利益・成功実績を重視。30日以上未訪問は小さな補助要素。
+  // 直線距離からの移動推計は誤差があるため過剰に重み付けしない。
+  const profitScore=Math.log1p(m.adjustedProfit/1000);
+  const successScore=m.rate*(m.visits/(m.visits+12));
+  const revisitScore=m.revisit/route.length;
+  const travelPenalty=m.travelMin/480;
+  return profitScore*5+successScore*1.8+revisitScore*.35-travelPenalty*.8;
 }
 function aiRouteFindChoices(origin){
   const candidates=aiRouteAllCandidates(),hours=Math.max(.5,Math.min(16,Number(document.getElementById('aiPlanHours')?.value)||8));
@@ -3694,7 +3716,20 @@ function aiRouteConsistentPlanHtml(workerText){
     const days=x=>x.daysSinceLastVisitAtPlan??x.daysSinceLastVisit;
     const revisit=route.filter(x=>days(x)!=null&&Number(days(x))>=30).length;
     const recent=route.filter(x=>days(x)!=null&&Number(days(x))<=3).length;
-    const reason=`${route.length}店舗中${known}店舗に訪問履歴があり、合計${visits}回訪問・${success}回成功${visits?`（成功率${Math.round(success/visits*100)}%）`:''}。記録された累計利益は${aiRouteYen(profit)}、1訪問あたり平均利益の合計参考値は${aiRouteYen(sum)}です。予定日時点で30日以上再訪していない店舗は${revisit}店、直近3日以内に訪問した店舗は${recent}店。店舗間の移動概算${Math.round(travel*60)}分と仕入れ実績を総合評価しました。`;
+    const metrics=aiRouteMetrics(route);
+    const peers=picks.filter(p=>p!==option).map(p=>({option:p,m:aiRouteMetrics(p.route||[])}));
+    const strongest=peers.sort((a,b)=>aiRouteRank(b.option.route)-aiRouteRank(a.option.route))[0];
+    let comparison='';
+    if(strongest){
+      const other=strongest.m;
+      const label=strongest.option.seed.name+'周辺';
+      const profitDiff=metrics.avg-other.avg;
+      const profitText=profitDiff>=0?`1訪問あたりの過去利益が${label}より${aiRouteYen(profitDiff)}高い`:`1訪問あたりの過去利益は${label}より${aiRouteYen(-profitDiff)}低い`;
+      const travelDiff=Math.round(other.travelMin-metrics.travelMin);
+      const travelText=travelDiff>0?`店舗間移動の概算が${Math.abs(travelDiff)}分短い`:travelDiff<0?`店舗間移動の概算が${Math.abs(travelDiff)}分長い`:'店舗間移動の概算は同程度';
+      comparison=`比較対象の${label}に対して、${profitText}一方、${travelText}です。`;
+    }
+    const reason=`過去${visits}回訪問・${success}回成功（記録上の成功割合${visits?Math.round(success/visits*100):0}%）、累計利益${aiRouteYen(profit)}、1訪問あたりの過去平均利益${aiRouteYen(metrics.avg)}。30日以上未訪問${revisit}店舗、店舗間移動概算${Math.round(travel*60)}分。${comparison}${i===0?'過去利益の効率を中心に、訪問記録の厚み・成功実績・再訪間隔・移動負担を同じ基準で比較した結果、このルートを第1候補に選びました。':'第1候補との違いを確認し、利益重視・成功実績重視など目的に応じて選べる代替案です。'} ※過去実績であり、次回の利益を保証するものではありません。`;
     const list=route.map(x=>`<li style="padding:7px 0;border-bottom:1px solid #e8edf1;line-height:1.55"><strong>${escapeHtml(x.name)}</strong><div style="font-size:.82em;color:#586578">${escapeHtml(aiRouteStoreReason(x))}</div></li>`).join('');
     return `<section class="aiPlanCard" style="margin:0 0 14px;border:${active?'2px solid #248d73':'1px solid #dfe5eb'};border-radius:15px;overflow:hidden;background:#fff">
       <div style="padding:15px;background:${active?'#f1faf6':'#f6f8fb'}">
