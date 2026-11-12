@@ -3656,7 +3656,7 @@ function aiRouteConsistentPlanHtml(workerText){
   const day=document.getElementById('aiPlanDate')?.value||'';
   const hours=Number(document.getElementById('aiPlanHours')?.value)||8;
   const sum=best.route.reduce((n,x)=>n+(Math.max(0,Number(x.expectedProfitPerVisit)||0)),0);
-  const rows=best.route.map((x,i)=>`<li>${i+1}. ${escapeHtml(x.name)}（成功 ${x.success}/${x.visits}回・前回訪問から今日時点 ${x.daysSinceLastVisit==null?'不明':x.daysSinceLastVisit+'日'}）</li>`).join('');
+  const rows=best.route.map((x,i)=>`<li>${escapeHtml(x.name)}（成功 ${x.success}/${x.visits}回・前回訪問から今日時点 ${x.daysSinceLastVisit==null?'不明':x.daysSinceLastVisit+'日'}）</li>`).join('');
   return `<div class="aiDeepAnalysisHeader"><div class="aiDeepAnalysisTitle">🧭 AI次回仕入れプラン</div><div class="aiDeepAnalysisSub">おすすめ本文とルート候補を同じ店舗評価・巡回順で統一</div></div>
   <div class="aiPlanCards"><section class="aiPlanCard"><div class="aiPlanCardTitle">🏆 最優先：${escapeHtml(best.seed.name)}周辺の${best.route.length}店舗</div>
   <div class="aiPlanCardBody"><p>予定日：${escapeHtml(day)} ／ 現地仕入れ：${hours}時間 ／ 過去実績：約${pace.rate.toFixed(2)}店舗/時</p>
@@ -3670,6 +3670,9 @@ function aiRenderRouteChoices(){
   if(!aiRouteOptions.length){wrap.hidden=false;wrap.innerHTML='<div class="mini">座標が登録された候補店舗がありません。店舗の位置情報を確認してください。</div>';return;}
   const current=aiRouteOptions[Math.max(0,Math.min(aiRouteChoiceIndex,aiRouteOptions.length-1))];
   aiSelectedRoute=current.route.slice();
+  const result=document.getElementById('aiNextPlanResult');
+  const headline=result?.querySelector('.aiPlanCardTitle');
+  if(headline){headline.textContent=`${current.kind==='near'?'🚗 近場':current.kind==='best'?'🏆 最優先':'🗺️ 別エリア'}：${current.seed.name}周辺の${current.route.length}店舗`; }
   const hours=Number(document.getElementById('aiPlanHours')?.value)||8;
   const travel=aiSelectedRoute.reduce((v,x)=>v+(x.legHours||0),0);
   const dwell=aiSelectedRoute.length*aiRouteDwellHours();
@@ -3683,7 +3686,7 @@ function aiRenderRouteChoices(){
     <div class="aiRouteStoreList">${aiSelectedRoute.map((x,i)=>`<label class="aiRouteStoreRow"><input type="checkbox" checked onchange="aiToggleRouteStore('${escapeHtml(String(x.storeId))}',this.checked)"><span><strong>${i+1}. ${escapeHtml(x.name)}</strong><small>${i===0?'最初の店舗（自宅からの移動は予算外）':`前店舗から直線 約${x.legKm.toFixed(1)}km／移動概算 ${aiRouteFormatHours(x.legHours)}`} · 成功 ${x.success}/${x.visits}回</small></span></label>`).join('')}</div>
     <div class="mini">チェックを外すと除外してルートを再計算します。除外を戻すにはエリアを選び直してください。登録店舗の座標と実績から計算しています。</div>`;
   const actions=document.getElementById('aiNextPlanRouteActions');if(actions)actions.hidden=false;
-  const btn=document.getElementById('aiApplyRouteBtn');if(btn){btn.disabled=false;btn.textContent='🗺️ 表示中の全店舗を今日のルートに設定';}
+  const btn=document.getElementById('aiApplyRouteBtn');if(btn){btn.disabled=false;btn.textContent='🗺️ 表示中の全店舗を今日のルートに設定';btn.onclick=aiSaveSelectedRoute;}
   const opt=document.getElementById('aiOptimizeRouteBtn');if(opt)opt.hidden=true;
   const meta=document.getElementById('aiApplyRouteMeta');if(meta)meta.textContent=`${aiSelectedRoute.length}店舗を表示中。エリア変更や店舗除外後に反映できます。`;
 }
@@ -3709,6 +3712,8 @@ function aiSaveSelectedRoute(){
 }
 async function aiPrepareRouteChoices(){
   const wrap=document.getElementById('aiRouteChoicePanel');if(!wrap)return;
+  const result=document.getElementById('aiNextPlanResult');
+  if(result && wrap.parentNode===result.parentNode && wrap.nextElementSibling!==result){result.parentNode.insertBefore(wrap,result);}
   wrap.hidden=false;wrap.innerHTML='<div class="mini">📍 登録店舗からルート候補を計算しています…</div>';
   let origin=null;
   if(navigator.geolocation){
