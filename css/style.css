@@ -5899,72 +5899,99 @@ button {
 .aiDeepAccordionSummary::after{content:"▼";font-size:12px;transition:transform .18s ease;flex:0 0 auto;}
 .aiDeepAccordion[open]>.aiDeepAccordionSummary::after{transform:rotate(180deg);}
 .aiDeepAccordionSub{font-size:11px;color:var(--sub);font-weight:700;margin:-7px 2px 12px;}
-
-/* 今日行く・店舗退出：店舗カード内で横並び */
-.storeDwellActionRow {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: stretch;
-}
-.storeDwellActionRow .todayToggleBtn,
-.storeDwellActionRow .storeDwellExitBtn {
+/* =========================================================
+   AI分析・次回仕入れプラン：スマホ横はみ出し対策
+   2026-11-12 / 既存レイアウト・店舗UIには影響させない
+   ========================================================= */
+#aiNextPlanCard,
+#aiNextPlanResult,
+#aiPeriodAnalysisResult,
+#aiDeepAnalysisResult,
+#aiMonthlyAnalysisResult,
+.aiNextPlanHead,
+.aiNextPlanActions,
+.aiNextPlanRouteActions,
+.aiPlanCards,
+.aiPlanCard,
+.aiPlanCardTitle,
+.aiPlanCardBody,
+.aiDeepAnalysisCards,
+.aiDeepCard,
+.aiDeepCardBody,
+.aiChatPanel {
   box-sizing: border-box;
-  width: 100%;
   min-width: 0;
-  min-height: 56px;
-  height: 100%;
-  justify-content: center;
-  text-align: center;
-}
-.storeDwellActionRow .storeDwellExitBtn {
-  white-space: normal;
-  line-height: 1.3;
-  padding: 8px 5px;
-  font-size: 14px;
+  max-width: 100%;
 }
 
+#aiNextPlanCard,
+#aiNextPlanResult,
+.aiPlanCard,
+.aiPlanCardBody,
+.aiDeepCardBody,
+.aiChatPanel,
+#aiPeriodAnalysisResult,
+#aiDeepAnalysisResult,
+#aiMonthlyAnalysisResult {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
 
-/* 保存済みルート：店舗追加・削除・順番編集 */
-.savedRouteEditorOverlay { position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,.58); display:flex; align-items:center; justify-content:center; padding:12px; }
-.savedRouteEditorPanel { width:min(100%,560px); max-height:calc(100dvh - 24px); overflow-y:auto; box-sizing:border-box; background:#fff; color:#222; border-radius:14px; padding:16px; box-shadow:0 10px 32px rgba(0,0,0,.25); }
-.savedRouteEditorHeader { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
-.savedRouteEditorLabel { display:block; font-weight:700; margin:12px 0 6px; }
-.savedRouteEditorPanel input, .savedRouteEditorPanel textarea, .savedRouteEditorPanel select { box-sizing:border-box; width:100%; min-width:0; border:1px solid #b9c0cb; border-radius:8px; padding:10px; font-size:16px; background:#fff; color:#222; }
-.savedRouteEditorStores { display:grid; gap:7px; }
-.savedRouteEditorStore { display:flex; gap:5px; align-items:center; border:1px solid #d9dee6; border-radius:8px; padding:8px; }
-.savedRouteEditorStoreName { flex:1; min-width:0; overflow-wrap:anywhere; font-size:14px; }
-.savedRouteEditorStore button { flex:none; padding:8px; border-radius:7px; border:1px solid #c9ced8; background:#f5f7fa; color:#202a3b; }
-.savedRouteEditorStore button:disabled { opacity:.35; }
-.savedRouteEditorStore .savedRouteEditorRemove { color:#a52727; background:#fff0f0; }
-.savedRouteEditorAddRow { display:flex; gap:8px; }
-.savedRouteEditorAddRow select { flex:1; }
-.savedRouteEditorActions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
-.savedRouteEditorActions button { padding:10px 14px; }
+/* flex / grid 内で文章がコンテナを押し広げないようにする */
+.aiPlanCardTitle > *,
+.aiNextPlanHead > *,
+.aiNextPlanActions > *,
+.aiPlanCardBody > *,
+.aiDeepCardBody > *,
+.aiChatPanel > * {
+  min-width: 0;
+  max-width: 100%;
+}
 
-/* 保存済みルート: 検索と選択 */
-.savedRouteEditorAddRow select { flex:1; min-width:0; }
-.savedRouteEditorAddRow button { flex:none; }
-.savedRouteEditorSearchCount { margin-top:6px; font-size:12px; color:#596579; }
+/* 文章・リスト・コードは折り返す（表だけは例外） */
+#aiNextPlanResult :is(p, li, h1, h2, h3, h4, blockquote, pre, code),
+.aiChatPanel :is(p, li, h1, h2, h3, h4, blockquote, pre, code),
+#aiPeriodAnalysisResult :is(p, li, pre, code),
+#aiDeepAnalysisResult :is(p, li, pre, code),
+#aiMonthlyAnalysisResult :is(p, li, pre, code) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+#aiNextPlanResult pre,
+.aiChatPanel pre,
+#aiPeriodAnalysisResult pre,
+#aiDeepAnalysisResult pre,
+#aiMonthlyAnalysisResult pre {
+  white-space: pre-wrap;
+}
 
-/* Saved route editor: touch/mouse reorder handle and drop feedback */
-.savedRouteEditorDragHandle { touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none; font-size:22px; min-width:34px; }
-.savedRouteEditorDragHandle:active { cursor:grabbing; }
-.savedRouteEditorDragging { opacity:.65; background:#eaf2ff; }
-.savedRouteEditorDropTarget { outline:2px solid #2876dd; outline-offset:-2px; background:#eef5ff; }
+/* Markdown 表：カードを広げず表の領域内だけ左右にスクロール */
+#aiNextPlanResult table,
+.aiChatPanel table,
+#aiPeriodAnalysisResult table,
+#aiDeepAnalysisResult table,
+#aiMonthlyAnalysisResult table {
+  display: block;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  border-collapse: collapse;
+}
+#aiNextPlanResult table :is(th, td),
+.aiChatPanel table :is(th, td),
+#aiPeriodAnalysisResult table :is(th, td),
+#aiDeepAnalysisResult table :is(th, td),
+#aiMonthlyAnalysisResult table :is(th, td) {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
 
-/* AIの回答Markdown表示（既存デザインに追加） */
-.aiChatBubble strong,.aiDeepCardBody strong,.aiPlanCardBody strong{font-weight:900;}
-.aiChatBubble code,.aiDeepCardBody code,.aiPlanCardBody code{padding:1px 4px;border-radius:4px;background:rgba(100,116,139,.12);font-size:.92em;overflow-wrap:anywhere;}
-.aiChatBubble ul,.aiChatBubble ol,.aiDeepCardBody ul,.aiDeepCardBody ol,.aiPlanCardBody ul,.aiPlanCardBody ol{margin:5px 0 8px;padding-left:1.45em;}
-.aiChatBubble li,.aiDeepCardBody li,.aiPlanCardBody li{margin:3px 0;}
-.aiChatSubheading{font-weight:900;margin:9px 0 5px;line-height:1.5;}
-.aiChatParagraphGap{height:9px;}
-.aiChatLine{line-height:1.8;overflow-wrap:anywhere;}
-.aiChatBubble,.aiDeepCardBody,.aiPlanCardBody{overflow-wrap:anywhere;}
-
-/* AI Markdown tables: horizontally scroll on narrow iPhone screens */
-.aiChatTableScroll{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:10px 0 14px;border:1px solid #dbe4ef;border-radius:10px;}
-.aiChatTable{border-collapse:collapse;width:100%;min-width:560px;font-size:13px;line-height:1.5;background:#fff;}
-.aiChatTable th,.aiChatTable td{padding:9px 10px;border-bottom:1px solid #e4eaf2;text-align:left;white-space:nowrap;}
-.aiChatTable th{background:#eef4ff;font-weight:800;position:sticky;top:0;}
-.aiChatTable tbody tr:nth-child(even){background:#f8fbff;}
-.aiChatBubble .aiChatTableScroll,.aiDeepCardBody .aiChatTableScroll,.aiPlanCardBody .aiChatTableScroll{overflow-x:auto;}
+@media (max-width: 640px) {
+  #aiNextPlanResult { padding: 10px; }
+  .aiPlanCard { padding: 11px 12px; }
+  .aiPlanCardTitle { flex-wrap: wrap; }
+  .aiPlanCardBody { font-size: 12.5px; line-height: 1.75; }
+}
