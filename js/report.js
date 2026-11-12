@@ -3249,14 +3249,14 @@ function buildAiNextPlanPayload() {
       hasCoordinates:aiHasValidStoreCoords(s.lat,s.lng),
       lat:aiHasValidStoreCoords(s.lat,s.lng)?Number(s.lat):null, lng:aiHasValidStoreCoords(s.lat,s.lng)?Number(s.lng):null
     };
-  }).filter(x=>x.name).sort((a,b)=>b.expectedProfitPerVisit-a.expectedProfitPerVisit || b.successRate-a.successRate).slice(0,40);
+  }).filter(x=>x.name).sort((a,b)=>aiRoutePriorityRate(b)-aiRoutePriorityRate(a) || b.successRate-a.successRate || b.expectedProfitPerVisit-a.expectedProfitPerVisit).slice(0,40);
 
   const activeDays=Array.from(new Set((logs||[]).map(x=>ymd(x.date)).filter(d=>d && d<plannedDate))).sort().reverse();
   const recent30=activeDays.slice(0,30).map(d=>aiEnrichDay(aiDayRawStats(logs,d))).filter(x=>x.visits>0||x.success>0||x.items>0||x.profit!==0);
   const wd=aiWeekdayLabel(plannedDate);
   const sameWd=activeDays.filter(d=>aiWeekdayLabel(d)===wd).slice(0,12).map(d=>aiEnrichDay(aiDayRawStats(logs,d))).filter(x=>x.visits>0||x.success>0||x.items>0||x.profit!==0);
   return {
-    schemaVersion:1, generatedAt:new Date().toISOString(), requestType:"next_sourcing_plan",
+    schemaVersion:2, generatedAt:new Date().toISOString(), requestType:"next_sourcing_plan",
     conditions:{plannedDate, weekday:wd, startTime, plannedHours:hours, targetProfit},
     benchmarks:{recent30:aiAverageDays(recent30), sameWeekday:aiAverageDays(sameWd)},
     timeBands:aiTimeBandAnalysis(logs, cutoff), candidates,
@@ -3352,18 +3352,26 @@ function aiRouteCandidateMap() {
   } catch { return new Map(); }
 }
 
+// 仕入れ成功確率を最優先。少数訪問の100%を過信しないよう平滑化する。
+function aiRoutePriorityRate(c) {
+  if (!c) return 0;
+  const visits=Math.max(0,Number(c.visits)||0);
+  const successes=Math.min(visits,Math.max(0,Number(c.success)||0));
+  // 事前値30%、仮想訪問4回。未訪問店は既知の成功店舗より低く評価。
+  return (successes+1.2)/(visits+4);
+}
+
 function aiRouteValueScore(c) {
-  if (!c) return 1;
-  const expected=Math.max(0,Number(c.expectedProfitPerVisit||0));
-  const rate=Math.max(0,Math.min(100,Number(c.successRate||0)));
-  const visits=Math.max(0,Number(c.visits||0));
-  const days=c.daysSinceLastVisit==null ? 21 : Math.max(0,Number(c.daysSinceLastVisit||0));
-  // 金額の極端な差を抑えつつ、成功率・データ信頼度・再訪余地を加味
-  const profitScore=Math.log1p(expected/1000);
-  const rateScore=rate/100;
-  const confidence=Math.min(1,visits/5);
-  const recency=Math.min(1.35,0.75+days/60);
-  return Math.max(.35,(1+profitScore*1.35+rateScore*.8)*(0.72+confidence*.28)*recency);
+  if (!c) return .35;
+  const visits=Math.max(0,Number(c.visits)||0);
+  const probability=aiRoutePriorityRate(c);
+  const expected=Math.max(0,Number(c.expectedProfitPerVisit)||0);
+  const days=c.daysSinceLastVisit==null?21:Math.max(0,Number(c.daysSinceLastVisit)||0);
+  // 確率が主軸。利益額は最大約12%の補助ボーナスに限定。
+  const profitBonus=Math.min(.12,Math.log1p(expected/1000)*.025);
+  const revisitFactor=Math.min(1.12,.92+days/150);
+  const sampleFactor=visits===0?.78:Math.min(1, .88+visits*.024);
+  return Math.max(.1,(.2+probability*3.8)*(1+profitBonus)*revisitFactor*sampleFactor);
 }
 
 function optimizeAiRouteFromPoint(hits,startLat,startLng) {
@@ -3382,7 +3390,7 @@ function optimizeAiRouteFromPoint(hits,startLat,startLng) {
     const id=String(s.id), c=candidateMap.get(id);
     const fromStart=aiRouteHaversineKm(startLat,startLng,Number(s.lat),Number(s.lng));
     // 登録店舗全体を対象にしつつ、AI推薦店舗には優先ボーナスを付与。
-    const value=aiRouteValueScore(c)*(selectedIds.has(id)?1.28:1);
+    const value=aiRouteValueScore(c)*(selectedIds.has(id)?1.04:1);
     pool.push({id,name:String(s.name||id),lat:Number(s.lat),lng:Number(s.lng),c,fromStart,value,aiSelected:selectedIds.has(id)});
   }
   const ordered=[], remaining=pool;
@@ -3392,7 +3400,7 @@ function optimizeAiRouteFromPoint(hits,startLat,startLng) {
     remaining.forEach((x,i)=>{
       const dist=aiRouteHaversineKm(lat,lng,x.lat,x.lng);
       // 現在地からの遠さも評価し、無駄な遠征・折り返しを抑える。
-      const score=x.value/(Math.pow(dist+2,.85)*Math.pow(x.fromStart+4,.24));
+      const score=x.value/(Math.pow(dist+2,.55)*Math.pow(x.fromStart+4,.12));
       if(score>bestScore){bestScore=score;bestI=i;bestDist=dist;}
     });
     if(bestI<0)break;
