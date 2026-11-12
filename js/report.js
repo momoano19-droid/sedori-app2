@@ -3561,9 +3561,14 @@ function aiRouteOrderAround(anchor,candidates,hours,origin){
   if(!mandatory)return [];
   const dwell=aiRouteDwellHours();
   if(dwell>hours)return [];
-  const cluster=pool.filter(x=>aiRouteHaversineKm(x.lat,x.lng,mandatory.lat,mandatory.lng)<=Math.max(45,Math.min(115,hours*19)));
+  // 市町村で区切らず、店舗間の距離を優先。離れた店舗は別ルートの軸として評価。
+  // 直線距離ベースの概算で1区間30分、移動合計は予定時間の35%を上限とする。
+  const maxLegHours=.5;
+  const maxTravelHours=hours*.35;
+  const cluster=pool.filter(x=>aiRouteHaversineKm(x.lat,x.lng,mandatory.lat,mandatory.lng)<=Math.max(25,Math.min(65,hours*12)));
   const selected=[mandatory],used=new Set([String(mandatory.storeId)]);
   let elapsed=dwell;
+  let travelHours=0;
   const leg=(a,b)=>aiRouteEstimateHours(aiRouteHaversineKm(a.lat,a.lng,b.lat,b.lng));
   // 過去利益・成功率・再訪間隔・実績数を加味した、追加訪問の相対価値。
   // 未訪問店は少しだけ探索余地を残すが、直近訪問や低期待値は優先しない。
@@ -3591,7 +3596,11 @@ function aiRouteOrderAround(anchor,candidates,hours,origin){
       for(let pos=0;pos<=selected.length;pos++){
         const before=pos>0?selected[pos-1]:null;
         const after=pos<selected.length?selected[pos]:null;
-        const extraTravel=(before?leg(before,x):0)+(after?leg(x,after):0)-(before&&after?leg(before,after):0);
+        const beforeLeg=before?leg(before,x):0;
+        const afterLeg=after?leg(x,after):0;
+        if(beforeLeg>maxLegHours+1e-8||afterLeg>maxLegHours+1e-8)continue;
+        const extraTravel=beforeLeg+afterLeg-(before&&after?leg(before,after):0);
+        if(travelHours+extraTravel>maxTravelHours+1e-8)continue;
         const extra=dwell+extraTravel;
         if(elapsed+extra>hours+1e-8)continue;
         // 移動時間の長い寄り道は、相応の利益が必要。
@@ -3604,6 +3613,7 @@ function aiRouteOrderAround(anchor,candidates,hours,origin){
     if(!best)break;
     selected.splice(best.pos,0,best.x);
     used.add(String(best.x.storeId));elapsed+=best.extra;
+    travelHours=selected.reduce((sum,x,i)=>sum+(i?leg(selected[i-1],x):0),0);
   }
   // 現在地は順路の参考情報だが、最初の店舗までの移動は予算に含めない。
   // 出発地点に近い端から巡回できるなら順路を反転する。
@@ -3619,7 +3629,13 @@ function aiRouteOrderAround(anchor,candidates,hours,origin){
       const before=i?selected[i-1]:null,after=j+1<selected.length?selected[j+1]:null;
       const old=(before?leg(before,selected[i]):0)+(after?leg(selected[j],after):0);
       const neu=(before?leg(before,selected[j]):0)+(after?leg(selected[i],after):0);
-      if(neu+1e-6<old){selected.splice(i,j-i+1,...selected.slice(i,j+1).reverse());improved=true;}
+      if(neu+1e-6<old){
+        const reversed=[...selected.slice(0,i),...selected.slice(i,j+1).reverse(),...selected.slice(j+1)];
+        const legs=reversed.slice(1).map((x,k)=>leg(reversed[k],x));
+        if(legs.every(h=>h<=maxLegHours+1e-8)&&legs.reduce((a,h)=>a+h,0)<=maxTravelHours+1e-8){
+          selected.splice(0,selected.length,...reversed);improved=true;
+        }
+      }
     }
     if(!improved)break;
   }
@@ -3666,6 +3682,8 @@ function aiRouteRank(route){
   const successScore=m.rate*(m.visits/(m.visits+12));
   const revisitScore=m.revisit/route.length;
   const travelPenalty=m.travelMin/plannedMinutes;
+  // 距離制約に反するルートを利益額だけで上位にしない。
+  if(m.travelMin>plannedMinutes*.35+1e-6 || route.some(x=>(Number(x.legHours)||0)>.5+1e-8) || m.durationMin>plannedMinutes+1e-6)return -Infinity;
   // 短時間プランで遠回りを不当に有利にしない一方、時間を使い切るだけで高評価にしない。
   return profitScore*5+successScore*1.8+revisitScore*.35
     +sourcingShare*.6+timeCoverage*.6+Math.log1p(totalOpportunity/1000)*2.4-travelPenalty*.8;
@@ -3685,7 +3703,7 @@ function aiRouteFindChoices(origin){
   // 従来の上位90店舗制限や近場・単独高評価店舗の優先枠を廃止。
   for(const seed of candidates){
     const route=aiRouteOrderAround(seed,candidates,hours,origin);
-    if(route.length)ranked.push({seed,route,score:aiRouteRank(route),kind:'other'});
+    if(route.length && Number.isFinite(aiRouteRank(route)))ranked.push({seed,route,score:aiRouteRank(route),kind:'other'});
   }
   ranked.sort((a,b)=>b.score-a.score || String(a.seed.storeId).localeCompare(String(b.seed.storeId)));
   const chosen=[];
@@ -3747,7 +3765,7 @@ function aiRouteConsistentPlanHtml(workerText){
       comparison=`比較対象の${label}に対して、${profitText}一方、${travelText}です。`;
     }
     const unusedMin=Math.max(0,Math.round(hours*60-metrics.durationMin));
-    const timeReason=unusedMin>=60?`予定時間のうち約${unusedMin}分が未使用です。追加店舗は移動負担・期待利益・再訪間隔を比較し、採用条件を満たさなかったため見送っています。`:`予定時間内で利益と移動効率を考慮した店舗構成です。`;
+    const timeReason=unusedMin>=60?`予定時間のうち約${unusedMin}分が未使用です。追加店舗は1区間30分以内・店舗間移動合計35%以内の制約と利益実績・再訪間隔を比較し、採用条件を満たさなかったため見送っています。`:`予定時間内で利益と移動効率を考慮した店舗構成です。`;
     const reason=`${timeReason}過去${visits}回訪問・${success}回成功（記録上の成功割合${visits?Math.round(success/visits*100):0}%）、累計利益${aiRouteYen(profit)}、1訪問あたりの過去平均利益${aiRouteYen(metrics.avg)}。30日以上未訪問${revisit}店舗、店舗間移動概算${Math.round(travel*60)}分。${comparison}${i===0?'過去利益の効率を中心に、訪問記録の厚み・成功実績・再訪間隔・移動負担を同じ基準で比較した結果、このルートを第1候補に選びました。':'第1候補との違いを確認し、利益重視・成功実績重視など目的に応じて選べる代替案です。'} ※過去実績であり、次回の利益を保証するものではありません。`;
     const list=route.map(x=>`<li style="padding:7px 0;border-bottom:1px solid #e8edf1;line-height:1.55"><strong>${escapeHtml(x.name)}</strong><div style="font-size:.82em;color:#586578">${escapeHtml(aiRouteStoreReason(x))}</div></li>`).join('');
     return `<section class="aiPlanCard" style="margin:0 0 14px;border:${active?'2px solid #248d73':'1px solid #dfe5eb'};border-radius:15px;overflow:hidden;background:#fff">
@@ -3787,7 +3805,7 @@ function aiRenderRouteChoices(){
     <label class="aiRouteChoiceLabel">仕入れルート（候補を変更できます）<select id="aiRouteChoiceSelect" onchange="aiChangeRouteChoice(this.value)">${aiRouteOptions.map((x,i)=>`<option value="${i}" ${i===aiRouteChoiceIndex?'selected':''}>${x.kind==='best'?'🏆 最優先：':x.kind==='near'?'🚗 近場：':x.kind==='anchor'?'⭐ 高評価店舗：':'🗺️ 別エリア：'}${escapeHtml(x.seed.name)} を含む（${x.route.length}店舗）</option>`).join('')}</select></label>
     <div class="mini">過去実績：${pace.measured?`約${pace.rate.toFixed(2)}店舗/時（時間記録${pace.timed}日）`:`時間記録が不足のため暫定 ${pace.rate.toFixed(1)}店舗/時`} ／ 目標 約${Math.round(hours*pace.rate)}店舗。おすすめ軸店舗は途中に配置可能。訪問1〜3日以内の店舗は低評価。経過日数は今日時点。</div>
     <div class="aiRouteBudget">候補 ${aiSelectedRoute.length}店舗 ／ 店舗滞在 約${aiRouteFormatHours(dwell)} ／ 店舗間移動 約${aiRouteFormatHours(travel)} ／ 合計 約${aiRouteFormatHours(dwell+travel)}（上限 ${hours}時間）</div>
-    ${hours*60-(dwell+travel)*60>=60?`<div class="mini" style="margin:10px 0;padding:10px;border-left:3px solid #7b8ca3;background:#f5f8fb">残り約${Math.round(hours*60-(dwell+travel)*60)}分。全登録候補から追加を検討しましたが、このルートでは利益実績・再訪間隔・移動負担に基づく採用基準を満たす店舗がありませんでした。時間を埋めるだけの追加は行いません。</div>`:''}
+    ${hours*60-(dwell+travel)*60>=60?`<div class="mini" style="margin:10px 0;padding:10px;border-left:3px solid #7b8ca3;background:#f5f8fb">残り約${Math.round(hours*60-(dwell+travel)*60)}分。全登録候補から追加を検討しましたが、このルートでは1区間30分以内・移動合計35%以内の制約と利益実績・再訪間隔に基づく採用基準を満たす店舗がありませんでした。時間を埋めるだけの追加は行いません。</div>`:''}
     <div class="aiRouteStoreList">${aiSelectedRoute.map((x,i)=>`<label class="aiRouteStoreRow"><input type="checkbox" checked onchange="aiToggleRouteStore('${escapeHtml(String(x.storeId))}',this.checked)"><span><strong>${i+1}. ${escapeHtml(x.name)}</strong><small>${i===0?'最初の店舗（自宅からの移動は予算外）':`前店舗から直線 約${x.legKm.toFixed(1)}km／移動概算 ${aiRouteFormatHours(x.legHours)}`} · 成功 ${x.success}/${x.visits}回</small><small>${escapeHtml(aiRouteStoreReason(x))}</small></span></label>`).join('')}</div>
     <div class="mini">チェックを外すと除外してルートを再計算します。除外を戻すにはエリアを選び直してください。登録店舗の座標と実績から計算しています。</div>`;
   const actions=document.getElementById('aiNextPlanRouteActions');if(actions)actions.hidden=false;
