@@ -3642,34 +3642,31 @@ function aiRouteRank(route){
   const travelPenalty=m.travelMin/480;
   return profitScore*5+successScore*1.8+revisitScore*.35-travelPenalty*.8;
 }
+// 全登録店舗を軸候補として評価し、ルート全体の得点で順位を決める。
+// 同じ店舗構成の重複を除き、近いエリアのほぼ同一ルートを上位3件で占めないようにする。
+function aiRouteOverlap(a,b){
+  const ids=new Set((a.route||[]).map(x=>String(x.storeId)));
+  const other=new Set((b.route||[]).map(x=>String(x.storeId)));
+  let common=0;for(const id of other)if(ids.has(id))common++;
+  return common/Math.max(1,Math.min(ids.size,other.size));
+}
 function aiRouteFindChoices(origin){
   const candidates=aiRouteAllCandidates(),hours=Math.max(.5,Math.min(16,Number(document.getElementById('aiPlanHours')?.value)||8));
   if(!candidates.length)return [];
-  const quality=candidates.slice().sort((a,b)=>aiRouteValueScore(b)-aiRouteValueScore(a));
-  const seeds=quality.slice(0,Math.min(90,quality.length));
-  if(origin)seeds.push(...candidates.slice().sort((a,b)=>aiRouteHaversineKm(origin.lat,origin.lng,a.lat,a.lng)-aiRouteHaversineKm(origin.lat,origin.lng,b.lat,b.lng)).slice(0,18));
-  const seen=new Set(),ranked=[];
-  for(const seed of seeds){if(seen.has(seed.storeId))continue;seen.add(seed.storeId);
+  const ranked=[];
+  // 従来の上位90店舗制限や近場・単独高評価店舗の優先枠を廃止。
+  for(const seed of candidates){
     const route=aiRouteOrderAround(seed,candidates,hours,origin);
     if(route.length)ranked.push({seed,route,score:aiRouteRank(route),kind:'other'});
   }
-  ranked.sort((a,b)=>b.score-a.score);
+  ranked.sort((a,b)=>b.score-a.score || String(a.seed.storeId).localeCompare(String(b.seed.storeId)));
   const chosen=[];
-  // 「最優先」は個別店舗の順位ではなく、8時間のルート全体の評価で決める。
-  // 最上位の単独店舗を含むルートは別候補として必ず残す。
-  if(ranked.length)chosen.push({...ranked[0],kind:'best'});
-  const top=quality[0];
-  const topChoice=ranked.find(x=>x.route.some(s=>s.storeId===top.storeId))||{seed:top,route:aiRouteOrderAround(top,candidates,hours,origin),score:0};
-  if(!chosen.some(x=>x.route.some(s=>s.storeId===top.storeId)))chosen.push({...topChoice,seed:top,kind:'anchor'});
-  if(origin){
-    const closest=candidates.slice().sort((a,b)=>aiRouteHaversineKm(origin.lat,origin.lng,a.lat,a.lng)-aiRouteHaversineKm(origin.lat,origin.lng,b.lat,b.lng))[0];
-    const near=aiRouteOrderAround(closest,candidates,hours,origin);
-    chosen.push({seed:closest,route:near,score:aiRouteRank(near),kind:'near'});
-  }
   for(const item of ranked){
-    if(chosen.some(x=>aiRouteHaversineKm(x.seed.lat,x.seed.lng,item.seed.lat,item.seed.lng)<40))continue;
-    chosen.push(item);if(chosen.length>=8)break;
+    if(chosen.some(x=>aiRouteOverlap(x,item)>=.70))continue;
+    chosen.push({...item,kind:chosen.length===0?'best':'other'});
+    if(chosen.length>=8)break;
   }
+  // 候補が極端に少ない場合も同じルートを重複表示しない。
   return chosen;
 }
 function aiRouteFormatHours(h){return `${Math.round(h*60)}分`;}
@@ -3686,16 +3683,8 @@ function aiRouteStoreReason(x){
   return `${visitText}／${profitText}／${revisit}。${interpretation}`;
 }
 function aiRouteDisplayChoices(){
-  if(!aiRouteOptions.length)return [];
-  const picks=[aiRouteOptions[0]];
-  const signature=x=>(x.route||[]).map(s=>String(s.storeId)).sort().join('|');
-  const distinct=x=>!picks.some(y=>signature(x)===signature(y));
-  const near=aiRouteOptions.find(x=>x.kind==='near'&&distinct(x));
-  if(near)picks.push(near);
-  const different=aiRouteOptions.find(x=>distinct(x)&&picks.every(y=>aiRouteHaversineKm(x.seed.lat,x.seed.lng,y.seed.lat,y.seed.lng)>35));
-  if(different)picks.push(different);
-  for(const x of aiRouteOptions){if(picks.length>=3)break;if(distinct(x))picks.push(x);}
-  return picks;
+  // aiRouteFindChoicesですでに全候補を同一基準で採点・重複排除済み。
+  return aiRouteOptions.slice(0,3);
 }
 function aiRouteConsistentPlanHtml(workerText){
   if(!aiRouteOptions.length)return renderAiNextPlanHtml(workerText);
@@ -3742,7 +3731,7 @@ function aiRouteConsistentPlanHtml(workerText){
       <div style="padding:0 15px 15px"><div style="font-weight:800;margin:8px 0 6px">💡 おすすめする理由</div><p style="margin:0;line-height:1.7;font-size:.9em">${escapeHtml(reason)}</p></div>
     </section>`;
   }).join('');
-  return `<div class="aiDeepAnalysisHeader"><div class="aiDeepAnalysisTitle">🧭 AI次回仕入れプラン</div><div class="aiDeepAnalysisSub">おすすめ${picks.length}ルートを実績数値で比較</div></div>
+  return `<div class="aiDeepAnalysisHeader"><div class="aiDeepAnalysisTitle">🧭 AI次回仕入れプラン</div><div class="aiDeepAnalysisSub">全${aiRouteAllCandidates().length}店舗を軸に候補ルートを評価・上位${picks.length}ルートを比較</div></div>
     <div style="padding:8px 2px 13px;font-size:.9em;color:#586578">予定日：${escapeHtml(day)} ／ 現地仕入れ：${hours}時間 ／ 過去実績：約${pace.rate.toFixed(2)}店舗/時</div>
     <div class="aiPlanCards">${cards}</div>
     <p style="font-size:.82em;color:#667085">※利益参考値は各店舗の過去平均を単純合計したもので予測利益や保証額ではありません。再訪間隔は仕入れ予定日基準です。移動は直線距離からの概算で、自宅から最初の店舗・最後の店舗から自宅への移動は現地仕入れ時間に含みません。</p>
