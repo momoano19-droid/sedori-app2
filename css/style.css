@@ -6097,3 +6097,23 @@ button {
 .storeEfficiencyDetail summary{cursor:pointer;line-height:1.6}
 .storeEfficiencyScroll{overflow-x:auto}.storeEfficiencyTable{width:100%;min-width:340px;border-collapse:collapse;font-size:13px}
 .storeEfficiencyTable th,.storeEfficiencyTable td{padding:8px 5px;border-bottom:1px solid #e5e9f0;text-align:left;white-space:nowrap}
+
+
+/* 2026-11 report organization: calendar and daily review always visible */
+.reportOrganizedLayout { display:flex; flex-direction:column; gap:14px; }
+.reportTabBar { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; padding:5px; border-radius:15px; background:#eef2fb; position:relative; }
+.reportTabButton { min-width:0; border:0; border-radius:11px; background:transparent; color:#34415b; font-size:clamp(12px,3.3vw,15px); font-weight:750; padding:13px 3px; cursor:pointer; }
+.reportTabButton.isActive { background:#3976f6; color:#fff; box-shadow:0 2px 8px rgba(35,89,190,.15); }
+.reportTabButton:focus-visible, .reportFold > summary:focus-visible { outline:3px solid #ffb84d; outline-offset:2px; }
+.reportTabPanel[hidden] { display:none !important; }
+.reportTabPanel { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.reportFold { min-width:0; border-radius:17px; background:#fff; box-shadow:0 3px 14px rgba(25,40,65,.055); overflow:visible; }
+.reportFold > summary { list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; padding:17px 16px; font-weight:800; font-size:16px; color:#17233b; }
+.reportFold > summary::-webkit-details-marker { display:none; }
+.reportFold > summary::after { content:'⌄'; color:#506382; font-size:20px; transition:transform .15s; }
+.reportFold[open] > summary::after { transform:rotate(180deg); }
+.reportFold[open] > summary { border-bottom:1px solid #e8edf5; }
+.reportFold > section { margin:0 !important; box-shadow:none !important; }
+.reportFold > section.card { border-radius:0 0 17px 17px; }
+.reportFold > section#topStoresWrap > .card { margin-bottom:10px; }
+@media(max-width:390px) { .reportFold > summary { font-size:14px; padding:14px 12px; } .reportTabButton { font-size:12px; } }
