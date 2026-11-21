@@ -2909,20 +2909,10 @@ function aiLoadStoreDwellHistory() {
     return Array.isArray(rows) ? rows : [];
   } catch (e) { console.warn("store dwell history read failed", e); return []; }
 }
-/* AIへ渡す訪問日時は明示的に日本時間（UTC+09:00）で表現する。
-   保存データのISO/UTC値は変更しない。 */
-function aiDwellJstDateTime(iso) {
+function aiDwellLocalDay(iso) {
   const d = new Date(iso);
   if (!Number.isFinite(d.getTime())) return "";
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone:"Asia/Tokyo", year:"numeric", month:"2-digit", day:"2-digit",
-    hour:"2-digit", minute:"2-digit", second:"2-digit", hourCycle:"h23"
-  }).formatToParts(d);
-  const get = type => parts.find(p => p.type === type)?.value || "";
-  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}+09:00`;
-}
-function aiDwellLocalDay(iso) {
-  return aiDwellJstDateTime(iso).slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 function aiDwellSummary(options = {}) {
   const {fromDay = "", throughDay = "", storeIds = null} = options;
@@ -2944,9 +2934,8 @@ function aiDwellSummary(options = {}) {
     const purchases = Array.isArray(x.purchases) ? x.purchases : [];
     const linkedItems = purchases.reduce((sum,p)=>sum + Math.max(0,Number(p.qty)||0),0);
     const linkedProfit = purchases.reduce((sum,p)=>sum + Math.max(0,Number(p.profit)||0),0);
-    linkedVisits.push({visitId:String(x.id||""),storeId:id,
-      enteredAt:aiDwellJstDateTime(x.enteredAt),
-      exitedAt:aiDwellJstDateTime(x.exitedAt),durationMinutes:Math.round(minutes),
+    linkedVisits.push({visitId:String(x.id||""),storeId:id,enteredAt:x.enteredAt,
+      exitedAt:x.exitedAt,durationMinutes:Math.round(minutes),
       purchaseRecords:purchases.length,items:linkedItems,profit:linkedProfit,
       linkageStatus:purchases.length ? "linked" : "no_linked_purchase"});
     count++; totalMinutes += minutes;
@@ -2958,7 +2947,8 @@ function aiDwellSummary(options = {}) {
     totalMinutes:Math.round(x.totalMinutes),
     linkedVisits:linkedVisits.filter(v=>v.storeId===x.storeId && v.purchaseRecords>0).length,
     linkedItems:linkedVisits.filter(v=>v.storeId===x.storeId).reduce((n,v)=>n+v.items,0),
-    linkedProfit:linkedVisits.filter(v=>v.storeId===x.storeId).reduce((n,v)=>n+v.profit,0)
+    linkedProfit:linkedVisits.filter(v=>v.storeId===x.storeId).reduce((n,v)=>n+v.profit,0),
+    efficiencyQualifiedVisits:linkedVisits.filter(v=>v.storeId===x.storeId && v.purchaseRecords>0 && v.durationMinutes>=STORE_EFFICIENCY_MIN_MINUTES).length
   })).sort((a,b)=>b.samples-a.samples);
   return {recordedVisits:count, recordedMinutes:Math.round(totalMinutes),
     overallAverageMinutes:count ? Math.round(totalMinutes/count) : null,
@@ -4174,6 +4164,71 @@ showAiDeepAnalysis=function(resultEl,analysis){
 };
 const aiChatOriginalBoot=bootReport;
 bootReport=function(){aiChatOriginalBoot();aiChatRestoreDaily();aiChatRestoreMonthly();aiPeriodRestore();};
+/* ===== 店舗別時間効率：訪問IDと仕入れの紐付けがある記録のみ利益時給に使用 ===== */
+const STORE_EFFICIENCY_MIN_MINUTES = 3;
+const STORE_EFFICIENCY_MIN_LINKED_VISITS = 3;
+function aiStoreEfficiencyData(options = {}) {
+  const rows = aiLoadStoreDwellHistory();
+  const names = new Map(loadStores().map(s => [String(s.id), String(s.name || "店舗名未設定")]));
+  const byStore = new Map();
+  for (const x of rows) {
+    const id = String(x.storeId || "");
+    const start = Date.parse(x.enteredAt), end = Date.parse(x.exitedAt);
+    const day = aiDwellLocalDay(x.enteredAt);
+    if (!id || !Number.isFinite(start) || !Number.isFinite(end) || end <= start ||
+        (options.fromDay && day < options.fromDay) || (options.throughDay && day > options.throughDay)) continue;
+    const minutes = (end - start) / 60000;
+    if (minutes > 1440) continue;
+    const purchases = Array.isArray(x.purchases) ? x.purchases : [];
+    const linked = purchases.length > 0;
+    const eligible = minutes >= STORE_EFFICIENCY_MIN_MINUTES;
+    const items = linked ? purchases.reduce((n,p) => n + Math.max(0, Number(p.qty) || 0), 0) : null;
+    const profit = linked ? purchases.reduce((n,p) => n + (Number(p.profit) || 0), 0) : null;
+    const g = byStore.get(id) || {storeId:id,name:names.get(id)||"登録外の店舗",visits:[],qualified:[],linkedCount:0,unknownCount:0,shortCount:0};
+    const v = {enteredAt:x.enteredAt,exitedAt:x.exitedAt,minutes,items,profit,linked,eligible};
+    g.visits.push(v);
+    if (!eligible) g.shortCount++;
+    else if (!linked) g.unknownCount++;
+    else {g.qualified.push(v);g.linkedCount++;}
+    byStore.set(id,g);
+  }
+  return [...byStore.values()].map(g => {
+    const minutes = g.qualified.reduce((n,v)=>n+v.minutes,0);
+    const profit = g.qualified.reduce((n,v)=>n+v.profit,0);
+    const allMinutes = g.visits.reduce((n,v)=>n+v.minutes,0);
+    return {...g,totalVisits:g.visits.length,averageMinutes:allMinutes/g.visits.length,
+      qualifiedMinutes:minutes,qualifiedProfit:profit,
+      profitPerHour:g.linkedCount >= STORE_EFFICIENCY_MIN_LINKED_VISITS && minutes>0 ? profit*60/minutes : null,
+      qualifiedSuccessRate:g.linkedCount ? 100*g.qualified.filter(v=>v.items>0).length/g.linkedCount : null};
+  }).sort((a,b)=>(b.profitPerHour??-Infinity)-(a.profitPerHour??-Infinity));
+}
+function renderStoreEfficiency() {
+  const el = document.getElementById("storeEfficiencyCard");
+  if (!el) return;
+  const months = selectedRangeMode === "month" ? [selectedMonth || currentMonthStr()] : aiPeriodMonthKeys();
+  const fromDay = `${months.slice().sort()[0]}-01`;
+  const throughDay = `${months.slice().sort().at(-1)}-31`;
+  const rows = aiStoreEfficiencyData({fromDay,throughDay});
+  const eligible = rows.filter(x=>x.profitPerHour !== null);
+  const money = n=>`${Math.round(n).toLocaleString()}円`;
+  const dateTime = iso=>{const d=new Date(iso);return Number.isFinite(d.getTime())?`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`:"--";};
+  const duration = m=>`${Math.floor(m)}分${Math.round((m%1)*60)?`${Math.round((m%1)*60)}秒`:""}`;
+  el.innerHTML = `<h2 class="sectionTitle">⏱️ 店舗別・仕入れ時間効率</h2>
+    <p class="mini">${escapeHtml(getRangeLabel(selectedRangeMode,selectedMonth||currentMonthStr()))}の入退店記録から自動集計。AI通信なし。</p>
+    <p class="mini">ランキング条件：滞在3分以上・仕入れ紐付け済み3訪問以上。未紐付けは利益0円として扱わず、3分未満の記録も効率計算から除外します。</p>
+    ${eligible.length ? `<div class="storeEfficiencyRanking">${eligible.map((g,i)=>`<div class="storeEfficiencyRank"><span>${i+1}位　${escapeHtml(g.name)}</span><strong>${money(g.profitPerHour)}/時</strong><small>対象${g.linkedCount}訪問 ／ 見込み利益${money(g.qualifiedProfit)} ／ 滞在${duration(g.qualifiedMinutes)}</small></div>`).join("")}</div>` : `<p class="mini">ランキング対象の店舗はまだありません。訪問記録が増えると自動表示されます。</p>`}
+    <h3 class="sectionTitle" style="font-size:1rem;margin-top:16px">🏬 店舗別の訪問履歴</h3>
+    ${rows.length ? rows.map(g=>`<details class="storeEfficiencyDetail"><summary><strong>${escapeHtml(g.name)}</strong>　${g.totalVisits}訪問 ／ 平均${duration(g.averageMinutes)}　${g.profitPerHour===null?"（ランキング集計待ち）":money(g.profitPerHour)+"/時"}</summary>
+      <div class="mini" style="margin:8px 0">集計対象 ${g.linkedCount}訪問 ／ 未紐付け ${g.unknownCount}訪問 ／ 3分未満 ${g.shortCount}訪問</div>
+      <div class="storeEfficiencyScroll"><table class="storeEfficiencyTable"><thead><tr><th>入店</th><th>滞在</th><th>個数</th><th>見込み利益</th></tr></thead><tbody>
+      ${g.visits.slice().sort((a,b)=>Date.parse(b.enteredAt)-Date.parse(a.enteredAt)).map(v=>`<tr><td>${dateTime(v.enteredAt)}</td><td>${duration(v.minutes)}${!v.eligible?' ※':''}</td><td>${v.linked?v.items:'未確認'}</td><td>${v.linked?money(v.profit):'未確認'}</td></tr>`).join("")}</tbody></table></div>
+      <div class="mini">※は3分未満の訪問。紐付けがない記録は未確認として表示します。</div>
+    </details>`).join("") : `<p class="mini">この期間の入退店履歴はありません。</p>`}
+    <p class="mini" style="margin-top:12px">利益時給は仕入れ時の見込み利益を滞在時間で割った参考値です。移動時間・出品作業・販売までの時間は含みません。紐付けがある訪問のみの集計で、店舗全体の実績を保証するものではありません。</p>`;
+}
+const storeEfficiencyOriginalBoot = bootReport;
+bootReport = function(){storeEfficiencyOriginalBoot();renderStoreEfficiency();};
+
 // Next-plan uses its own renderer, so observe result changes and reuse saved plan.
 function aiChatInitPlanObserver(){
   const el=document.getElementById('aiNextPlanResult');if(!el)return;
