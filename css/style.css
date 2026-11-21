@@ -6088,3 +6088,12 @@ button {
   #savedRouteEditorOverlay .savedRouteEditorStore { gap: 4px; padding: 6px 4px; }
   #savedRouteEditorOverlay .savedRouteEditorStore button { padding: 6px; }
 }
+
+/* 店舗別時間効率・訪問詳細 */
+.storeEfficiencyRanking{display:grid;gap:9px;margin:12px 0}
+.storeEfficiencyRank{display:flex;flex-wrap:wrap;justify-content:space-between;gap:5px;background:#f2f6ff;border-radius:12px;padding:12px}
+.storeEfficiencyRank strong{color:#245cc5}.storeEfficiencyRank small{flex-basis:100%;color:#596579}
+.storeEfficiencyDetail{border:1px solid #dce3ef;border-radius:10px;margin:8px 0;padding:10px}
+.storeEfficiencyDetail summary{cursor:pointer;line-height:1.6}
+.storeEfficiencyScroll{overflow-x:auto}.storeEfficiencyTable{width:100%;min-width:340px;border-collapse:collapse;font-size:13px}
+.storeEfficiencyTable th,.storeEfficiencyTable td{padding:8px 5px;border-bottom:1px solid #e5e9f0;text-align:left;white-space:nowrap}
