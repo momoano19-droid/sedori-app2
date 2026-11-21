@@ -6117,3 +6117,16 @@ button {
 .reportFold > section.card { border-radius:0 0 17px 17px; }
 .reportFold > section#topStoresWrap > .card { margin-bottom:10px; }
 @media(max-width:390px) { .reportFold > summary { font-size:14px; padding:14px 12px; } .reportTabButton { font-size:12px; } }
+
+/* 使い方ガイド: 読みやすさとページ移動の改善 */
+#helpProgress{font-size:12px;font-weight:800;color:#2563eb;margin-bottom:7px;text-align:right;}
+#helpContent p{margin:0 0 12px;}
+#helpContent ul,#helpContent ol{margin:8px 0 14px;padding-left:22px;}
+#helpContent li{margin-bottom:9px;}
+#helpContent .guideLead{font-size:16px;font-weight:750;line-height:1.7;color:#16243c;}
+#helpContent .guideFeatures{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:15px 0;}
+#helpContent .guideFeatures>div{border-radius:12px;background:#f0f5ff;padding:12px 10px;font-size:13px;line-height:1.45;}
+#helpContent .guideFeatures small{display:block;color:#64748b;margin-top:5px;font-size:11px;}
+#helpContent .guideTip{padding:11px 12px;background:#eef7f3;border-left:3px solid #36a27e;border-radius:8px;}
+#helpUI .helpActions{position:sticky;bottom:-16px;background:#fff;padding:12px 0 2px;z-index:1;}
+#helpUI .helpActions button:disabled{opacity:.4;cursor:default;}
