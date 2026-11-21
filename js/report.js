@@ -2627,6 +2627,7 @@ function bootReport() {
   renderCalendar(baseMonth, monthBundle.daily);
   renderMonthSummary(currentBundle, totalBundle);
   renderTopStores(currentBundle.topLists);
+  renderStoreEfficiencySafely();
   renderCategorySummary(currentBundle.categories, totalBundle.categories);
   renderPrefAnalysis();
 }
@@ -4226,8 +4227,16 @@ function renderStoreEfficiency() {
     </details>`).join("") : `<p class="mini">この期間の入退店履歴はありません。</p>`}
     <p class="mini" style="margin-top:12px">利益時給は仕入れ時の見込み利益を滞在時間で割った参考値です。移動時間・出品作業・販売までの時間は含みません。紐付けがある訪問のみの集計で、店舗全体の実績を保証するものではありません。</p>`;
 }
-const storeEfficiencyOriginalBoot = bootReport;
-bootReport = function(){storeEfficiencyOriginalBoot();renderStoreEfficiency();};
+function renderStoreEfficiencySafely() {
+  const el = document.getElementById("storeEfficiencyCard");
+  if (!el) return;
+  try {
+    renderStoreEfficiency();
+  } catch (error) {
+    console.error("店舗別仕入れ時間効率の表示に失敗しました", error);
+    el.innerHTML = `<h2 class="sectionTitle">⏱️ 店舗別・仕入れ時間効率</h2><p class="mini">集計の表示中にエラーが発生しました。記録データは変更されていません。詳細はブラウザのコンソールで確認できます。</p>`;
+  }
+}
 
 // Next-plan uses its own renderer, so observe result changes and reuse saved plan.
 function aiChatInitPlanObserver(){
