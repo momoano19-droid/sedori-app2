@@ -2909,10 +2909,20 @@ function aiLoadStoreDwellHistory() {
     return Array.isArray(rows) ? rows : [];
   } catch (e) { console.warn("store dwell history read failed", e); return []; }
 }
-function aiDwellLocalDay(iso) {
+/* AIへ渡す訪問日時は明示的に日本時間（UTC+09:00）で表現する。
+   保存データのISO/UTC値は変更しない。 */
+function aiDwellJstDateTime(iso) {
   const d = new Date(iso);
   if (!Number.isFinite(d.getTime())) return "";
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone:"Asia/Tokyo", year:"numeric", month:"2-digit", day:"2-digit",
+    hour:"2-digit", minute:"2-digit", second:"2-digit", hourCycle:"h23"
+  }).formatToParts(d);
+  const get = type => parts.find(p => p.type === type)?.value || "";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}+09:00`;
+}
+function aiDwellLocalDay(iso) {
+  return aiDwellJstDateTime(iso).slice(0, 10);
 }
 function aiDwellSummary(options = {}) {
   const {fromDay = "", throughDay = "", storeIds = null} = options;
@@ -2934,8 +2944,9 @@ function aiDwellSummary(options = {}) {
     const purchases = Array.isArray(x.purchases) ? x.purchases : [];
     const linkedItems = purchases.reduce((sum,p)=>sum + Math.max(0,Number(p.qty)||0),0);
     const linkedProfit = purchases.reduce((sum,p)=>sum + Math.max(0,Number(p.profit)||0),0);
-    linkedVisits.push({visitId:String(x.id||""),storeId:id,enteredAt:x.enteredAt,
-      exitedAt:x.exitedAt,durationMinutes:Math.round(minutes),
+    linkedVisits.push({visitId:String(x.id||""),storeId:id,
+      enteredAt:aiDwellJstDateTime(x.enteredAt),
+      exitedAt:aiDwellJstDateTime(x.exitedAt),durationMinutes:Math.round(minutes),
       purchaseRecords:purchases.length,items:linkedItems,profit:linkedProfit,
       linkageStatus:purchases.length ? "linked" : "no_linked_purchase"});
     count++; totalMinutes += minutes;
