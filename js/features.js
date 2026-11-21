@@ -62,6 +62,47 @@ function saveActiveStoreDwell(v) {
   if (v) localStorage.setItem(ACTIVE_STORE_DWELL_KEY, JSON.stringify(v));
   else localStorage.removeItem(ACTIVE_STORE_DWELL_KEY);
 }
+/* 仕入れ記録を訪問単位に結び付ける。退店後15分までは自動、それ以外は選択式。 */
+const STORE_DWELL_LINK_WINDOW_MS = 15 * 60 * 1000;
+function resolvePurchaseDwellLink(storeId, recordedAt) {
+  const id = String(storeId);
+  const now = Date.parse(recordedAt);
+  const active = loadActiveStoreDwell();
+  if (active && String(active.storeId) === id && Date.parse(active.enteredAt) <= now) {
+    return {id: String(active.id), active: true};
+  }
+  const history = loadStoreDwellHistory();
+  const candidates = history.filter(x => String(x.storeId) === id &&
+    Number.isFinite(Date.parse(x.exitedAt)) && Date.parse(x.exitedAt) <= now)
+    .sort((a,b) => Date.parse(b.exitedAt) - Date.parse(a.exitedAt));
+  if (candidates.length && now - Date.parse(candidates[0].exitedAt) <= STORE_DWELL_LINK_WINDOW_MS) {
+    return {id: String(candidates[0].id), active: false};
+  }
+  const recent = candidates.filter(x => now - Date.parse(x.exitedAt) <= 30 * 86400000).slice(0, 8);
+  if (!recent.length) return null;
+  const choices = recent.map((x,i) => `${i+1}. ${formatDwellDateTime(x.enteredAt)} ～ ${formatDwellDateTime(x.exitedAt)}`);
+  const answer = prompt(`退店から15分以上経過しています。\n仕入れを紐付ける訪問番号を入力してください。\n空欄・キャンセルは紐付けなしで記録します。\n\n${choices.join("\n")}`, "");
+  const choice = Number(String(answer || "").trim());
+  if (!answer || !Number.isInteger(choice) || choice < 1 || choice > recent.length) return null;
+  return {id: String(recent[choice-1].id), active: false};
+}
+function attachPurchaseToDwell(link, storeId, purchase) {
+  if (!link) return false;
+  const active = loadActiveStoreDwell();
+  if (link.active && active && String(active.id) === link.id && String(active.storeId) === String(storeId)) {
+    active.purchases = Array.isArray(active.purchases) ? active.purchases : [];
+    active.purchases.push(purchase);
+    saveActiveStoreDwell(active);
+    return true;
+  }
+  const history = loadStoreDwellHistory();
+  const target = history.find(x => String(x.id) === link.id && String(x.storeId) === String(storeId));
+  if (!target) return false;
+  target.purchases = Array.isArray(target.purchases) ? target.purchases : [];
+  target.purchases.push(purchase);
+  localStorage.setItem(STORE_DWELL_HISTORY_KEY, JSON.stringify(history));
+  return true;
+}
 function formatDwellDateTime(iso) {
   const d = new Date(iso);
   if (!Number.isFinite(d.getTime())) return "--";
@@ -2147,6 +2188,10 @@ function itemsPlus(i) {
       return;
     }
 
+    // 入店中または退店後15分以内は自動。時間超過時は訪問を選択可能。
+    const purchaseRecordedAt = new Date().toISOString();
+    const purchaseDwellLink = resolvePurchaseDwellLink(s.id, purchaseRecordedAt);
+
     s.items += n;
     s.buyDays += 1;
     if (s.buyDays > s.visits) s.visits = s.buyDays;
@@ -2167,6 +2212,11 @@ function itemsPlus(i) {
       s.profit += profit;
       addLog(s.id, "profit", profit);
     }
+
+    attachPurchaseToDwell(purchaseDwellLink, s.id, {
+      id: typeof ensureId === "function" ? ensureId() : `purchase_${Date.now()}`,
+      recordedAt: purchaseRecordedAt, qty: n, profit, categoryMap: { ...catMap }
+    });
 
     const firstCat = keys[0];
     if (firstCat) s.defaultCategory = firstCat;

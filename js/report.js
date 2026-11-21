@@ -2919,6 +2919,7 @@ function aiDwellSummary(options = {}) {
   const allowed = storeIds ? new Set(storeIds.map(String)) : null;
   const grouped = new Map();
   let totalMinutes = 0, count = 0;
+  const linkedVisits = [];
   for (const x of aiLoadStoreDwellHistory()) {
     const id = String(x.storeId || "");
     const start = Date.parse(x.enteredAt), end = Date.parse(x.exitedAt);
@@ -2930,17 +2931,29 @@ function aiDwellSummary(options = {}) {
     if (minutes > 24*60) continue; // 異常に長い滞在は平均に混ぜない
     const g = grouped.get(id) || {storeId:id, samples:0, totalMinutes:0};
     g.samples++; g.totalMinutes += minutes; grouped.set(id,g);
+    const purchases = Array.isArray(x.purchases) ? x.purchases : [];
+    const linkedItems = purchases.reduce((sum,p)=>sum + Math.max(0,Number(p.qty)||0),0);
+    const linkedProfit = purchases.reduce((sum,p)=>sum + Math.max(0,Number(p.profit)||0),0);
+    linkedVisits.push({visitId:String(x.id||""),storeId:id,enteredAt:x.enteredAt,
+      exitedAt:x.exitedAt,durationMinutes:Math.round(minutes),
+      purchaseRecords:purchases.length,items:linkedItems,profit:linkedProfit,
+      linkageStatus:purchases.length ? "linked" : "no_linked_purchase"});
     count++; totalMinutes += minutes;
   }
   const names = new Map(loadStores().map(x => [String(x.id),String(x.name||"")]));
   const byStore = [...grouped.values()].map(x=>({
     storeId:x.storeId, name:names.get(x.storeId)||"登録外の店舗",
     samples:x.samples, averageMinutes:Math.round(x.totalMinutes/x.samples),
-    totalMinutes:Math.round(x.totalMinutes)
+    totalMinutes:Math.round(x.totalMinutes),
+    linkedVisits:linkedVisits.filter(v=>v.storeId===x.storeId && v.purchaseRecords>0).length,
+    linkedItems:linkedVisits.filter(v=>v.storeId===x.storeId).reduce((n,v)=>n+v.items,0),
+    linkedProfit:linkedVisits.filter(v=>v.storeId===x.storeId).reduce((n,v)=>n+v.profit,0)
   })).sort((a,b)=>b.samples-a.samples);
   return {recordedVisits:count, recordedMinutes:Math.round(totalMinutes),
     overallAverageMinutes:count ? Math.round(totalMinutes/count) : null,
-    byStore, note:"入退店ボタンで記録した完了済みの滞在だけを集計。利益と滞在の訪問単位の対応は未確認。記録のない店舗は推定時間を使用。"};
+    byStore, linkedVisits,
+    linkedVisitCount:linkedVisits.filter(v=>v.purchaseRecords>0).length,
+    note:"入退店ボタンで完了した訪問を集計。linkedVisitsのprofit/itemsはその訪問IDに紐付けた仕入れ記録のみ。紐付けがない訪問は利益0円と断定せず未確認として扱う。過去の記録は自動推定で結び付けない。"};
 }
 
 function buildAiAnalysisPayload(targetDay = selectedDay || todayStr()) {
