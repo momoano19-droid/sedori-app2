@@ -2902,6 +2902,47 @@ function aiTimeBandAnalysis(logs, targetDay) {
   return result;
 }
 
+/* 店舗入退店履歴：AIに渡す実測値。記録がない店舗は推定のまま扱う。 */
+function aiLoadStoreDwellHistory() {
+  try {
+    const rows = JSON.parse(localStorage.getItem("store_dwell_history_v1") || "[]");
+    return Array.isArray(rows) ? rows : [];
+  } catch (e) { console.warn("store dwell history read failed", e); return []; }
+}
+function aiDwellLocalDay(iso) {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function aiDwellSummary(options = {}) {
+  const {fromDay = "", throughDay = "", storeIds = null} = options;
+  const allowed = storeIds ? new Set(storeIds.map(String)) : null;
+  const grouped = new Map();
+  let totalMinutes = 0, count = 0;
+  for (const x of aiLoadStoreDwellHistory()) {
+    const id = String(x.storeId || "");
+    const start = Date.parse(x.enteredAt), end = Date.parse(x.exitedAt);
+    const day = aiDwellLocalDay(x.enteredAt);
+    if (!id || !day || !Number.isFinite(start) || !Number.isFinite(end) || end < start ||
+        (fromDay && day < fromDay) || (throughDay && day > throughDay) ||
+        (allowed && !allowed.has(id))) continue;
+    const minutes = (end-start)/60000;
+    if (minutes > 24*60) continue; // 異常に長い滞在は平均に混ぜない
+    const g = grouped.get(id) || {storeId:id, samples:0, totalMinutes:0};
+    g.samples++; g.totalMinutes += minutes; grouped.set(id,g);
+    count++; totalMinutes += minutes;
+  }
+  const names = new Map(loadStores().map(x => [String(x.id),String(x.name||"")]));
+  const byStore = [...grouped.values()].map(x=>({
+    storeId:x.storeId, name:names.get(x.storeId)||"登録外の店舗",
+    samples:x.samples, averageMinutes:Math.round(x.totalMinutes/x.samples),
+    totalMinutes:Math.round(x.totalMinutes)
+  })).sort((a,b)=>b.samples-a.samples);
+  return {recordedVisits:count, recordedMinutes:Math.round(totalMinutes),
+    overallAverageMinutes:count ? Math.round(totalMinutes/count) : null,
+    byStore, note:"入退店ボタンで記録した完了済みの滞在だけを集計。利益と滞在の訪問単位の対応は未確認。記録のない店舗は推定時間を使用。"};
+}
+
 function buildAiAnalysisPayload(targetDay = selectedDay || todayStr()) {
   const logs = loadLogs(), stores = loadStores();
   const day = targetDay || todayStr();
@@ -2920,6 +2961,8 @@ function buildAiAnalysisPayload(targetDay = selectedDay || todayStr()) {
     target,
     comparisons:{ recent30:aiAverageDays(recent30), sameWeekday:aiAverageDays(sameWeekday) },
     targetDayStores:storesAll.filter(x=>todayStoreIds.has(x.storeId)),
+    storeDwell:aiDwellSummary({throughDay:day}),
+    targetDayDwell:aiDwellSummary({fromDay:day,throughDay:day}),
     topStoresByProfit:storesAll.slice(0,10),
     timeBands:aiTimeBandAnalysis(logs,day),
     dataQuality:{
@@ -3164,7 +3207,7 @@ function buildAiMonthlyAnalysisPayload(monthStr = selectedMonth || currentMonthS
   const prevDate=new Date(`${month}-01T00:00:00`);prevDate.setMonth(prevDate.getMonth()-1);
   const prevMonth=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,"0")}`;
   const prevDays=aiMonthDays(prevMonth);
-  const payload={schemaVersion:1,periodType:"month",generatedAt:new Date().toISOString(),targetMonth:month,totals,averagePerSourcingDay:aiAverageDays(days),dailyResults:days,topStores:aiMonthlyStoreAnalysis(logs,stores,month).slice(0,15),previousMonth:{month:prevMonth,averagePerSourcingDay:aiAverageDays(prevDays),sourcingDays:prevDays.length},dataQuality:{totalLogCount:(logs||[]).length,sourcingDays:days.length,timedSourcingDays:days.filter(x=>Number(x.activityMinutes||0)>0).length,logsWithTimestamp:(logs||[]).filter(x=>x.createdAt && ym(ymd(x.date))===month).length,note:"時間効率は仕入れセッション記録がある日のみ正確に評価できます。"}};
+  const payload={schemaVersion:1,periodType:"month",generatedAt:new Date().toISOString(),targetMonth:month,totals,averagePerSourcingDay:aiAverageDays(days),dailyResults:days,storeDwell:aiDwellSummary({fromDay:`${month}-01`,throughDay:`${month}-31`}),topStores:aiMonthlyStoreAnalysis(logs,stores,month).slice(0,15),previousMonth:{month:prevMonth,averagePerSourcingDay:aiAverageDays(prevDays),sourcingDays:prevDays.length},dataQuality:{totalLogCount:(logs||[]).length,sourcingDays:days.length,timedSourcingDays:days.filter(x=>Number(x.activityMinutes||0)>0).length,logsWithTimestamp:(logs||[]).filter(x=>x.createdAt && ym(ymd(x.date))===month).length,note:"時間効率は仕入れセッション記録がある日のみ正確に評価できます。"}};
   return payload;
 }
 window.buildAiMonthlyAnalysisPayload=buildAiMonthlyAnalysisPayload;
@@ -3238,14 +3281,17 @@ function buildAiNextPlanPayload() {
   const logs=loadLogs(), stores=loadStores();
   const history=aiStoreAnalysis(logs, stores, cutoff);
   const historyMap=new Map(history.map(x=>[String(x.storeId),x]));
+  const dwellMap=new Map(aiDwellSummary({throughDay:cutoff}).byStore.map(x=>[x.storeId,x]));
   const candidates=(stores||[]).map(s=>{
     const h=historyMap.get(String(s.id)) || {visits:0,success:0,successRate:0,items:0,profit:0,profitPerVisit:0,lastVisitDate:null};
+    const dwell=dwellMap.get(String(s.id));
     const daysSince=h.lastVisitDate ? aiDateDiffDays(h.lastVisitDate, todayStr()) : null;
     const daysAtPlan=h.lastVisitDate && plannedDate ? aiDateDiffDays(h.lastVisitDate, plannedDate) : null;
     return {
       storeId:String(s.id||""), name:String(s.name||""), pref:String(s.pref||""), address:String(s.address||""),
       visits:Number(h.visits||0), success:Number(h.success||0), successRate:Number(h.successRate||0), items:Number(h.items||0),
       totalProfit:Number(h.profit||0), expectedProfitPerVisit:Number(h.profitPerVisit||0), lastVisitDate:h.lastVisitDate||null,
+      measuredDwellMinutes:dwell?.averageMinutes??null, measuredDwellSamples:dwell?.samples||0,
       daysSinceLastVisit:daysSince, daysSinceLastVisitAtPlan:daysAtPlan,
       hasCoordinates:aiHasValidStoreCoords(s.lat,s.lng),
       lat:aiHasValidStoreCoords(s.lat,s.lng)?Number(s.lat):null, lng:aiHasValidStoreCoords(s.lat,s.lng)?Number(s.lng):null
@@ -3267,7 +3313,7 @@ function buildAiNextPlanPayload() {
       priorityPolicy:"実績のある店舗の仕入れ成功率を最優先し、期待利益・補充周期・店舗間移動を補助評価する。未訪問店舗は成功率不明として扱う。",
       scheduleAccuracyPolicy:"営業時間や実際の道路移動時間が不明な場合は推定と明記し、確定値を捏造しない。"},
     benchmarks:{recent30:aiAverageDays(recent30), sameWeekday:aiAverageDays(sameWd)},
-    timeBands:aiTimeBandAnalysis(logs, cutoff), candidates,
+    timeBands:aiTimeBandAnalysis(logs, cutoff), storeDwell:aiDwellSummary({throughDay:cutoff}), candidates,
     dataQuality:{totalStores:(stores||[]).length, candidateStores:candidates.length, totalLogCount:(logs||[]).length, recentSampleDays:recent30.length, sameWeekdaySampleDays:sameWd.length, note:"訪問時刻の記録開始前は時間帯データが不足します。未訪問店舗は実績0として候補に含まれます。"}
   };
 }
@@ -3549,7 +3595,10 @@ function aiRoutePace(){
   const effective=rate>0&&timed>=2?rate:rate>0?Math.min(rate,2.2):2;
   return {rate:Math.max(.8,Math.min(5,effective)),timed,measured:rate>0};
 }
-function aiRouteDwellHours(){
+function aiRouteDwellHours(store){
+  if (store && Number(store.measuredDwellSamples)>=2 && Number.isFinite(Number(store.measuredDwellMinutes))) {
+    return Math.max(.05, Math.min(3, Number(store.measuredDwellMinutes)/60));
+  }
   // 訪問ペースには店舗間移動も含まれる。平均移動を別計上するため滞在をやや短く推定。
   return Math.max(.10,Math.min(.48,1/aiRoutePace().rate*.72));
 }
@@ -3559,15 +3608,15 @@ function aiRouteOrderAround(anchor,candidates,hours,origin,strategy="balanced"){
   const pool=candidates.filter(x=>!aiRouteExcludedIds.has(String(x.storeId)));
   const mandatory=pool.find(x=>String(x.storeId)===String(anchor.storeId));
   if(!mandatory)return [];
-  const dwell=aiRouteDwellHours();
-  if(dwell>hours)return [];
+  const dwellFor=x=>aiRouteDwellHours(x);
+  if(dwellFor(mandatory)>hours)return [];
   // 市町村で区切らず、店舗間の距離を優先。離れた店舗は別ルートの軸として評価。
   // 直線距離ベースの概算で1区間30分、移動合計は予定時間の35%を上限とする。
   const maxLegHours=.5;
   const maxTravelHours=hours*.35;
   const cluster=pool.filter(x=>aiRouteHaversineKm(x.lat,x.lng,mandatory.lat,mandatory.lng)<=Math.max(30,Math.min(110,hours*15)));
   const selected=[mandatory],used=new Set([String(mandatory.storeId)]);
-  let elapsed=dwell;
+  let elapsed=dwellFor(mandatory);
   let travelHours=0;
   const leg=(a,b)=>aiRouteEstimateHours(aiRouteHaversineKm(a.lat,a.lng,b.lat,b.lng));
   // 過去利益・成功率・再訪間隔・実績数を加味した、追加訪問の相対価値。
@@ -3601,7 +3650,7 @@ function aiRouteOrderAround(anchor,candidates,hours,origin,strategy="balanced"){
         if(beforeLeg>maxLegHours+1e-8||afterLeg>maxLegHours+1e-8)continue;
         const extraTravel=beforeLeg+afterLeg-(before&&after?leg(before,after):0);
         if(travelHours+extraTravel>maxTravelHours+1e-8)continue;
-        const extra=dwell+extraTravel;
+        const extra=dwellFor(x)+extraTravel;
         if(elapsed+extra>hours+1e-8)continue;
         // 移動時間の長い寄り道は、相応の利益が必要。
         const efficiency=v/(extra*60+10);
@@ -3667,7 +3716,7 @@ function aiRouteMetrics(route){
   // 少数の高額利益だけで決まらないよう、実績の厚みを考慮。
   const reliability=visits/(visits+18);
   const adjustedProfit=avg*reliability;
-  const durationMin=route.length*aiRouteDwellHours()*60+travelMin;
+  const durationMin=route.reduce((sum,x)=>sum+aiRouteDwellHours(x)*60,0)+travelMin;
   return {visits,success,profit,travelMin,known,revisit,avg,rate,adjustedProfit,durationMin};
 }
 function aiRoutePlannedHours(){
@@ -3822,7 +3871,7 @@ function aiRenderRouteChoices(){
   aiRouteRefreshPlan();
   const hours=aiRoutePlannedHours();
   const travel=aiSelectedRoute.reduce((v,x)=>v+(x.legHours||0),0);
-  const dwell=aiSelectedRoute.length*aiRouteDwellHours();
+  const dwell=aiSelectedRoute.reduce((sum,x)=>sum+aiRouteDwellHours(x),0);
   const pace=aiRoutePace();
   wrap.hidden=false;
   wrap.innerHTML=`<div class="aiRouteChoiceTitle">🗺️ 全店舗ルート・遠征先を選択</div>
@@ -3999,7 +4048,7 @@ function buildAiChatLifetimeContext(){
   totals.profitPerVisit=totals.visits>0?totals.profit/totals.visits:null;
   totals.sourcingDays=sourcingDays.size;
   return {schemaVersion:3,scope:'all_recorded_history',firstMonth:monthList[0]||null,lastMonth:monthList.at(-1)||null,
-    totals,monthlyTrend:[...byMonth.values()].sort((a,b)=>a.month.localeCompare(b.month)).map(x=>({...x,successRate:aiLifetimeRate(x.visits,x.success)})),
+    totals,storeDwell:aiDwellSummary(),monthlyTrend:[...byMonth.values()].sort((a,b)=>a.month.localeCompare(b.month)).map(x=>({...x,successRate:aiLifetimeRate(x.visits,x.success)})),
     stores:allStores,storeCount:allStores.length,storesOmitted:0,
     registeredStoreCount:registered.size,unregisteredLogStoreCount:allStores.filter(x=>!x.registered).length,
     dataQuality:{logCount:logs.length,registeredStoreCount:registered.size,anomalousSuccessStoreCount:anomalies.length,
@@ -4067,7 +4116,7 @@ function buildAiPeriodPayload(){
     for(const k of ['visits','success','items','profit'])old[k]+=Number(item[k]||0);byStore.set(item.storeId,old);
   }}
   const topStores=[...byStore.values()].map(x=>({...x,successRate:x.visits?x.success/x.visits*100:0,profitPerVisit:x.visits?x.profit/x.visits:0})).sort((a,b)=>b.profit-a.profit).slice(0,20);
-  return {schemaVersion:1,periodType:selectedRangeMode,periodLabel:getRangeLabel(selectedRangeMode,selectedMonth||currentMonthStr()),months:months.slice().reverse(),totals,averagePerSourcingDay:aiAverageDays(days),topStores,monthlyTotals:months.slice().reverse().map(m=>{const p=buildAiMonthlyAnalysisPayload(m);return {month:m,totals:p.totals}}),dataQuality:{sourcingDays:days.length,logCount:filtered.length}};
+  return {schemaVersion:1,periodType:selectedRangeMode,periodLabel:getRangeLabel(selectedRangeMode,selectedMonth||currentMonthStr()),months:months.slice().reverse(),totals,averagePerSourcingDay:aiAverageDays(days),topStores,storeDwell:aiDwellSummary({fromDay:`${months[months.length-1]}-01`,throughDay:`${months[0]}-31`}),monthlyTotals:months.slice().reverse().map(m=>{const p=buildAiMonthlyAnalysisPayload(m);return {month:m,totals:p.totals}}),dataQuality:{sourcingDays:days.length,logCount:filtered.length}};
 }
 function aiPeriodRestore(){
   const card=document.getElementById('aiPeriodAnalysisCard');if(!card)return;
