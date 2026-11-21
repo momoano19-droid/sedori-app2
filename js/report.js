@@ -4186,7 +4186,7 @@ function aiStoreEfficiencyData(options = {}) {
     const items = linked ? purchases.reduce((n,p) => n + Math.max(0, Number(p.qty) || 0), 0) : null;
     const profit = linked ? purchases.reduce((n,p) => n + (Number(p.profit) || 0), 0) : null;
     const g = byStore.get(id) || {storeId:id,name:names.get(id)||"登録外の店舗",visits:[],qualified:[],linkedCount:0,unknownCount:0,shortCount:0};
-    const v = {enteredAt:x.enteredAt,exitedAt:x.exitedAt,minutes,items,profit,linked,eligible};
+    const v = {id:String(x.id||""),enteredAt:x.enteredAt,exitedAt:x.exitedAt,minutes,items,profit,linked,eligible};
     g.visits.push(v);
     if (!eligible) g.shortCount++;
     else if (!linked) g.unknownCount++;
@@ -4203,6 +4203,63 @@ function aiStoreEfficiencyData(options = {}) {
       qualifiedSuccessRate:g.linkedCount ? 100*g.qualified.filter(v=>v.items>0).length/g.linkedCount : null};
   }).sort((a,b)=>(b.profitPerHour??-Infinity)-(a.profitPerHour??-Infinity));
 }
+/* 過去ログは読み取り専用。利益時給の確定値とは混ぜない。 */
+function aiStoreHistoricalProfitData() {
+  const byStore = new Map();
+  for (const log of loadLogs()) {
+    const id = String(log.storeId || "");
+    if (!id) continue;
+    const g = byStore.get(id) || {items:0,profit:0};
+    const n = Number(log.delta || 0);
+    if (log.type === "items") g.items += n;
+    if (log.type === "profit" || log.type === "profit_adjust") g.profit += n;
+    byStore.set(id,g);
+  }
+  return byStore;
+}
+/* 自動照合候補：仕入れログの時刻が1訪問だけに一致した場合のみ。
+   調整ログ、日時なし、既に紐付け済みの訪問、複数候補は除外する。 */
+function aiStoreHistoricalMatchCandidates() {
+  const visits = aiLoadStoreDwellHistory().filter(v =>
+    v.storeId && Number.isFinite(Date.parse(v.enteredAt)) &&
+    Number.isFinite(Date.parse(v.exitedAt)) && Date.parse(v.exitedAt)>Date.parse(v.enteredAt));
+  const logs = loadLogs().filter(l => ["success","items","profit"].includes(l.type) &&
+    Number(l.delta)>0 && Number.isFinite(Date.parse(l.createdAt)));
+  const byStore = new Map();
+  for (const l of logs) {
+    const id = String(l.storeId || "");
+    if (!byStore.has(id)) byStore.set(id,[]);
+    byStore.get(id).push(l);
+  }
+  const result = new Map();
+  for (const [id,entries] of byStore) {
+    entries.sort((a,b)=>Date.parse(a.createdAt)-Date.parse(b.createdAt));
+    const groups=[];
+    for (const l of entries) {
+      const t=Date.parse(l.createdAt);
+      const last=groups[groups.length-1];
+      if (!last || t-last.start>10000 || last.types.has(l.type)) {
+        groups.push({start:t,types:new Set([l.type]),items:l.type==="items"?Number(l.delta):0,profit:l.type==="profit"?Number(l.delta):0});
+      } else {
+        last.types.add(l.type);
+        if(l.type==="items")last.items+=Number(l.delta);
+        if(l.type==="profit")last.profit+=Number(l.delta);
+      }
+    }
+    for (const g of groups) {
+      if (!g.types.has("success") || !g.types.has("items") || g.items<=0) continue;
+      const matches=visits.filter(v=>String(v.storeId)===id &&
+        !(Array.isArray(v.purchases)&&v.purchases.length) &&
+        g.start>=Date.parse(v.enteredAt) &&
+        g.start<=Date.parse(v.exitedAt)+15*60000);
+      if (matches.length!==1) continue;
+      const v=matches[0], key=String(v.id||"");
+      if (!key || result.has(key)) { if(key)result.set(key,null); continue; }
+      result.set(key,{items:g.items,profit:g.profit,recordedAt:new Date(g.start).toISOString()});
+    }
+  }
+  return result;
+}
 function renderStoreEfficiency() {
   const el = document.getElementById("storeEfficiencyCard");
   if (!el) return;
@@ -4211,6 +4268,8 @@ function renderStoreEfficiency() {
   const throughDay = `${months.slice().sort().at(-1)}-31`;
   const rows = aiStoreEfficiencyData({fromDay,throughDay});
   const eligible = rows.filter(x=>x.profitPerHour !== null);
+  const historical = aiStoreHistoricalProfitData();
+  const matches = aiStoreHistoricalMatchCandidates();
   const money = n=>`${Math.round(n).toLocaleString()}円`;
   const dateTime = iso=>{const d=new Date(iso);return Number.isFinite(d.getTime())?`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`:"--";};
   const duration = m=>`${Math.floor(m)}分${Math.round((m%1)*60)?`${Math.round((m%1)*60)}秒`:""}`;
@@ -4218,13 +4277,17 @@ function renderStoreEfficiency() {
     <p class="mini">${escapeHtml(getRangeLabel(selectedRangeMode,selectedMonth||currentMonthStr()))}の入退店記録から自動集計。AI通信なし。</p>
     <p class="mini">ランキング条件：滞在3分以上・仕入れ紐付け済み3訪問以上。未紐付けは利益0円として扱わず、3分未満の記録も効率計算から除外します。</p>
     ${eligible.length ? `<div class="storeEfficiencyRanking">${eligible.map((g,i)=>`<div class="storeEfficiencyRank"><span>${i+1}位　${escapeHtml(g.name)}</span><strong>${money(g.profitPerHour)}/時</strong><small>対象${g.linkedCount}訪問 ／ 見込み利益${money(g.qualifiedProfit)} ／ 滞在${duration(g.qualifiedMinutes)}</small></div>`).join("")}</div>` : `<p class="mini">ランキング対象の店舗はまだありません。訪問記録が増えると自動表示されます。</p>`}
+    <p class="mini">過去の累計利益は既存の仕入れログから集計。訪問との紐付けが不明な分は利益時給に加算しません。日時による一致は「照合候補」として表示し、元データを変更しません。</p>
     <h3 class="sectionTitle" style="font-size:1rem;margin-top:16px">🏬 店舗別の訪問履歴</h3>
     ${rows.length ? rows.map(g=>`<details class="storeEfficiencyDetail"><summary><strong>${escapeHtml(g.name)}</strong>　${g.totalVisits}訪問 ／ 平均${duration(g.averageMinutes)}　${g.profitPerHour===null?"（ランキング集計待ち）":money(g.profitPerHour)+"/時"}</summary>
       <div class="mini" style="margin:8px 0">集計対象 ${g.linkedCount}訪問 ／ 未紐付け ${g.unknownCount}訪問 ／ 3分未満 ${g.shortCount}訪問</div>
+      <div class="mini" style="margin:8px 0;padding:10px;border-radius:8px;background:#f3f6fb">過去ログの累計見込み利益：<strong>${money(historical.get(g.storeId)?.profit||0)}</strong> ／ 累計個数：${(historical.get(g.storeId)?.items||0).toLocaleString()}個<br>訪問に紐付け済み：${money(g.visits.filter(v=>v.linked).reduce((n,v)=>n+(v.profit||0),0))}<br>未紐付けの差額（参考）：${money((historical.get(g.storeId)?.profit||0)-g.visits.filter(v=>v.linked).reduce((n,v)=>n+(v.profit||0),0))} <span style="font-size:.85em">※修正・削除・記録期間の違いで差額が一致しない場合があります</span></div>
       <div class="storeEfficiencyScroll"><table class="storeEfficiencyTable"><thead><tr><th>入店</th><th>滞在</th><th>個数</th><th>見込み利益</th></tr></thead><tbody>
-      ${g.visits.slice().sort((a,b)=>Date.parse(b.enteredAt)-Date.parse(a.enteredAt)).map(v=>`<tr><td>${dateTime(v.enteredAt)}</td><td>${duration(v.minutes)}${!v.eligible?' ※':''}</td><td>${v.linked?v.items:'未確認'}</td><td>${v.linked?money(v.profit):'未確認'}</td></tr>`).join("")}</tbody></table></div>
-      <div class="mini">※は3分未満の訪問。紐付けがない記録は未確認として表示します。</div>
+      ${g.visits.slice().sort((a,b)=>Date.parse(b.enteredAt)-Date.parse(a.enteredAt)).map(v=>`<tr><td>${dateTime(v.enteredAt)}</td><td>${duration(v.minutes)}${!v.eligible?' ※':''}</td><td>${v.linked?v.items:(matches.get(v.id)?`${matches.get(v.id).items}個（照合候補）`:'未確認')}</td><td>${v.linked?money(v.profit):(matches.get(v.id)?`${money(matches.get(v.id).profit)}（照合候補）`:'未確認')}</td></tr>`).join("")}</tbody></table></div>
+      <div class="mini">※は3分未満の訪問。「照合候補」は時刻が一意に一致した過去ログで、未確定のため利益時給には含めません。</div>
     </details>`).join("") : `<p class="mini">この期間の入退店履歴はありません。</p>`}
+    <h3 class="sectionTitle" style="font-size:1rem;margin-top:16px">📚 入退店履歴がない店舗の過去利益</h3>
+    ${[...historical.entries()].filter(([id,g])=>!rows.some(r=>r.storeId===id) && (g.profit!==0||g.items!==0)).map(([id,g])=>({name:loadStores().find(s=>String(s.id)===id)?.name||"登録外の店舗",...g})).sort((a,b)=>b.profit-a.profit).slice(0,30).map(g=>`<div class="mini" style="padding:6px 0;border-bottom:1px solid #eee">${escapeHtml(g.name)}：累計利益 ${money(g.profit)} ／ ${g.items.toLocaleString()}個（滞在時間なし）</div>`).join("") || `<p class="mini">該当する店舗はありません。</p>`}
     <p class="mini" style="margin-top:12px">利益時給は仕入れ時の見込み利益を滞在時間で割った参考値です。移動時間・出品作業・販売までの時間は含みません。紐付けがある訪問のみの集計で、店舗全体の実績を保証するものではありません。</p>`;
 }
 function renderStoreEfficiencySafely() {
