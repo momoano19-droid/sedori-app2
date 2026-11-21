@@ -15,7 +15,7 @@
 
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=aichat4">
+  <link rel="stylesheet" href="./css/style.css?v=reporttabs20261122">
 </head>
 <body>
   <div class="container">
@@ -189,6 +189,89 @@
     </div>
   </div>
 
+
+  <script>
+  /* Report layout only: move existing sections, preserving their IDs and event handlers. */
+  (function () {
+    const container = document.querySelector('body > .container');
+    const header = container && container.querySelector('.appHeader');
+    if (!container || !header) return;
+    const get = id => document.getElementById(id);
+    const sectionOf = id => { const el = get(id); return el && el.closest('section'); };
+    const picker = sectionOf('monthPicker');
+    const calendar = sectionOf('calendarWrap');
+    const daily = get('aiSourcingSummaryCard');
+    if (!picker || !calendar || !daily) return;
+
+    const host = document.createElement('div');
+    host.id = 'reportOrganizedLayout';
+    host.className = 'reportOrganizedLayout';
+    header.insertAdjacentElement('afterend', host);
+    host.append(picker, calendar, daily);
+
+    const nav = document.createElement('div');
+    nav.className = 'reportTabBar';
+    nav.setAttribute('role', 'tablist');
+    nav.setAttribute('aria-label', 'レポート表示切り替え');
+    host.append(nav);
+    const panels = {};
+    for (const [key, title] of [['overview','📊 概要'],['stores','🏬 店舗分析'],['ai','🤖 AI分析']]) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'reportTabButton';
+      button.id = 'report-tab-' + key;
+      button.setAttribute('role', 'tab');
+      button.setAttribute('aria-controls', 'report-panel-' + key);
+      button.textContent = title;
+      nav.append(button);
+      const panel = document.createElement('div');
+      panel.className = 'reportTabPanel';
+      panel.id = 'report-panel-' + key;
+      panel.setAttribute('role', 'tabpanel');
+      panel.setAttribute('aria-labelledby', button.id);
+      host.append(panel);
+      panels[key] = panel;
+      button.addEventListener('click', () => activate(key));
+    }
+
+    function addSection(tab, id, title, initiallyOpen) {
+      const section = sectionOf(id);
+      if (!section) return;
+      const details = document.createElement('details');
+      details.className = 'reportFold';
+      details.open = initiallyOpen;
+      const summary = document.createElement('summary');
+      summary.textContent = title;
+      details.append(summary, section);
+      panels[tab].append(details);
+    }
+    addSection('overview','monthSummaryCard','📊 月間・期間サマリー',true);
+    addSection('overview','categoryWrap','📦 カテゴリ集計',false);
+    addSection('overview','prefAnalysisWrap','🗾 都道府県別分析',false);
+    addSection('stores','topStoresWrap','🏆 店舗ランキング',true);
+    addSection('stores','storeEfficiencyCard','⏱️ 店舗別・仕入れ時間効率',false);
+    addSection('ai','aiMonthlySummaryCard','📅 月のAI総評',true);
+    addSection('ai','aiPeriodAnalysisCard','📊 指定期間のAI総評',false);
+    addSection('ai','aiNextPlanCard','🧭 AI次回仕入れプラン',false);
+
+    const tabKey = 'sedori_report_active_tab_v1';
+    function activate(key) {
+      if (!panels[key]) key = 'overview';
+      for (const [name, panel] of Object.entries(panels)) {
+        const selected = name === key;
+        panel.hidden = !selected;
+        const button = get('report-tab-' + name);
+        button.setAttribute('aria-selected', String(selected));
+        button.tabIndex = selected ? 0 : -1;
+        button.classList.toggle('isActive', selected);
+      }
+      try { localStorage.setItem(tabKey, key); } catch (_) {}
+    }
+    let saved = 'overview';
+    try { saved = localStorage.getItem(tabKey) || saved; } catch (_) {}
+    activate(saved);
+  })();
+  </script>
   <script src="./js/report.js?v=efficiency20261121"></script>
 </body>
 </html>
