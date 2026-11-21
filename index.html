@@ -321,13 +321,14 @@
 
     <div id="helpUI" aria-hidden="true">
       <div class="helpCard">
+        <div id="helpProgress" aria-live="polite"></div>
         <div id="helpTitle"></div>
         <div id="helpContent"></div>
 
         <div class="helpActions">
-          <button class="ghostBtn" onclick="prevHelp()">戻る</button>
+          <button id="helpPrevBtn" class="ghostBtn" onclick="prevHelp()">戻る</button>
           <button class="ghostBtn" onclick="closeHelp()">閉じる</button>
-          <button class="primaryBtn" onclick="nextHelp()">次へ</button>
+          <button id="helpNextBtn" class="primaryBtn" onclick="nextHelp()">次へ</button>
         </div>
       </div>
     </div>
