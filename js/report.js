@@ -2732,6 +2732,36 @@ function buildSourcingAutoComment(m, benchmark, minutes, active) {
   return parts.join("");
 }
 
+function dailyTimeEfficiency(stats, minutes, dwell) {
+  const recorded = dwell.recordedVisits > 0;
+  const valid = minutes > 0 && recorded && dwell.recordedMinutes <= minutes;
+  const linked = dwell.linkedVisits.filter(v => v.purchaseRecords > 0 && v.durationMinutes >= 3);
+  const linkedMinutes = linked.reduce((n,v)=>n+v.durationMinutes,0);
+  const linkedProfit = linked.reduce((n,v)=>n+v.profit,0);
+  return {activityMinutes:minutes, recordedDwellMinutes:recorded?dwell.recordedMinutes:null,
+    outsideRecordedDwellMinutes:valid?minutes-dwell.recordedMinutes:null,
+    dwellPercent:valid?100*dwell.recordedMinutes/minutes:null,
+    activityProfitPerHour:minutes>0?stats.profit*60/minutes:null,
+    referenceProfitPerRecordedDwellHour:recorded&&dwell.recordedMinutes>0?stats.profit*60/dwell.recordedMinutes:null,
+    averageRecordedVisitMinutes:dwell.overallAverageMinutes,
+    profitPerVisit:stats.visits>0?stats.profit/stats.visits:null,
+    recordedVisits:dwell.recordedVisits, loggedVisits:stats.visits,
+    linkedProfitPerHour:linkedMinutes>0?linkedProfit*60/linkedMinutes:null,
+    linkedMinutes, linkedProfit, linkedVisitCount:linked.length,
+    note:"店舗滞在以外は移動・休憩・未記録等を含む差分で、移動時間とは断定しない。参考店舗時給は日全体の期待利益を記録済み滞在時間で割った値。訪問ID紐付け済み時給は3分以上の仕入れ紐付け訪問のみ。未紐付けは失敗と断定しない。"};
+}
+function renderDailyTimeEfficiency(metricsEl, stats, minutes, dwell) {
+  let el=document.getElementById('dailyTimeEfficiency');
+  if(!el){el=document.createElement('details');el.id='dailyTimeEfficiency';el.style.cssText='margin:12px 0;padding:14px;border:1px solid #dbe3f1;border-radius:14px;background:rgba(127,145,180,.06)';metricsEl.insertAdjacentElement('afterend',el);}
+  const e=dailyTimeEfficiency(stats,minutes,dwell);
+  const duration=n=>n==null?'未記録':formatReportActivityTime(n);
+  const rate=n=>n==null?'—':yen(Math.round(n))+'/h';
+  const pct=e.dwellPercent;
+  const rows=[['活動利益時給',rate(e.activityProfitPerHour)],['店舗利益時給（参考）',rate(e.referenceProfitPerRecordedDwellHour)],['平均店舗滞在時間',duration(e.averageRecordedVisitMinutes)],['1訪問あたり期待利益',e.profitPerVisit==null?'—':yen(Math.round(e.profitPerVisit))],['紐付け済み訪問の利益時給',rate(e.linkedProfitPerHour)]];
+  const bar=pct==null?'<p>時間配分を算出できる記録がありません。</p>':`<div style="display:flex;height:18px;border-radius:8px;overflow:hidden;background:#94a3b8"><div style="width:${pct}%;background:#3478df"></div></div><p>店舗滞在：${duration(e.recordedDwellMinutes)}（${pct.toFixed(1)}%）<br>店舗滞在以外：${duration(e.outsideRecordedDwellMinutes)}（${(100-pct).toFixed(1)}%）</p>`;
+  el.innerHTML=`<summary style="font-weight:bold;cursor:pointer">⏱️ 活動時間・仕入れ効率分析</summary><p>総活動時間：<strong>${duration(minutes>0?minutes:null)}</strong></p>${bar}<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">${rows.map(([k,v])=>`<div style="padding:9px;border:1px solid #dbe3f1;border-radius:10px;overflow-wrap:anywhere"><small>${escapeHtml(k)}</small><br><strong>${escapeHtml(v)}</strong></div>`).join('')}</div><p><strong>店舗別滞在時間</strong>（記録 ${e.recordedVisits}件／訪問 ${e.loggedVisits}回）</p>${dwell.byStore.map(x=>`<div style="margin:8px 0;overflow-wrap:anywhere">${escapeHtml(x.name)}：${duration(x.totalMinutes)}<div style="height:7px;background:#dbe3f1;border-radius:6px;overflow:hidden"><div style="height:100%;background:#3478df;width:${dwell.recordedMinutes>0?Math.min(100,100*x.totalMinutes/dwell.recordedMinutes):0}%"></div></div></div>`).join('')||'未記録'}<p style="font-size:12px">${escapeHtml(e.note)}</p>`;
+}
+
 function renderAiSourcingSummary(dayStr) {
   const metricsEl=document.getElementById("aiSourcingMetrics"), commentEl=document.getElementById("aiSourcingComment"), stateEl=document.getElementById("aiSourcingSummaryState");
   const titleEl=document.getElementById("aiSourcingSummaryTitle");
@@ -2760,6 +2790,7 @@ function renderAiSourcingSummary(dayStr) {
   metricsEl.innerHTML=cards.map(([label,value],i)=>`<button type="button" class="aiSourcingMetric" data-daily-detail="${i}" style="text-align:left;font:inherit;color:inherit;cursor:pointer;min-width:0"><div class="aiSourcingMetricLabel">${escapeHtml(label)} <span aria-hidden="true" style="float:right">›</span></div><div class="aiSourcingMetricValue">${escapeHtml(value)}</div></button>`).join("");
   metricsEl.querySelectorAll("[data-daily-detail]").forEach(button=>button.addEventListener("click",()=>openDailyMetricDetail(Number(button.dataset.dailyDetail),{targetDay,logs,m,sessions:activeForDay?[...sessions,active]:sessions,minutes,dwell,cards})));
 
+  renderDailyTimeEfficiency(metricsEl,m,minutes,dwell);
   const benchmark=buildRecentDayBenchmark(logs,targetDay);
   let comment=buildSourcingAutoComment(m,benchmark,minutes,activeForDay);
   if (!minutes && targetDay < today && (m.visits>0 || m.success>0 || m.items>0 || m.profit!==0)) {
@@ -2981,6 +3012,8 @@ function buildAiAnalysisPayload(targetDay = selectedDay || todayStr()) {
     targetDayStores:storesAll.filter(x=>todayStoreIds.has(x.storeId)),
     storeDwell:aiDwellSummary({throughDay:day}),
     targetDayDwell:aiDwellSummary({fromDay:day,throughDay:day}),
+    timeEfficiency:dailyTimeEfficiency(target,target.activityMinutes,aiDwellSummary({fromDay:day,throughDay:day})),
+    timeEfficiencyAnalysisFocus:"時間配分、活動時給と参考店舗時給の差、訪問ID紐付け済み利益、記録不足を評価し、次回の時間配分・優先店舗の改善案を示す。",
     topStoresByProfit:storesAll.slice(0,10),
     timeBands:aiTimeBandAnalysis(logs,day),
     dataQuality:{
