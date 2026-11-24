@@ -2750,8 +2750,10 @@ function renderAiSourcingSummary(dayStr) {
 
   const hours=minutes/60;
   const profitPerHour=hours>0?m.profit/hours:0, visitsPerHour=hours>0?m.visits/hours:0, itemsPerHour=hours>0?m.items/hours:0;
+  const dwell = aiDwellSummary({fromDay:targetDay, throughDay:targetDay});
   const cards=[
-    ["活動時間", minutes>0?formatReportActivityTime(minutes):"未記録"], ["訪問",`${m.visits}回`], ["成功",`${m.success}回`],
+    ["活動時間", minutes>0?formatReportActivityTime(minutes):"未記録"],
+    ["店舗滞在時間", dwell.recordedVisits>0 ? formatReportActivityTime(dwell.recordedMinutes) : "未記録"], ["訪問",`${m.visits}回`], ["成功",`${m.success}回`],
     ["成功率",`${m.rate.toFixed(1)}%`], ["仕入れ個数",`${m.items}個`], ["利益",yen(m.profit)],
     ["利益時給",minutes>0?`${Math.round(profitPerHour).toLocaleString()}円/h`:"-"], ["訪問効率",minutes>0?`${visitsPerHour.toFixed(1)}店/h`:"-"], ["個数効率",minutes>0?`${itemsPerHour.toFixed(1)}個/h`:"-"]
   ];
