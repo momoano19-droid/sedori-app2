@@ -2757,7 +2757,8 @@ function renderAiSourcingSummary(dayStr) {
     ["成功率",`${m.rate.toFixed(1)}%`], ["仕入れ個数",`${m.items}個`], ["利益",yen(m.profit)],
     ["利益時給",minutes>0?`${Math.round(profitPerHour).toLocaleString()}円/h`:"-"], ["訪問効率",minutes>0?`${visitsPerHour.toFixed(1)}店/h`:"-"], ["個数効率",minutes>0?`${itemsPerHour.toFixed(1)}個/h`:"-"]
   ];
-  metricsEl.innerHTML=cards.map(([label,value])=>`<div class="aiSourcingMetric"><div class="aiSourcingMetricLabel">${escapeHtml(label)}</div><div class="aiSourcingMetricValue">${escapeHtml(value)}</div></div>`).join("");
+  metricsEl.innerHTML=cards.map(([label,value],i)=>`<button type="button" class="aiSourcingMetric" data-daily-detail="${i}" style="text-align:left;font:inherit;color:inherit;cursor:pointer;min-width:0"><div class="aiSourcingMetricLabel">${escapeHtml(label)} <span aria-hidden="true" style="float:right">›</span></div><div class="aiSourcingMetricValue">${escapeHtml(value)}</div></button>`).join("");
+  metricsEl.querySelectorAll("[data-daily-detail]").forEach(button=>button.addEventListener("click",()=>openDailyMetricDetail(Number(button.dataset.dailyDetail),{targetDay,logs,m,sessions:activeForDay?[...sessions,active]:sessions,minutes,dwell,cards})));
 
   const benchmark=buildRecentDayBenchmark(logs,targetDay);
   let comment=buildSourcingAutoComment(m,benchmark,minutes,activeForDay);
@@ -4313,3 +4314,41 @@ function aiChatInitPlanObserver(){
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',aiChatInitPlanObserver);else aiChatInitPlanObserver();
 
 window.addEventListener("load",()=>{try{aiChatRestoreDaily();aiChatRestoreMonthly();aiPeriodRestore();}catch(e){console.error("AI chat init",e)}});
+/* 日別総評の内訳：読み取り専用 */
+function openDailyMetricDetail(index, ctx) {
+  const {targetDay,logs,m,sessions,minutes,dwell,cards}=ctx;
+  const stores=loadStores(), names=new Map(stores.map(s=>[String(s.id),s.name]));
+  const dayLogs=logs.filter(l=>ymd(l.date)===targetDay);
+  const groups=Object.values(buildBundle(stores,dayLogs,targetDay).perStore);
+  const rows=[]; const add=(a,b)=>rows.push([String(a),String(b)]);
+  const time=v=>v && Number.isFinite(Date.parse(v))?new Date(v).toLocaleTimeString('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}):'未記録';
+  const duration=formatReportActivityTime;
+  const categories=g=>Object.entries(g.categories||{}).filter(([,n])=>n>0).map(([c,n])=>`${c} ${n}個`).join(' / ')||'カテゴリ未記録';
+  let note='';
+  switch(index){
+    case 0:
+      sessions.forEach((s,i)=>add(`活動 ${i+1}：${time(s.startAt)} ～ ${s.endAt?time(s.endAt):'活動中'}`,duration(reportSessionMinutes(s))));
+      if(minutes>0 && dwell.recordedVisits>0 && minutes>=dwell.recordedMinutes) add('活動時間と記録済み店舗滞在時間の差',duration(minutes-dwell.recordedMinutes));
+      note='差分には移動・休憩・未記録の滞在などが含まれます。';break;
+    case 1:
+      [...dwell.linkedVisits].sort((a,b)=>Date.parse(a.enteredAt)-Date.parse(b.enteredAt)).forEach(v=>add(`${names.get(v.storeId)||'登録外の店舗'}\n${time(v.enteredAt)} ～ ${time(v.exitedAt)}`,duration(v.durationMinutes)));
+      note='退店済みの記録のみ。個別の丸めにより合計と差が出る場合があります。';break;
+    case 2: groups.filter(g=>g.visits!==0).forEach(g=>add(g.name,`${g.visits}回`));break;
+    case 3: groups.filter(g=>g.success!==0).forEach(g=>add(g.name,`成功 ${g.success}回 / 仕入れ ${g.items}個`));note='仕入れ個数は店舗の日別合計です。';break;
+    case 4: groups.filter(g=>g.visits!==0||g.success!==0).forEach(g=>add(g.name,`成功 ${g.success} / 訪問 ${g.visits}回${g.visits>0?'（'+(g.success/g.visits*100).toFixed(1)+'%）':''}`));note='成功率＝成功回数 ÷ 訪問回数。';break;
+    case 5:
+      {const cats=new Map();groups.forEach(g=>Object.entries(g.categories||{}).forEach(([c,n])=>cats.set(c,(cats.get(c)||0)+n)));for(const [c,n] of cats)if(n>0)add(c,`${n}個`);groups.filter(g=>g.items!==0||Object.keys(g.categories).length).forEach(g=>add(g.name,`${g.items}個\n${categories(g)}`));note='カテゴリ記録がない仕入れも個数合計には含まれます。';}break;
+    case 6:
+      groups.filter(g=>g.profit!==0||g.items!==0).forEach(g=>add(g.name,yen(g.profit)));
+      {const linked=new Map();for(const v of aiLoadStoreDwellHistory()){if(aiDwellLocalDay(v.enteredAt)!==targetDay)continue;for(const p of (Array.isArray(v.purchases)?v.purchases:[])){const c=String(p.category||'カテゴリ未記録');linked.set(c,(linked.get(c)||0)+(Number(p.profit)||0));}}for(const [c,n] of linked)add(`紐付け済みカテゴリ：${c}`,yen(n));}note='カテゴリ別利益は訪問に紐付いた記録のみ。調整額や未紐付け分を含む店舗別合計とは一致しない場合があります。';break;
+    case 7:
+      add('期待利益',yen(m.profit));add('活動時間',minutes>0?duration(minutes):'未記録');
+      {const v=dwell.linkedVisits.filter(v=>v.purchaseRecords>0&&v.durationMinutes>=3);const mins=v.reduce((n,x)=>n+x.durationMinutes,0);if(mins>0){add('紐付け済み滞在時間（3分以上）',duration(mins));add('紐付け済み期待利益',yen(v.reduce((n,x)=>n+x.profit,0)));add('参考：店舗滞在基準の利益時給',yen(Math.round(v.reduce((n,x)=>n+x.profit,0)*60/mins))+'/h');}}note='通常の利益時給＝期待利益 ÷ 活動時間（時間単位）。参考値は紐付け済み訪問のみ。';break;
+    case 8:add('訪問回数',`${m.visits}回`);add('活動時間',minutes>0?duration(minutes):'未記録');note='訪問効率＝訪問回数 ÷ 活動時間（時間単位）。';break;
+    case 9:add('仕入れ個数',`${m.items}個`);add('活動時間',minutes>0?duration(minutes):'未記録');note='個数効率＝仕入れ個数 ÷ 活動時間（時間単位）。';break;
+  }
+  document.getElementById('dailyMetricDetailDialog')?.remove();
+  const dialog=document.createElement('dialog');dialog.id='dailyMetricDetailDialog';dialog.style.cssText='width:min(92vw,480px);max-height:78vh;max-height:78dvh;box-sizing:border-box;border:1px solid #dbe3f1;border-radius:18px;padding:18px;background:#fff;color:#20243b;overflow:auto;box-shadow:0 12px 50px #0004';
+  dialog.innerHTML=`<style>#dailyMetricDetailDialog::backdrop{background:rgba(15,23,42,.48)}</style><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><strong style="font-size:19px">${escapeHtml(cards[index][0])}の詳細</strong><button type="button" data-close style="padding:8px 14px;border:0;border-radius:10px;background:#edf1f8;color:#20243b">閉じる</button></div><p style="font-size:13px;color:#626b7b">${escapeHtml(targetDay)}</p><div style="font-size:23px;font-weight:bold;margin:12px 0">${escapeHtml(cards[index][1])}</div>${rows.length?rows.map(([a,b])=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid #e4e8ef;white-space:pre-line;overflow-wrap:anywhere"><span style="flex:1">${escapeHtml(a)}</span><strong style="text-align:right;flex:1">${escapeHtml(b)}</strong></div>`).join(''):'<p>該当する詳細記録はありません。</p>'}${note?`<p style="font-size:13px;color:#626b7b">${escapeHtml(note)}</p>`:''}<button type="button" data-close style="width:100%;padding:13px;border:0;border-radius:12px;background:#3475e7;color:white;font-weight:bold">閉じる</button>`;
+  document.body.appendChild(dialog);dialog.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>dialog.close());dialog.addEventListener('close',()=>dialog.remove());dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}});dialog.showModal();
+}
